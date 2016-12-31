@@ -1,0 +1,81 @@
+C#: 
+[ydu14@cycle2 Submission]$ mcs Program.cs
+[ydu14@cycle2 Submission]$ mono Program.exe 39
+ 2 37
+ 3 5 31
+ 3 7 29
+ 3 13 23
+ 3 17 19
+ 5 11 23
+ 7 13 19
+ 2 3 5 29
+ 2 3 11 23
+ 2 5 13 19
+ 2 7 11 19
+ 2 7 13 17
+ 3 5 7 11 13
+[ydu14@cycle2 Submission]$ mono Program.exe
+Put a number:
+29 
+ 3 7 19
+ 5 7 17
+ 5 11 13
+ 2 3 5 19
+ 2 3 7 17
+ 2 3 11 13
+
+Python:
+Enter the number:: 39
+[[2, 37], [3, 5, 31], [3, 7, 29], [3, 13, 23], [3, 17, 19], [5, 11, 23], [7, 13, 19], [2, 3, 5, 29], [2, 3, 11, 23], [2, 5, 13, 19], [2, 7, 11, 19], [2, 7, 13, 17], [3, 5, 7, 11, 13]]
+
+Prolog:
+?- genList(39,X).
+X = [2, 3, 5, 29] ;
+X = [2, 3, 11, 23] ;
+X = [2, 5, 13, 19] ;
+X = [2, 7, 11, 19] ;
+X = [2, 7, 13, 17] ;
+X = [2, 37] ;
+X = [3, 5, 7, 11, 13] ;
+X = [3, 5, 31] ;
+X = [3, 7, 29] ;
+X = [3, 13, 23] ;
+X = [3, 17, 19] ;
+X = [5, 11, 23] ;
+X = [7, 13, 19] ;
+false.
+
+OCaml:
+[ydu14@cycle2 Submission]$ ocamlc -o ocaml ocaml.ml
+[ydu14@cycle2 Submission]$ ./ocaml
+47 53 
+53 47 
+59 41 
+71 29 
+83 17 
+89 11 
+97 3 
+
+Java:
+[ydu14@cycle2 Submission]$ javac RandomPrimeChecker.java
+[ydu14@cycle2 Submission]$ java RandomPrimeChecker
+Input a number
+10
+[3, 7]
+[2, 3, 5]
+[ydu14@cycle2 Submission]$ java RandomPrimeChecker 39
+[2, 37]
+[3, 5, 31]
+[3, 7, 29]
+[3, 13, 23]
+[3, 17, 19]
+[5, 11, 23]
+[7, 13, 19]
+[2, 3, 5, 29]
+[2, 3, 11, 23]
+[2, 5, 13, 19]
+[2, 7, 11, 19]
+[2, 7, 13, 17]
+[3, 5, 7, 11, 13]
+
+Ada: No output

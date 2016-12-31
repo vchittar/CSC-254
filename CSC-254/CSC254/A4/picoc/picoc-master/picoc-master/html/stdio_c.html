@@ -1,0 +1,741 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1"><font color="gray">/*<searched> stdio.h library for large systems - small embedded systems use clibrary.c instead */</font></a>
+<a name="2">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="3"></a>
+<a name="4">#include &lterrno.h&gt</a>
+<a name="5">#include "../interpreter.h"</a>
+<a name="6"></a>
+<a name="7">#define MAX_FORMAT 80</a>
+<a name="8">#define MAX_SCANF_ARGS 10</a>
+<a name="9"></a>
+<a name="10">static <font color="red">int</font> <a href="stdio_c.html#10">Stdio_ZeroValue</a> = 0;</a>
+<a name="11">static <font color="red">int</font> <a href="stdio_c.html#11">EOFValue</a> = EOF;</a>
+<a name="12">static <font color="red">int</font> <a href="stdio_c.html#12">SEEK_SETValue</a> = SEEK_SET;</a>
+<a name="13">static <font color="red">int</font> <a href="stdio_c.html#13">SEEK_CURValue</a> = SEEK_CUR;</a>
+<a name="14">static <font color="red">int</font> <a href="stdio_c.html#14">SEEK_ENDValue</a> = SEEK_END;</a>
+<a name="15">static <font color="red">int</font> <a href="stdio_c.html#15">BUFSIZValue</a> = BUFSIZ;</a>
+<a name="16">static <font color="red">int</font> <a href="stdio_c.html#16">FILENAME_MAXValue</a> = FILENAME_MAX;</a>
+<a name="17">static <font color="red">int</font> <a href="stdio_c.html#17">_IOFBFValue</a> = _IOFBF;</a>
+<a name="18">static <font color="red">int</font> <a href="stdio_c.html#18">_IOLBFValue</a> = _IOLBF;</a>
+<a name="19">static <font color="red">int</font> <a href="stdio_c.html#19">_IONBFValue</a> = _IONBF;</a>
+<a name="20">static <font color="red">int</font> <a href="stdio_c.html#20">L_tmpnamValue</a> = L_tmpnam;</a>
+<a name="21">static int GETS_MAXValue = 255;     <font color="gray">/*<searched> arbitrary maximum size of a gets() file */</font></a>
+<a name="22"></a>
+<a name="23">static FILE *stdinValue;</a>
+<a name="24">static FILE *stdoutValue;</a>
+<a name="25">static FILE *stderrValue;</a>
+<a name="26"></a>
+<a name="27"></a>
+<a name="28"><font color="gray">/*<searched> our own internal output stream which can output to FILE * or strings */</font></a>
+<a name="29"><font color="brown">typedef</font> <font color="brown">struct</font> StdOutStreamStruct</a>
+<a name="30">{</a>
+<a name="31">    FILE *FilePtr;</a>
+<a name="32">    <font color="red">char</font> *StrOutPtr;</a>
+<a name="33">    <font color="red">int</font> StrOutLen;</a>
+<a name="34">    <font color="red">int</font> CharCount;</a>
+<a name="35">    </a>
+<a name="36">} StdOutStream;</a>
+<a name="37"></a>
+<a name="38"><font color="gray">/*<searched> our representation of varargs within picoc */</font></a>
+<a name="39"><font color="brown">struct</font> StdVararg</a>
+<a name="40">{</a>
+<a name="41">    <font color="brown">struct</font> Value **Param;</a>
+<a name="42">    <font color="red">int</font> NumArgs;</a>
+<a name="43">};</a>
+<a name="44"></a>
+<a name="45"><font color="gray">/*<searched> initialises the I/O system so error reporting works */</font></a>
+<a name="46"><font color="red">void</font> <a href="stdio_c.html#46">BasicIOInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="47">{</a>
+<a name="48">    <a href="stdio_c.html#46">pc</a>-&gtCStdOut = stdout;</a>
+<a name="49">    <a href="stdio_c.html#23">stdinValue</a> = stdin;</a>
+<a name="50">    <a href="stdio_c.html#24">stdoutValue</a> = stdout;</a>
+<a name="51">    <a href="stdio_c.html#25">stderrValue</a> = stderr;</a>
+<a name="52">}</a>
+<a name="53"></a>
+<a name="54"><font color="gray">/*<searched> output a single character to either a FILE * or a string */</font></a>
+<a name="55"><font color="red">void</font> <a href="stdio_c.html#55">StdioOutPutc</a>(<font color="red">int</font> <a name="searched">OutCh</a>, StdOut<a name="searched">Stream</a> *<a name="searched">Stream</a>)</a>
+<a name="56">{</a>
+<a name="57">    <font color="green">if</font> (Stream-&gtFilePtr != NULL)</a>
+<a name="58">    {</a>
+<a name="59">        <font color="gray">/*<searched> output to stdio stream */</font></a>
+<a name="60">        putc(OutCh, <a href="stdio_c.html#55">Stream</a>-&gtFilePtr);</a>
+<a name="61">        <a href="stdio_c.html#55">Stream</a>-&gtCharCount++;</a>
+<a name="62">    }</a>
+<a name="63">    <font color="green">else</font> <font color="green">if</font> (Stream-&gtStrOutLen &lt 0 || <a href="stdio_c.html#55">Stream</a>-&gtStrOutLen &gt 1)</a>
+<a name="64">    {</a>
+<a name="65">        <font color="gray">/*<searched> output to a string */</font></a>
+<a name="66">        *Stream-&gtStrOutPtr = <a href="stdio_c.html#55">OutCh</a>;</a>
+<a name="67">        <a href="stdio_c.html#55">Stream</a>-&gtStrOutPtr++;</a>
+<a name="68">        </a>
+<a name="69">        <font color="green">if</font> (Stream-&gtStrOutLen &gt 1)</a>
+<a name="70">            <a href="stdio_c.html#55">Stream</a>-&gtStrOutLen--;</a>
+<a name="71"></a>
+<a name="72">        <a href="stdio_c.html#55">Stream</a>-&gtCharCount++;</a>
+<a name="73">    }</a>
+<a name="74">}</a>
+<a name="75"></a>
+<a name="76"><font color="gray">/*<searched> output a string to either a FILE * or a string */</font></a>
+<a name="77"><font color="red">void</font> <a href="stdio_c.html#77">StdioOutPuts</a>(const <font color="red">char</font> *<a name="searched">Str</a>, StdOut<a name="searched">Str</a>eam *<a name="searched">Str</a>eam)</a>
+<a name="78">{</a>
+<a name="79">    <font color="green">if</font> (Stream-&gtFilePtr != NULL)</a>
+<a name="80">    {</a>
+<a name="81">        <font color="gray">/*<searched> output to stdio stream */</font></a>
+<a name="82">        fputs(Str, <a href="stdio_c.html#77">Stream</a>-&gtFilePtr);</a>
+<a name="83">    }</a>
+<a name="84">    <font color="green">else</font></a>
+<a name="85">    {</a>
+<a name="86">        <font color="gray">/*<searched> output to a string */</font></a>
+<a name="87">        <font color="green">while</font> (*Str != '\0')</a>
+<a name="88">        {</a>
+<a name="89">            <font color="green">if</font> (Stream-&gtStrOutLen &lt 0 || <a href="stdio_c.html#77">Stream</a>-&gtStrOutLen &gt 1)</a>
+<a name="90">            {</a>
+<a name="91">                <font color="gray">/*<searched> output to a string */</font></a>
+<a name="92">                *Stream-&gtStrOutPtr = *Str;</a>
+<a name="93">                <a href="stdio_c.html#77">Str</a>++;</a>
+<a name="94">                <a href="stdio_c.html#77">Stream</a>-&gtStrOutPtr++;</a>
+<a name="95">                </a>
+<a name="96">                <font color="green">if</font> (Stream-&gtStrOutLen &gt 1)</a>
+<a name="97">                    <a href="stdio_c.html#77">Stream</a>-&gtStrOutLen--;</a>
+<a name="98">        </a>
+<a name="99">                <a href="stdio_c.html#77">Stream</a>-&gtCharCount++;</a>
+<a name="100">            }            </a>
+<a name="101">        }</a>
+<a name="102">    }</a>
+<a name="103">}</a>
+<a name="104"></a>
+<a name="105"><font color="gray">/*<searched> printf-style format of an int or other word-sized object */</font></a>
+<a name="106"><font color="red">void</font> <a href="stdio_c.html#106">StdioFprintfWord</a>(StdOut<a name="searched">Stream</a> *<a name="searched">Stream</a>, const <font color="red">char</font> *<a name="searched">Format</a>, <font color="red">unsigned</font> <font color="red">long</font> <a name="searched">Value</a>)</a>
+<a name="107">{</a>
+<a name="108">    <font color="green">if</font> (Stream-&gtFilePtr != NULL)</a>
+<a name="109">        <a href="stdio_c.html#106">Stream</a>-&gtCharCount += fprintf(Stream-&gtFilePtr, <a href="stdio_c.html#106">Format</a>, <a href="stdio_c.html#106">Value</a>);</a>
+<a name="110">    </a>
+<a name="111">    <font color="green">else</font> <font color="green">if</font> (Stream-&gtStrOutLen &gt= 0)</a>
+<a name="112">    {</a>
+<a name="113">#ifndef WIN32</a>
+<a name="114">		<font color="red">int</font> <a name="searched">CCount</a> = snprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#106">Stream</a>-&gtStrOutLen, <a href="stdio_c.html#106">Format</a>, <a href="stdio_c.html#106">Value</a>);</a>
+<a name="115">#<font color="green">else</font></a>
+<a name="116">		<font color="red">int</font> <a href="stdio_c.html#114">CCount</a> = _snprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#106">Stream</a>-&gtStrOutLen, <a href="stdio_c.html#106">Format</a>, <a href="stdio_c.html#106">Value</a>);</a>
+<a name="117">#endif</a>
+<a name="118">		<a href="stdio_c.html#106">Stream</a>-&gtStrOutPtr += <a href="stdio_c.html#114">CCount</a>;</a>
+<a name="119">        <a href="stdio_c.html#106">Stream</a>-&gtStrOutLen -= <a href="stdio_c.html#114">CCount</a>;</a>
+<a name="120">        <a href="stdio_c.html#106">Stream</a>-&gtCharCount += <a href="stdio_c.html#114">CCount</a>;</a>
+<a name="121">    }</a>
+<a name="122">    <font color="green">else</font></a>
+<a name="123">    {</a>
+<a name="124">        <font color="red">int</font> <a name="searched">CCount</a> = sprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#106">Format</a>, <a href="stdio_c.html#106">Value</a>);</a>
+<a name="125">        <a href="stdio_c.html#106">Stream</a>-&gtCharCount += <a href="stdio_c.html#124">CCount</a>;</a>
+<a name="126">        <a href="stdio_c.html#106">Stream</a>-&gtStrOutPtr += <a href="stdio_c.html#124">CCount</a>;</a>
+<a name="127">    }</a>
+<a name="128">}</a>
+<a name="129"></a>
+<a name="130"><font color="gray">/*<searched> printf-style format of a floating point number */</font></a>
+<a name="131"><font color="red">void</font> <a href="stdio_c.html#131">StdioFprintfFP</a>(StdOut<a name="searched">Stream</a> *<a name="searched">Stream</a>, const <font color="red">char</font> *<a name="searched">Format</a>, <font color="red">double</font> <a name="searched">Value</a>)</a>
+<a name="132">{</a>
+<a name="133">    <font color="green">if</font> (Stream-&gtFilePtr != NULL)</a>
+<a name="134">        <a href="stdio_c.html#131">Stream</a>-&gtCharCount += fprintf(Stream-&gtFilePtr, <a href="stdio_c.html#131">Format</a>, <a href="stdio_c.html#131">Value</a>);</a>
+<a name="135">    </a>
+<a name="136">    <font color="green">else</font> <font color="green">if</font> (Stream-&gtStrOutLen &gt= 0)</a>
+<a name="137">    {</a>
+<a name="138">#ifndef WIN32</a>
+<a name="139">        <font color="red">int</font> <a name="searched">CCount</a> = snprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#131">Stream</a>-&gtStrOutLen, <a href="stdio_c.html#131">Format</a>, <a href="stdio_c.html#131">Value</a>);</a>
+<a name="140">#<font color="green">else</font></a>
+<a name="141">        <font color="red">int</font> <a href="stdio_c.html#139">CCount</a> = _snprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#131">Stream</a>-&gtStrOutLen, <a href="stdio_c.html#131">Format</a>, <a href="stdio_c.html#131">Value</a>);</a>
+<a name="142">#endif</a>
+<a name="143">		<a href="stdio_c.html#131">Stream</a>-&gtStrOutPtr += <a href="stdio_c.html#139">CCount</a>;</a>
+<a name="144">        <a href="stdio_c.html#131">Stream</a>-&gtStrOutLen -= <a href="stdio_c.html#139">CCount</a>;</a>
+<a name="145">        <a href="stdio_c.html#131">Stream</a>-&gtCharCount += <a href="stdio_c.html#139">CCount</a>;</a>
+<a name="146">    }</a>
+<a name="147">    <font color="green">else</font></a>
+<a name="148">    {</a>
+<a name="149">        <font color="red">int</font> <a name="searched">CCount</a> = sprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#131">Format</a>, <a href="stdio_c.html#131">Value</a>);</a>
+<a name="150">        <a href="stdio_c.html#131">Stream</a>-&gtCharCount += <a href="stdio_c.html#149">CCount</a>;</a>
+<a name="151">        <a href="stdio_c.html#131">Stream</a>-&gtStrOutPtr += <a href="stdio_c.html#149">CCount</a>;</a>
+<a name="152">    }</a>
+<a name="153">}</a>
+<a name="154"></a>
+<a name="155"><font color="gray">/*<searched> printf-style format of a pointer */</font></a>
+<a name="156"><font color="red">void</font> <a href="stdio_c.html#156">StdioFprintfPointer</a>(StdOut<a name="searched">Stream</a> *<a name="searched">Stream</a>, const <font color="red">char</font> *<a name="searched">Format</a>, <font color="red">void</font> *<a name="searched">Value</a>)</a>
+<a name="157">{</a>
+<a name="158">    <font color="green">if</font> (Stream-&gtFilePtr != NULL)</a>
+<a name="159">        <a href="stdio_c.html#156">Stream</a>-&gtCharCount += fprintf(Stream-&gtFilePtr, <a href="stdio_c.html#156">Format</a>, <a href="stdio_c.html#156">Value</a>);</a>
+<a name="160">    </a>
+<a name="161">    <font color="green">else</font> <font color="green">if</font> (Stream-&gtStrOutLen &gt= 0)</a>
+<a name="162">    {</a>
+<a name="163">#ifndef WIN32</a>
+<a name="164">        <font color="red">int</font> <a name="searched">CCount</a> = snprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#156">Stream</a>-&gtStrOutLen, <a href="stdio_c.html#156">Format</a>, <a href="stdio_c.html#156">Value</a>);</a>
+<a name="165">#<font color="green">else</font></a>
+<a name="166">		<font color="red">int</font> <a href="stdio_c.html#164">CCount</a> = _snprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#156">Stream</a>-&gtStrOutLen, <a href="stdio_c.html#156">Format</a>, <a href="stdio_c.html#156">Value</a>);</a>
+<a name="167">#endif</a>
+<a name="168">        <a href="stdio_c.html#156">Stream</a>-&gtStrOutPtr += <a href="stdio_c.html#164">CCount</a>;</a>
+<a name="169">        <a href="stdio_c.html#156">Stream</a>-&gtStrOutLen -= <a href="stdio_c.html#164">CCount</a>;</a>
+<a name="170">        <a href="stdio_c.html#156">Stream</a>-&gtCharCount += <a href="stdio_c.html#164">CCount</a>;</a>
+<a name="171">    }</a>
+<a name="172">    <font color="green">else</font></a>
+<a name="173">    {</a>
+<a name="174">        <font color="red">int</font> <a name="searched">CCount</a> = sprintf(Stream-&gtStrOutPtr, <a href="stdio_c.html#156">Format</a>, <a href="stdio_c.html#156">Value</a>);</a>
+<a name="175">        <a href="stdio_c.html#156">Stream</a>-&gtCharCount += <a href="stdio_c.html#174">CCount</a>;</a>
+<a name="176">        <a href="stdio_c.html#156">Stream</a>-&gtStrOutPtr += <a href="stdio_c.html#174">CCount</a>;</a>
+<a name="177">    }</a>
+<a name="178">}</a>
+<a name="179"></a>
+<a name="180"><font color="gray">/*<searched> internal do-anything v[s][n]printf() formatting system with output to strings or FILE * */</font></a>
+<a name="181"><font color="red">int</font> <a href="stdio_c.html#181">StdioBasePrintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, FILE *<a name="searched">Stream</a>, <font color="red">char</font> *<a name="searched">StrOut</a>, <font color="red">int</font> <a name="searched">StrOut</a>Len, <font color="red">char</font> *<a name="searched">Format</a>, <font color="brown">struct</font> StdVararg *<a name="searched">Args</a>)</a>
+<a name="182">{</a>
+<a name="183">    <font color="brown">struct</font> Value *<a name="searched">ThisArg</a> = <a href="stdio_c.html#181">Args</a>-&gtParam[0];</a>
+<a name="184">    <font color="red">int</font> <a name="searched">ArgCount</a> = 0;</a>
+<a name="185">    <font color="red">char</font> *<a name="searched">FPos</a>;</a>
+<a name="186">    <font color="red">char</font> <a name="searched">OneFormatBuf</a>[MAX_FORMAT+1];</a>
+<a name="187">    <font color="red">int</font> <a name="searched">OneFormatCount</a>;</a>
+<a name="188">    <font color="brown">struct</font> ValueType *<a name="searched">ShowType</a>;</a>
+<a name="189">    StdOutStream <a name="searched">SOStream</a>;</a>
+<a name="190">    Picoc *<a name="searched">pc</a> = <a href="stdio_c.html#181">Parser</a>-&gt<a name="searched">pc</a>;</a>
+<a name="191">    </a>
+<a name="192">    <font color="green">if</font> (Format == NULL)</a>
+<a name="193">        <a href="stdio_c.html#181">Format</a> = "[null format]\n";</a>
+<a name="194">    </a>
+<a name="195">    <a href="stdio_c.html#185">FPos</a> = <a href="stdio_c.html#181">Format</a>;    </a>
+<a name="196">    <a href="stdio_c.html#189">SOStream</a>.FilePtr = <a href="stdio_c.html#181">Stream</a>;</a>
+<a name="197">    <a href="stdio_c.html#189">SOStream</a>.StrOutPtr = <a href="stdio_c.html#181">StrOut</a>;</a>
+<a name="198">    <a href="stdio_c.html#189">SOStream</a>.StrOutLen = <a href="stdio_c.html#181">StrOutLen</a>;</a>
+<a name="199">    <a href="stdio_c.html#189">SOStream</a>.CharCount = 0;</a>
+<a name="200">    </a>
+<a name="201">    <font color="green">while</font> (*FPos != '\0')</a>
+<a name="202">    {</a>
+<a name="203">        <font color="green">if</font> (*FPos == '%')</a>
+<a name="204">        {</a>
+<a name="205">            <font color="gray">/*<searched> work out what type we're printing */</font></a>
+<a name="206">            <a href="stdio_c.html#185">FPos</a>++;</a>
+<a name="207">            <a href="stdio_c.html#188">ShowType</a> = NULL;</a>
+<a name="208">            <a href="stdio_c.html#186">OneFormatBuf</a>[0] = '%';</a>
+<a name="209">            <a href="stdio_c.html#187">OneFormatCount</a> = 1;</a>
+<a name="210">            </a>
+<a name="211">            do</a>
+<a name="212">            {</a>
+<a name="213">                <font color="green">switch</font> (*FPos)</a>
+<a name="214">                {</a>
+<a name="215">                    case 'd': case 'i':     <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtIntType; break;     <font color="gray">/*<searched> integer decimal */</font></a>
+<a name="216">                    case 'o': case 'u': case 'x': case 'X': <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtIntType; break; <font color="gray">/*<searched> integer base conversions */</font></a>
+<a name="217">#ifndef NO_FP</a>
+<a name="218">                    case 'e': case 'E':     <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtFPType; break;      <font color="gray">/*<searched> double, exponent form */</font></a>
+<a name="219">                    case 'f': case 'F':     <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtFPType; break;      <font color="gray">/*<searched> double, fixed-point */</font></a>
+<a name="220">                    case 'g': case 'G':     <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtFPType; break;      <font color="gray">/*<searched> double, flexible format */</font></a>
+<a name="221">#endif</a>
+<a name="222">                    case 'a': case 'A':     <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtIntType; break;     <font color="gray">/*<searched> hexadecimal, 0x- format */</font></a>
+<a name="223">                    case 'c':               <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtIntType; break;     <font color="gray">/*<searched> character */</font></a>
+<a name="224">                    case 's':               <a href="stdio_c.html#188">ShowType</a> = <a href="stdio_c.html#190">pc</a>-&gtCharPtrType; break;  <font color="gray">/*<searched> string */</font></a>
+<a name="225">                    case 'p':               <a href="stdio_c.html#188">ShowType</a> = <a href="stdio_c.html#190">pc</a>-&gtVoidPtrType; break;  <font color="gray">/*<searched> pointer */</font></a>
+<a name="226">                    case 'n':               <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtVoidType; break;    <font color="gray">/*<searched> number of characters written */</font></a>
+<a name="227">                    case 'm':               <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtVoidType; break;    <font color="gray">/*<searched> strerror(errno) */</font></a>
+<a name="228">                    case '%':               <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtVoidType; break;    <font color="gray">/*<searched> just a '%' character */</font></a>
+<a name="229">                    case '\0':              <a href="stdio_c.html#188">ShowType</a> = &<a href="stdio_c.html#190">pc</a>-&gtVoidType; break;    <font color="gray">/*<searched> end of format string */</font></a>
+<a name="230">                }</a>
+<a name="231">                </a>
+<a name="232">                <font color="gray">/*<searched> copy one character of format across to the <a href="stdio_c.html#186">OneFormatBuf</a> */</font></a>
+<a name="233">                <a href="stdio_c.html#186">OneFormatBuf</a>[<a href="stdio_c.html#187">OneFormatCount</a>] = *FPos;</a>
+<a name="234">                <a href="stdio_c.html#187">OneFormatCount</a>++;</a>
+<a name="235"></a>
+<a name="236">                <font color="gray">/*<searched> do special actions depending on the conversion type */</font></a>
+<a name="237">                <font color="green">if</font> (ShowType == &<a href="stdio_c.html#190">pc</a>-&gtVoidType)</a>
+<a name="238">                {</a>
+<a name="239">                    <font color="green">switch</font> (*FPos)</a>
+<a name="240">                    {</a>
+<a name="241">                        <font color="green">case</font> 'm':   <a href="stdio_c.html#77">StdioOutPuts</a>(strerror(errno), &<a href="stdio_c.html#189">SOStream</a>); break;</a>
+<a name="242">                        <font color="green">case</font> '%':   <a href="stdio_c.html#55">StdioOutPutc</a>(*FPos, &<a href="stdio_c.html#189">SOStream</a>); break;</a>
+<a name="243">                        <font color="green">case</font> '\0':  <a href="stdio_c.html#186">OneFormatBuf</a>[<a href="stdio_c.html#187">OneFormatCount</a>] = '\0'; <a href="stdio_c.html#55">StdioOutPutc</a>(*FPos, &<a href="stdio_c.html#189">SOStream</a>); break;</a>
+<a name="244">                        <font color="green">case</font> 'n':   </a>
+<a name="245">                            <a href="stdio_c.html#183">ThisArg</a> = (<font color="brown">struct</font> Value *)((<font color="red">char</font> *)ThisArg + MEM_ALIGN(sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(ThisArg)));</a>
+<a name="246">                            <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypeArray && <a href="stdio_c.html#183">ThisArg</a>-&gtTyp-&gtFromType-&gtBase == TypeInt)</a>
+<a name="247">                                *(<font color="red">int</font> *)ThisArg-&gtVal-&gtPointer = <a href="stdio_c.html#189">SOStream</a>.CharCount;</a>
+<a name="248">                            break;</a>
+<a name="249">                    }</a>
+<a name="250">                }</a>
+<a name="251">                </a>
+<a name="252">                <a href="stdio_c.html#185">FPos</a>++;</a>
+<a name="253">                </a>
+<a name="254">            } <font color="green">while</font> (ShowType == NULL && <a href="stdio_c.html#187">OneFormatCount</a> &lt MAX_FORMAT);</a>
+<a name="255">            </a>
+<a name="256">            <font color="green">if</font> (ShowType != &<a href="stdio_c.html#190">pc</a>-&gtVoidType)</a>
+<a name="257">            {</a>
+<a name="258">                <font color="green">if</font> (ArgCount &gt= <a href="stdio_c.html#181">Args</a>-&gtNumArgs)</a>
+<a name="259">                    <a href="stdio_c.html#77">StdioOutPuts</a>("XXX", &<a href="stdio_c.html#189">SOStream</a>);</a>
+<a name="260">                <font color="green">else</font></a>
+<a name="261">                {</a>
+<a name="262">                    <font color="gray">/*<searched> null-terminate the buffer */</font></a>
+<a name="263">                    <a href="stdio_c.html#186">OneFormatBuf</a>[<a href="stdio_c.html#187">OneFormatCount</a>] = '\0';</a>
+<a name="264">    </a>
+<a name="265">                    <font color="gray">/*<searched> print this argument */</font></a>
+<a name="266">                    <a href="stdio_c.html#183">ThisArg</a> = (<font color="brown">struct</font> Value *)((<font color="red">char</font> *)ThisArg + MEM_ALIGN(sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(ThisArg)));</a>
+<a name="267">                    <font color="green">if</font> (ShowType == &<a href="stdio_c.html#190">pc</a>-&gtIntType)</a>
+<a name="268">                    {</a>
+<a name="269">                        <font color="gray">/*<searched> show a signed integer */</font></a>
+<a name="270">                        <font color="green">if</font> (IS_NUMERIC_COERCIBLE(ThisArg))</a>
+<a name="271">                            <a href="stdio_c.html#106">StdioFprintfWord</a>(&<a href="stdio_c.html#189">SOStream</a>, <a href="stdio_c.html#186">OneFormatBuf</a>, <a href="expression_c.html#184">ExpressionCoerceUnsignedInteger</a>(ThisArg));</a>
+<a name="272">                        <font color="green">else</font></a>
+<a name="273">                            <a href="stdio_c.html#77">StdioOutPuts</a>("XXX", &<a href="stdio_c.html#189">SOStream</a>);</a>
+<a name="274">                    }</a>
+<a name="275">#ifndef NO_FP</a>
+<a name="276">                    <font color="green">else</font> <font color="green">if</font> (ShowType == &<a href="stdio_c.html#190">pc</a>-&gtFPType)</a>
+<a name="277">                    {</a>
+<a name="278">                        <font color="gray">/*<searched> show a floating point number */</font></a>
+<a name="279">                        <font color="green">if</font> (IS_NUMERIC_COERCIBLE(ThisArg))</a>
+<a name="280">                            <a href="stdio_c.html#131">StdioFprintfFP</a>(&<a href="stdio_c.html#189">SOStream</a>, <a href="stdio_c.html#186">OneFormatBuf</a>, <a href="expression_c.html#205">ExpressionCoerceFP</a>(ThisArg));</a>
+<a name="281">                        <font color="green">else</font></a>
+<a name="282">                            <a href="stdio_c.html#77">StdioOutPuts</a>("XXX", &<a href="stdio_c.html#189">SOStream</a>);</a>
+<a name="283">                    }                    </a>
+<a name="284">#endif</a>
+<a name="285">                    <font color="green">else</font> <font color="green">if</font> (ShowType == <a href="stdio_c.html#190">pc</a>-&gtCharPtrType)</a>
+<a name="286">                    {</a>
+<a name="287">                        <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypePointer)</a>
+<a name="288">                            <a href="stdio_c.html#156">StdioFprintfPointer</a>(&<a href="stdio_c.html#189">SOStream</a>, <a href="stdio_c.html#186">OneFormatBuf</a>, <a href="stdio_c.html#183">ThisArg</a>-&gtVal-&gtPointer);</a>
+<a name="289">                            </a>
+<a name="290">                        <font color="green">else</font> <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypeArray && <a href="stdio_c.html#183">ThisArg</a>-&gtTyp-&gtFromType-&gtBase == TypeChar)</a>
+<a name="291">                            <a href="stdio_c.html#156">StdioFprintfPointer</a>(&<a href="stdio_c.html#189">SOStream</a>, <a href="stdio_c.html#186">OneFormatBuf</a>, &<a href="stdio_c.html#183">ThisArg</a>-&gtVal-&gtArrayMem[0]);</a>
+<a name="292">                            </a>
+<a name="293">                        <font color="green">else</font></a>
+<a name="294">                            <a href="stdio_c.html#77">StdioOutPuts</a>("XXX", &<a href="stdio_c.html#189">SOStream</a>);</a>
+<a name="295">                    }</a>
+<a name="296">                    <font color="green">else</font> <font color="green">if</font> (ShowType == <a href="stdio_c.html#190">pc</a>-&gtVoidPtrType)</a>
+<a name="297">                    {</a>
+<a name="298">                        <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypePointer)</a>
+<a name="299">                            <a href="stdio_c.html#156">StdioFprintfPointer</a>(&<a href="stdio_c.html#189">SOStream</a>, <a href="stdio_c.html#186">OneFormatBuf</a>, <a href="stdio_c.html#183">ThisArg</a>-&gtVal-&gtPointer);</a>
+<a name="300">                            </a>
+<a name="301">                        <font color="green">else</font> <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypeArray)</a>
+<a name="302">                            <a href="stdio_c.html#156">StdioFprintfPointer</a>(&<a href="stdio_c.html#189">SOStream</a>, <a href="stdio_c.html#186">OneFormatBuf</a>, &<a href="stdio_c.html#183">ThisArg</a>-&gtVal-&gtArrayMem[0]);</a>
+<a name="303">                            </a>
+<a name="304">                        <font color="green">else</font></a>
+<a name="305">                            <a href="stdio_c.html#77">StdioOutPuts</a>("XXX", &<a href="stdio_c.html#189">SOStream</a>);</a>
+<a name="306">                    }</a>
+<a name="307">                    </a>
+<a name="308">                    <a href="stdio_c.html#184">ArgCount</a>++;</a>
+<a name="309">                }</a>
+<a name="310">            }</a>
+<a name="311">        }</a>
+<a name="312">        <font color="green">else</font></a>
+<a name="313">        {</a>
+<a name="314">            <font color="gray">/*<searched> just output a normal character */</font></a>
+<a name="315">            <a href="stdio_c.html#55">StdioOutPutc</a>(*FPos, &<a href="stdio_c.html#189">SOStream</a>);</a>
+<a name="316">            <a href="stdio_c.html#185">FPos</a>++;</a>
+<a name="317">        }</a>
+<a name="318">    }</a>
+<a name="319">    </a>
+<a name="320">    <font color="gray">/*<searched> null-terminate */</font></a>
+<a name="321">    <font color="green">if</font> (SOStream.StrOutPtr != NULL && <a href="stdio_c.html#189">SOStream</a>.StrOutLen &gt 0)</a>
+<a name="322">        *SOStream.StrOutPtr = '\0';      </a>
+<a name="323">    </a>
+<a name="324">    <font color="green">return</font> <a href="stdio_c.html#189">SOStream</a>.CharCount;</a>
+<a name="325">}</a>
+<a name="326"></a>
+<a name="327"><font color="gray">/*<searched> internal do-anything v[s][n]scanf() formatting system with input from strings or FILE * */</font></a>
+<a name="328"><font color="red">int</font> <a href="stdio_c.html#328">StdioBaseScanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, FILE *<a name="searched">Stream</a>, <font color="red">char</font> *<a name="searched">StrIn</a>, <font color="red">char</font> *<a name="searched">Format</a>, <font color="brown">struct</font> StdVararg *<a name="searched">Args</a>)</a>
+<a name="329">{</a>
+<a name="330">    <font color="brown">struct</font> Value *<a name="searched">ThisArg</a> = <a href="stdio_c.html#328">Args</a>-&gtParam[0];</a>
+<a name="331">    <font color="red">int</font> <a name="searched">ArgCount</a> = 0;</a>
+<a name="332">    <font color="red">void</font> *<a name="searched">ScanfArg</a>[MAX_SCANF_ARGS];</a>
+<a name="333">    </a>
+<a name="334">    <font color="green">if</font> (Args-&gtNumArgs &gt MAX_SCANF_ARGS)</a>
+<a name="335">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "too many arguments to scanf() - %d max", MAX_SCANF_ARGS);</a>
+<a name="336">    </a>
+<a name="337">    <font color="green">for</font> (ArgCount = 0; <a href="stdio_c.html#331">ArgCount</a> &lt <a href="stdio_c.html#328">Args</a>-&gtNumArgs; <a href="stdio_c.html#331">ArgCount</a>++)</a>
+<a name="338">    {</a>
+<a name="339">        <a href="stdio_c.html#330">ThisArg</a> = (<font color="brown">struct</font> Value *)((<font color="red">char</font> *)ThisArg + MEM_ALIGN(sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(ThisArg)));</a>
+<a name="340">        </a>
+<a name="341">        <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypePointer) </a>
+<a name="342">            <a href="stdio_c.html#332">ScanfArg</a>[<a href="stdio_c.html#331">ArgCount</a>] = <a href="stdio_c.html#330">ThisArg</a>-&gtVal-&gtPointer;</a>
+<a name="343">        </a>
+<a name="344">        <font color="green">else</font> <font color="green">if</font> (ThisArg-&gtTyp-&gtBase == TypeArray)</a>
+<a name="345">            <a href="stdio_c.html#332">ScanfArg</a>[<a href="stdio_c.html#331">ArgCount</a>] = &<a href="stdio_c.html#330">ThisArg</a>-&gtVal-&gtArrayMem[0];</a>
+<a name="346">        </a>
+<a name="347">        <font color="green">else</font></a>
+<a name="348">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "non-pointer argument to scanf() - argument %d after format", <a href="stdio_c.html#331">ArgCount</a>+1);</a>
+<a name="349">    }</a>
+<a name="350">    </a>
+<a name="351">    <font color="green">if</font> (Stream != NULL)</a>
+<a name="352">        <font color="green">return</font> fscanf(Stream, <a href="stdio_c.html#328">Format</a>, <a href="stdio_c.html#332">ScanfArg</a>[0], <a href="stdio_c.html#332">ScanfArg</a>[1], <a href="stdio_c.html#332">ScanfArg</a>[2], <a href="stdio_c.html#332">ScanfArg</a>[3], <a href="stdio_c.html#332">ScanfArg</a>[4], <a href="stdio_c.html#332">ScanfArg</a>[5], <a href="stdio_c.html#332">ScanfArg</a>[6], <a href="stdio_c.html#332">ScanfArg</a>[7], <a href="stdio_c.html#332">ScanfArg</a>[8], <a href="stdio_c.html#332">ScanfArg</a>[9]);</a>
+<a name="353">    <font color="green">else</font></a>
+<a name="354">        <font color="green">return</font> sscanf(StrIn, <a href="stdio_c.html#328">Format</a>, <a href="stdio_c.html#332">ScanfArg</a>[0], <a href="stdio_c.html#332">ScanfArg</a>[1], <a href="stdio_c.html#332">ScanfArg</a>[2], <a href="stdio_c.html#332">ScanfArg</a>[3], <a href="stdio_c.html#332">ScanfArg</a>[4], <a href="stdio_c.html#332">ScanfArg</a>[5], <a href="stdio_c.html#332">ScanfArg</a>[6], <a href="stdio_c.html#332">ScanfArg</a>[7], <a href="stdio_c.html#332">ScanfArg</a>[8], <a href="stdio_c.html#332">ScanfArg</a>[9]);</a>
+<a name="355">}</a>
+<a name="356"></a>
+<a name="357"><font color="gray">/*<searched> stdio calls */</font></a>
+<a name="358"><font color="red">void</font> <a href="stdio_c.html#358">StdioFopen</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="359">{</a>
+<a name="360">    <a href="stdio_c.html#358">ReturnValue</a>-&gtVal-&gtPointer = fopen(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#358">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="361">}</a>
+<a name="362"></a>
+<a name="363"><font color="red">void</font> <a href="stdio_c.html#363">StdioFreopen</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="364">{</a>
+<a name="365">    <a href="stdio_c.html#363">ReturnValue</a>-&gtVal-&gtPointer = freopen(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#363">Param</a>[1]-&gtVal-&gtPointer, <a href="stdio_c.html#363">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="366">}</a>
+<a name="367"></a>
+<a name="368"><font color="red">void</font> <a href="stdio_c.html#368">StdioFclose</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="369">{</a>
+<a name="370">    <a href="stdio_c.html#368">ReturnValue</a>-&gtVal-&gtInteger = fclose(Param[0]-&gtVal-&gtPointer);</a>
+<a name="371">}</a>
+<a name="372"></a>
+<a name="373"><font color="red">void</font> <a href="stdio_c.html#373">StdioFread</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="374">{</a>
+<a name="375">    <a href="stdio_c.html#373">ReturnValue</a>-&gtVal-&gtInteger = fread(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#373">Param</a>[1]-&gtVal-&gtInteger, <a href="stdio_c.html#373">Param</a>[2]-&gtVal-&gtInteger, <a href="stdio_c.html#373">Param</a>[3]-&gtVal-&gtPointer);</a>
+<a name="376">}</a>
+<a name="377"></a>
+<a name="378"><font color="red">void</font> <a href="stdio_c.html#378">StdioFwrite</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="379">{</a>
+<a name="380">    <a href="stdio_c.html#378">ReturnValue</a>-&gtVal-&gtInteger = fwrite(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#378">Param</a>[1]-&gtVal-&gtInteger, <a href="stdio_c.html#378">Param</a>[2]-&gtVal-&gtInteger, <a href="stdio_c.html#378">Param</a>[3]-&gtVal-&gtPointer);</a>
+<a name="381">}</a>
+<a name="382"></a>
+<a name="383"><font color="red">void</font> <a href="stdio_c.html#383">StdioFgetc</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="384">{</a>
+<a name="385">    <a href="stdio_c.html#383">ReturnValue</a>-&gtVal-&gtInteger = fgetc(Param[0]-&gtVal-&gtPointer);</a>
+<a name="386">}</a>
+<a name="387"></a>
+<a name="388"><font color="red">void</font> <a href="stdio_c.html#388">StdioFgets</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="389">{</a>
+<a name="390">    <a href="stdio_c.html#388">ReturnValue</a>-&gtVal-&gtPointer = fgets(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#388">Param</a>[1]-&gtVal-&gtInteger, <a href="stdio_c.html#388">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="391">}</a>
+<a name="392"></a>
+<a name="393"><font color="red">void</font> <a href="stdio_c.html#393">StdioRemove</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="394">{</a>
+<a name="395">    <a href="stdio_c.html#393">ReturnValue</a>-&gtVal-&gtInteger = remove(Param[0]-&gtVal-&gtPointer);</a>
+<a name="396">}</a>
+<a name="397"></a>
+<a name="398"><font color="red">void</font> <a href="stdio_c.html#398">StdioRename</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="399">{</a>
+<a name="400">    <a href="stdio_c.html#398">ReturnValue</a>-&gtVal-&gtInteger = rename(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#398">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="401">}</a>
+<a name="402"></a>
+<a name="403"><font color="red">void</font> <a href="stdio_c.html#403">StdioRewind</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="404">{</a>
+<a name="405">    rewind(Param[0]-&gtVal-&gtPointer);</a>
+<a name="406">}</a>
+<a name="407"></a>
+<a name="408"><font color="red">void</font> <a href="stdio_c.html#408">StdioTmpfile</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="409">{</a>
+<a name="410">    <a href="stdio_c.html#408">ReturnValue</a>-&gtVal-&gtPointer = tmpfile();</a>
+<a name="411">}</a>
+<a name="412"></a>
+<a name="413"><font color="red">void</font> <a href="stdio_c.html#413">StdioClearerr</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="414">{</a>
+<a name="415">    clearerr((FILE *)Param[0]-&gtVal-&gtPointer);</a>
+<a name="416">}</a>
+<a name="417"></a>
+<a name="418"><font color="red">void</font> <a href="stdio_c.html#418">StdioFeof</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="419">{</a>
+<a name="420">    <a href="stdio_c.html#418">ReturnValue</a>-&gtVal-&gtInteger = feof((FILE *)Param[0]-&gtVal-&gtPointer);</a>
+<a name="421">}</a>
+<a name="422"></a>
+<a name="423"><font color="red">void</font> <a href="stdio_c.html#423">StdioFerror</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="424">{</a>
+<a name="425">    <a href="stdio_c.html#423">ReturnValue</a>-&gtVal-&gtInteger = ferror((FILE *)Param[0]-&gtVal-&gtPointer);</a>
+<a name="426">}</a>
+<a name="427"></a>
+<a name="428"><font color="red">void</font> <a href="stdio_c.html#428">StdioFileno</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="429">{</a>
+<a name="430">#ifndef WIN32</a>
+<a name="431">    <a href="stdio_c.html#428">ReturnValue</a>-&gtVal-&gtInteger = fileno(Param[0]-&gtVal-&gtPointer);</a>
+<a name="432">#<font color="green">else</font></a>
+<a name="433">    <a href="stdio_c.html#428">ReturnValue</a>-&gtVal-&gtInteger = _fileno(Param[0]-&gtVal-&gtPointer);</a>
+<a name="434">#endif</a>
+<a name="435">}</a>
+<a name="436"></a>
+<a name="437"><font color="red">void</font> <a href="stdio_c.html#437">StdioFflush</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="438">{</a>
+<a name="439">    <a href="stdio_c.html#437">ReturnValue</a>-&gtVal-&gtInteger = fflush(Param[0]-&gtVal-&gtPointer);</a>
+<a name="440">}</a>
+<a name="441"></a>
+<a name="442"><font color="red">void</font> <a href="stdio_c.html#442">StdioFgetpos</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="443">{</a>
+<a name="444">    <a href="stdio_c.html#442">ReturnValue</a>-&gtVal-&gtInteger = fgetpos(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#442">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="445">}</a>
+<a name="446"></a>
+<a name="447"><font color="red">void</font> <a href="stdio_c.html#447">StdioFsetpos</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="448">{</a>
+<a name="449">    <a href="stdio_c.html#447">ReturnValue</a>-&gtVal-&gtInteger = fsetpos(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#447">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="450">}</a>
+<a name="451"></a>
+<a name="452"><font color="red">void</font> <a href="stdio_c.html#452">StdioFputc</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="453">{</a>
+<a name="454">    <a href="stdio_c.html#452">ReturnValue</a>-&gtVal-&gtInteger = fputc(Param[0]-&gtVal-&gtInteger, <a href="stdio_c.html#452">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="455">}</a>
+<a name="456"></a>
+<a name="457"><font color="red">void</font> <a href="stdio_c.html#457">StdioFputs</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="458">{</a>
+<a name="459">    <a href="stdio_c.html#457">ReturnValue</a>-&gtVal-&gtInteger = fputs(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#457">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="460">}</a>
+<a name="461"></a>
+<a name="462"><font color="red">void</font> <a href="stdio_c.html#462">StdioFtell</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="463">{</a>
+<a name="464">    <a href="stdio_c.html#462">ReturnValue</a>-&gtVal-&gtInteger = ftell(Param[0]-&gtVal-&gtPointer);</a>
+<a name="465">}</a>
+<a name="466"></a>
+<a name="467"><font color="red">void</font> <a href="stdio_c.html#467">StdioFseek</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="468">{</a>
+<a name="469">    <a href="stdio_c.html#467">ReturnValue</a>-&gtVal-&gtInteger = fseek(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#467">Param</a>[1]-&gtVal-&gtInteger, <a href="stdio_c.html#467">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="470">}</a>
+<a name="471"></a>
+<a name="472"><font color="red">void</font> <a href="stdio_c.html#472">StdioPerror</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="473">{</a>
+<a name="474">    perror(Param[0]-&gtVal-&gtPointer);</a>
+<a name="475">}</a>
+<a name="476"></a>
+<a name="477"><font color="red">void</font> <a href="stdio_c.html#477">StdioPutc</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="478">{</a>
+<a name="479">    <a href="stdio_c.html#477">ReturnValue</a>-&gtVal-&gtInteger = putc(Param[0]-&gtVal-&gtInteger, <a href="stdio_c.html#477">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="480">}</a>
+<a name="481"></a>
+<a name="482"><font color="red">void</font> <a href="stdio_c.html#482">StdioPutchar</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="483">{</a>
+<a name="484">    <a href="stdio_c.html#482">ReturnValue</a>-&gtVal-&gtInteger = putchar(Param[0]-&gtVal-&gtInteger);</a>
+<a name="485">}</a>
+<a name="486"></a>
+<a name="487"><font color="red">void</font> <a href="stdio_c.html#487">StdioSetbuf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="488">{</a>
+<a name="489">    setbuf(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#487">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="490">}</a>
+<a name="491"></a>
+<a name="492"><font color="red">void</font> <a href="stdio_c.html#492">StdioSetvbuf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="493">{</a>
+<a name="494">    setvbuf(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#492">Param</a>[1]-&gtVal-&gtPointer, <a href="stdio_c.html#492">Param</a>[2]-&gtVal-&gtInteger, <a href="stdio_c.html#492">Param</a>[3]-&gtVal-&gtInteger);</a>
+<a name="495">}</a>
+<a name="496"></a>
+<a name="497"><font color="red">void</font> <a href="stdio_c.html#497">StdioUngetc</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="498">{</a>
+<a name="499">    <a href="stdio_c.html#497">ReturnValue</a>-&gtVal-&gtInteger = ungetc(Param[0]-&gtVal-&gtInteger, <a href="stdio_c.html#497">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="500">}</a>
+<a name="501"></a>
+<a name="502"><font color="red">void</font> <a href="stdio_c.html#502">StdioPuts</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="503">{</a>
+<a name="504">    <a href="stdio_c.html#502">ReturnValue</a>-&gtVal-&gtInteger = puts(Param[0]-&gtVal-&gtPointer);</a>
+<a name="505">}</a>
+<a name="506"></a>
+<a name="507"><font color="red">void</font> <a href="stdio_c.html#507">StdioGets</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="508">{</a>
+<a name="509">    <a href="stdio_c.html#507">ReturnValue</a>-&gtVal-&gtPointer = fgets(Param[0]-&gtVal-&gtPointer, <a href="stdio_c.html#21">GETS_MAXValue</a>, stdin);</a>
+<a name="510">    <font color="green">if</font> (ReturnValue-&gtVal-&gtPointer != NULL)</a>
+<a name="511">    {</a>
+<a name="512">        <font color="red">char</font> *<a name="searched">EOLPos</a> = strchr(Param[0]-&gtVal-&gtPointer, '\n');</a>
+<a name="513">        <font color="green">if</font> (EOLPos != NULL)</a>
+<a name="514">            *EOLPos = '\0';</a>
+<a name="515">    }</a>
+<a name="516">}</a>
+<a name="517"></a>
+<a name="518"><font color="red">void</font> <a href="stdio_c.html#518">StdioGetchar</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="519">{</a>
+<a name="520">    <a href="stdio_c.html#518">ReturnValue</a>-&gtVal-&gtInteger = getchar();</a>
+<a name="521">}</a>
+<a name="522"></a>
+<a name="523"><font color="red">void</font> <a href="stdio_c.html#523">StdioPrintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="524">{</a>
+<a name="525">    <font color="brown">struct</font> StdVararg <a name="searched">PrintfArgs</a>;</a>
+<a name="526">    </a>
+<a name="527">    <a href="stdio_c.html#525">PrintfArgs</a>.Param = <a href="stdio_c.html#523">Param</a>;</a>
+<a name="528">    <a href="stdio_c.html#525">PrintfArgs</a>.NumArgs = <a href="stdio_c.html#523">NumArgs</a>-1;</a>
+<a name="529">    <a href="stdio_c.html#523">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, stdout, NULL, 0, <a href="stdio_c.html#523">Param</a>[0]-&gtVal-&gtPointer, &<a href="stdio_c.html#525">PrintfArgs</a>);</a>
+<a name="530">}</a>
+<a name="531"></a>
+<a name="532"><font color="red">void</font> <a href="stdio_c.html#532">StdioVprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="533">{</a>
+<a name="534">    <a href="stdio_c.html#532">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, stdout, NULL, 0, <a href="stdio_c.html#532">Param</a>[0]-&gtVal-&gtPointer, <a href="stdio_c.html#532">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="535">}</a>
+<a name="536"></a>
+<a name="537"><font color="red">void</font> <a href="stdio_c.html#537">StdioFprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="538">{</a>
+<a name="539">    <font color="brown">struct</font> StdVararg <a name="searched">PrintfArgs</a>;</a>
+<a name="540">    </a>
+<a name="541">    <a href="stdio_c.html#539">PrintfArgs</a>.Param = <a href="stdio_c.html#537">Param</a> + 1;</a>
+<a name="542">    <a href="stdio_c.html#539">PrintfArgs</a>.NumArgs = <a href="stdio_c.html#537">NumArgs</a>-2;</a>
+<a name="543">    <a href="stdio_c.html#537">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, <a href="stdio_c.html#537">Param</a>[0]-&gtVal-&gtPointer, NULL, 0, <a href="stdio_c.html#537">Param</a>[1]-&gtVal-&gtPointer, &<a href="stdio_c.html#539">PrintfArgs</a>);</a>
+<a name="544">}</a>
+<a name="545"></a>
+<a name="546"><font color="red">void</font> <a href="stdio_c.html#546">StdioVfprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="547">{</a>
+<a name="548">    <a href="stdio_c.html#546">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, <a href="stdio_c.html#546">Param</a>[0]-&gtVal-&gtPointer, NULL, 0, <a href="stdio_c.html#546">Param</a>[1]-&gtVal-&gtPointer, <a href="stdio_c.html#546">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="549">}</a>
+<a name="550"></a>
+<a name="551"><font color="red">void</font> <a href="stdio_c.html#551">StdioSprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="552">{</a>
+<a name="553">    <font color="brown">struct</font> StdVararg <a name="searched">PrintfArgs</a>;</a>
+<a name="554">    </a>
+<a name="555">    <a href="stdio_c.html#553">PrintfArgs</a>.Param = <a href="stdio_c.html#551">Param</a> + 1;</a>
+<a name="556">    <a href="stdio_c.html#553">PrintfArgs</a>.NumArgs = <a href="stdio_c.html#551">NumArgs</a>-2;</a>
+<a name="557">    <a href="stdio_c.html#551">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, NULL, <a href="stdio_c.html#551">Param</a>[0]-&gtVal-&gtPointer, -1, <a href="stdio_c.html#551">Param</a>[1]-&gtVal-&gtPointer, &<a href="stdio_c.html#553">PrintfArgs</a>);</a>
+<a name="558">}</a>
+<a name="559"></a>
+<a name="560"><font color="red">void</font> <a href="stdio_c.html#560">StdioSnprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="561">{</a>
+<a name="562">    <font color="brown">struct</font> StdVararg <a name="searched">PrintfArgs</a>;</a>
+<a name="563">    </a>
+<a name="564">    <a href="stdio_c.html#562">PrintfArgs</a>.Param = <a href="stdio_c.html#560">Param</a>+2;</a>
+<a name="565">    <a href="stdio_c.html#562">PrintfArgs</a>.NumArgs = <a href="stdio_c.html#560">NumArgs</a>-3;</a>
+<a name="566">    <a href="stdio_c.html#560">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, NULL, <a href="stdio_c.html#560">Param</a>[0]-&gtVal-&gtPointer, <a href="stdio_c.html#560">Param</a>[1]-&gtVal-&gtInteger, <a href="stdio_c.html#560">Param</a>[2]-&gtVal-&gtPointer, &<a href="stdio_c.html#562">PrintfArgs</a>);</a>
+<a name="567">}</a>
+<a name="568"></a>
+<a name="569"><font color="red">void</font> <a href="stdio_c.html#569">StdioScanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="570">{</a>
+<a name="571">    <font color="brown">struct</font> StdVararg <a name="searched">ScanfArgs</a>;</a>
+<a name="572">    </a>
+<a name="573">    <a href="stdio_c.html#571">ScanfArgs</a>.Param = <a href="stdio_c.html#569">Param</a>;</a>
+<a name="574">    <a href="stdio_c.html#571">ScanfArgs</a>.NumArgs = <a href="stdio_c.html#569">NumArgs</a>-1;</a>
+<a name="575">    <a href="stdio_c.html#569">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#328">StdioBaseScanf</a>(Parser, stdin, NULL, <a href="stdio_c.html#569">Param</a>[0]-&gtVal-&gtPointer, &<a href="stdio_c.html#571">ScanfArgs</a>);</a>
+<a name="576">}</a>
+<a name="577"></a>
+<a name="578"><font color="red">void</font> <a href="stdio_c.html#578">StdioFscanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="579">{</a>
+<a name="580">    <font color="brown">struct</font> StdVararg <a name="searched">ScanfArgs</a>;</a>
+<a name="581">    </a>
+<a name="582">    <a href="stdio_c.html#580">ScanfArgs</a>.Param = <a href="stdio_c.html#578">Param</a>+1;</a>
+<a name="583">    <a href="stdio_c.html#580">ScanfArgs</a>.NumArgs = <a href="stdio_c.html#578">NumArgs</a>-2;</a>
+<a name="584">    <a href="stdio_c.html#578">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#328">StdioBaseScanf</a>(Parser, <a href="stdio_c.html#578">Param</a>[0]-&gtVal-&gtPointer, NULL, <a href="stdio_c.html#578">Param</a>[1]-&gtVal-&gtPointer, &<a href="stdio_c.html#580">ScanfArgs</a>);</a>
+<a name="585">}</a>
+<a name="586"></a>
+<a name="587"><font color="red">void</font> <a href="stdio_c.html#587">StdioSscanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="588">{</a>
+<a name="589">    <font color="brown">struct</font> StdVararg <a name="searched">ScanfArgs</a>;</a>
+<a name="590">    </a>
+<a name="591">    <a href="stdio_c.html#589">ScanfArgs</a>.Param = <a href="stdio_c.html#587">Param</a>+1;</a>
+<a name="592">    <a href="stdio_c.html#589">ScanfArgs</a>.NumArgs = <a href="stdio_c.html#587">NumArgs</a>-2;</a>
+<a name="593">    <a href="stdio_c.html#587">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#328">StdioBaseScanf</a>(Parser, NULL, <a href="stdio_c.html#587">Param</a>[0]-&gtVal-&gtPointer, <a href="stdio_c.html#587">Param</a>[1]-&gtVal-&gtPointer, &<a href="stdio_c.html#589">ScanfArgs</a>);</a>
+<a name="594">}</a>
+<a name="595"></a>
+<a name="596"><font color="red">void</font> <a href="stdio_c.html#596">StdioVsprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="597">{</a>
+<a name="598">    <a href="stdio_c.html#596">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, NULL, <a href="stdio_c.html#596">Param</a>[0]-&gtVal-&gtPointer, -1, <a href="stdio_c.html#596">Param</a>[1]-&gtVal-&gtPointer, <a href="stdio_c.html#596">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="599">}</a>
+<a name="600"></a>
+<a name="601"><font color="red">void</font> <a href="stdio_c.html#601">StdioVsnprintf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="602">{</a>
+<a name="603">    <a href="stdio_c.html#601">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#181">StdioBasePrintf</a>(Parser, NULL, <a href="stdio_c.html#601">Param</a>[0]-&gtVal-&gtPointer, <a href="stdio_c.html#601">Param</a>[1]-&gtVal-&gtInteger, <a href="stdio_c.html#601">Param</a>[2]-&gtVal-&gtPointer, <a href="stdio_c.html#601">Param</a>[3]-&gtVal-&gtPointer);</a>
+<a name="604">}</a>
+<a name="605"></a>
+<a name="606"><font color="red">void</font> <a href="stdio_c.html#606">StdioVscanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="607">{</a>
+<a name="608">    <a href="stdio_c.html#606">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#328">StdioBaseScanf</a>(Parser, stdin, NULL, <a href="stdio_c.html#606">Param</a>[0]-&gtVal-&gtPointer, <a href="stdio_c.html#606">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="609">}</a>
+<a name="610"></a>
+<a name="611"><font color="red">void</font> <a href="stdio_c.html#611">StdioVfscanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="612">{</a>
+<a name="613">    <a href="stdio_c.html#611">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#328">StdioBaseScanf</a>(Parser, <a href="stdio_c.html#611">Param</a>[0]-&gtVal-&gtPointer, NULL, <a href="stdio_c.html#611">Param</a>[1]-&gtVal-&gtPointer, <a href="stdio_c.html#611">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="614">}</a>
+<a name="615"></a>
+<a name="616"><font color="red">void</font> <a href="stdio_c.html#616">StdioVsscanf</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>)</a>
+<a name="617">{</a>
+<a name="618">    <a href="stdio_c.html#616">ReturnValue</a>-&gtVal-&gtInteger = <a href="stdio_c.html#328">StdioBaseScanf</a>(Parser, NULL, <a href="stdio_c.html#616">Param</a>[0]-&gtVal-&gtPointer, <a href="stdio_c.html#616">Param</a>[1]-&gtVal-&gtPointer, <a href="stdio_c.html#616">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="619">}</a>
+<a name="620"></a>
+<a name="621"><font color="gray">/*<searched> handy structure definitions */</font></a>
+<a name="622">const <font color="red">char</font> <a href="interpreter_h.html#619">StdioDefs</a>[] = "\</a>
+<a name="623"><font color="brown">typedef</font> <font color="brown">struct</font> __va_listStruct va_list; \</a>
+<a name="624"><font color="brown">typedef</font> <font color="brown">struct</font> __FILEStruct FILE;\</a>
+<a name="625">";</a>
+<a name="626"></a>
+<a name="627"><font color="gray">/*<searched> all stdio functions */</font></a>
+<a name="628"><font color="brown">struct</font> LibraryFunction <a href="interpreter_h.html#620">StdioFunctions</a>[] =</a>
+<a name="629">{</a>
+<a name="630">    { <a href="stdio_c.html#358">StdioFopen</a>,   "FILE *fopen(<font color="red">char</font> *, <font color="red">char</font> *);" },</a>
+<a name="631">    { <a href="stdio_c.html#363">StdioFreopen</a>, "FILE *freopen(<font color="red">char</font> *, <font color="red">char</font> *, FILE *);" },</a>
+<a name="632">    { <a href="stdio_c.html#368">StdioFclose</a>,  "<font color="red">int</font> fclose(FILE *);" },</a>
+<a name="633">    { <a href="stdio_c.html#373">StdioFread</a>,   "<font color="red">int</font> fread(<font color="red">void</font> *, <font color="red">int</font>, <font color="red">int</font>, FILE *);" },</a>
+<a name="634">    { <a href="stdio_c.html#378">StdioFwrite</a>,  "<font color="red">int</font> fwrite(<font color="red">void</font> *, <font color="red">int</font>, <font color="red">int</font>, FILE *);" },</a>
+<a name="635">    { <a href="stdio_c.html#383">StdioFgetc</a>,   "<font color="red">int</font> fgetc(FILE *);" },</a>
+<a name="636">    { <a href="stdio_c.html#383">StdioFgetc</a>,   "<font color="red">int</font> getc(FILE *);" },</a>
+<a name="637">    { <a href="stdio_c.html#388">StdioFgets</a>,   "<font color="red">char</font> *fgets(<font color="red">char</font> *, <font color="red">int</font>, FILE *);" },</a>
+<a name="638">    { <a href="stdio_c.html#452">StdioFputc</a>,   "<font color="red">int</font> fputc(<font color="red">int</font>, FILE *);" },</a>
+<a name="639">    { <a href="stdio_c.html#457">StdioFputs</a>,   "<font color="red">int</font> fputs(<font color="red">char</font> *, FILE *);" },</a>
+<a name="640">    { <a href="stdio_c.html#393">StdioRemove</a>,  "<font color="red">int</font> remove(<font color="red">char</font> *);" },</a>
+<a name="641">    { <a href="stdio_c.html#398">StdioRename</a>,  "<font color="red">int</font> rename(<font color="red">char</font> *, <font color="red">char</font> *);" },</a>
+<a name="642">    { <a href="stdio_c.html#403">StdioRewind</a>,  "<font color="red">void</font> rewind(FILE *);" },</a>
+<a name="643">    { <a href="stdio_c.html#408">StdioTmpfile</a>, "FILE *tmpfile();" },</a>
+<a name="644">    { <a href="stdio_c.html#413">StdioClearerr</a>,"<font color="red">void</font> clearerr(FILE *);" },</a>
+<a name="645">    { <a href="stdio_c.html#418">StdioFeof</a>,    "<font color="red">int</font> feof(FILE *);" },</a>
+<a name="646">    { <a href="stdio_c.html#423">StdioFerror</a>,  "<font color="red">int</font> ferror(FILE *);" },</a>
+<a name="647">    { <a href="stdio_c.html#428">StdioFileno</a>,  "<font color="red">int</font> fileno(FILE *);" },</a>
+<a name="648">    { <a href="stdio_c.html#437">StdioFflush</a>,  "<font color="red">int</font> fflush(FILE *);" },</a>
+<a name="649">    { <a href="stdio_c.html#442">StdioFgetpos</a>, "<font color="red">int</font> fgetpos(FILE *, <font color="red">int</font> *);" },</a>
+<a name="650">    { <a href="stdio_c.html#447">StdioFsetpos</a>, "<font color="red">int</font> fsetpos(FILE *, <font color="red">int</font> *);" },</a>
+<a name="651">    { <a href="stdio_c.html#462">StdioFtell</a>,   "<font color="red">int</font> ftell(FILE *);" },</a>
+<a name="652">    { <a href="stdio_c.html#467">StdioFseek</a>,   "<font color="red">int</font> fseek(FILE *, <font color="red">int</font>, <font color="red">int</font>);" },</a>
+<a name="653">    { <a href="stdio_c.html#472">StdioPerror</a>,  "<font color="red">void</font> perror(<font color="red">char</font> *);" },</a>
+<a name="654">    { <a href="stdio_c.html#477">StdioPutc</a>,    "<font color="red">int</font> putc(<font color="red">char</font> *, FILE *);" },</a>
+<a name="655">    { <a href="stdio_c.html#482">StdioPutchar</a>, "<font color="red">int</font> putchar(<font color="red">int</font>);" },</a>
+<a name="656">    { <a href="stdio_c.html#482">StdioPutchar</a>, "<font color="red">int</font> fputchar(<font color="red">int</font>);" },</a>
+<a name="657">    { <a href="stdio_c.html#487">StdioSetbuf</a>,  "<font color="red">void</font> setbuf(FILE *, <font color="red">char</font> *);" },</a>
+<a name="658">    { <a href="stdio_c.html#492">StdioSetvbuf</a>, "<font color="red">void</font> setvbuf(FILE *, <font color="red">char</font> *, <font color="red">int</font>, <font color="red">int</font>);" },</a>
+<a name="659">    { <a href="stdio_c.html#497">StdioUngetc</a>,  "<font color="red">int</font> ungetc(<font color="red">int</font>, FILE *);" },</a>
+<a name="660">    { <a href="stdio_c.html#502">StdioPuts</a>,    "<font color="red">int</font> puts(<font color="red">char</font> *);" },</a>
+<a name="661">    { <a href="stdio_c.html#507">StdioGets</a>,    "<font color="red">char</font> *gets(<font color="red">char</font> *);" },</a>
+<a name="662">    { <a href="stdio_c.html#518">StdioGetchar</a>, "<font color="red">int</font> getchar();" },</a>
+<a name="663">    { <a href="stdio_c.html#523">StdioPrintf</a>,  "<font color="red">int</font> printf(<font color="red">char</font> *, ...);" },</a>
+<a name="664">    { <a href="stdio_c.html#537">StdioFprintf</a>, "<font color="red">int</font> fprintf(FILE *, <font color="red">char</font> *, ...);" },</a>
+<a name="665">    { <a href="stdio_c.html#551">StdioSprintf</a>, "<font color="red">int</font> sprintf(<font color="red">char</font> *, <font color="red">char</font> *, ...);" },</a>
+<a name="666">    { <a href="stdio_c.html#560">StdioSnprintf</a>,"<font color="red">int</font> snprintf(<font color="red">char</font> *, <font color="red">int</font>, <font color="red">char</font> *, ...);" },</a>
+<a name="667">    { <a href="stdio_c.html#569">StdioScanf</a>,   "<font color="red">int</font> scanf(<font color="red">char</font> *, ...);" },</a>
+<a name="668">    { <a href="stdio_c.html#578">StdioFscanf</a>,  "<font color="red">int</font> fscanf(FILE *, <font color="red">char</font> *, ...);" },</a>
+<a name="669">    { <a href="stdio_c.html#587">StdioSscanf</a>,  "<font color="red">int</font> sscanf(<font color="red">char</font> *, <font color="red">char</font> *, ...);" },</a>
+<a name="670">    { <a href="stdio_c.html#532">StdioVprintf</a>, "<font color="red">int</font> vprintf(<font color="red">char</font> *, va_list);" },</a>
+<a name="671">    { <a href="stdio_c.html#546">StdioVfprintf</a>,"<font color="red">int</font> vfprintf(FILE *, <font color="red">char</font> *, va_list);" },</a>
+<a name="672">    { <a href="stdio_c.html#596">StdioVsprintf</a>,"<font color="red">int</font> vsprintf(<font color="red">char</font> *, <font color="red">char</font> *, va_list);" },</a>
+<a name="673">    { <a href="stdio_c.html#601">StdioVsnprintf</a>,"<font color="red">int</font> vsnprintf(<font color="red">char</font> *, <font color="red">int</font>, <font color="red">char</font> *, va_list);" },</a>
+<a name="674">    { <a href="stdio_c.html#606">StdioVscanf</a>,   "<font color="red">int</font> vscanf(<font color="red">char</font> *, va_list);" },</a>
+<a name="675">    { <a href="stdio_c.html#611">StdioVfscanf</a>,  "<font color="red">int</font> vfscanf(FILE *, <font color="red">char</font> *, va_list);" },</a>
+<a name="676">    { <a href="stdio_c.html#616">StdioVsscanf</a>,  "<font color="red">int</font> vsscanf(<font color="red">char</font> *, <font color="red">char</font> *, va_list);" },</a>
+<a name="677">    { NULL,         NULL }</a>
+<a name="678">};</a>
+<a name="679"></a>
+<a name="680"><font color="gray">/*<searched> creates various system-dependent definitions */</font></a>
+<a name="681"><font color="red">void</font> <a href="stdio_c.html#681">StdioSetupFunc</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="682">{</a>
+<a name="683">    <font color="brown">struct</font> ValueType *<a name="searched">StructFileType</a>;</a>
+<a name="684">    <font color="brown">struct</font> ValueType *<a name="searched">FilePtrType</a>;</a>
+<a name="685"></a>
+<a name="686">    <font color="gray">/*<searched> make a "struct __FILEStruct" which is the same size as a native FILE structure */</font></a>
+<a name="687">    <a href="stdio_c.html#683">StructFileType</a> = <a href="type_c.html#272">TypeCreateOpaqueStruct</a>(pc, NULL, <a href="table_c.html#166">TableStrRegister</a>(pc, "__FILEStruct"), sizeof(FILE));</a>
+<a name="688">    </a>
+<a name="689">    <font color="gray">/*<searched> get a FILE * type */</font></a>
+<a name="690">    <a href="stdio_c.html#684">FilePtrType</a> = <a href="type_c.html#32">TypeGetMatching</a>(pc, NULL, <a href="stdio_c.html#683">StructFileType</a>, TypePointer, 0, <a href="stdio_c.html#681">pc</a>-&gtStrEmpty, TRUE);</a>
+<a name="691"></a>
+<a name="692">    <font color="gray">/*<searched> make a "struct __va_listStruct" which is the same size as our struct StdVararg */</font></a>
+<a name="693">    <a href="type_c.html#272">TypeCreateOpaqueStruct</a>(pc, NULL, <a href="table_c.html#166">TableStrRegister</a>(pc, "__va_listStruct"), sizeof(FILE));</a>
+<a name="694">    </a>
+<a name="695">    <font color="gray">/*<searched> define EOF equal to the system EOF */</font></a>
+<a name="696">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "EOF", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#11">EOFValue</a>, FALSE);</a>
+<a name="697">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "SEEK_SET", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#12">SEEK_SETValue</a>, FALSE);</a>
+<a name="698">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "SEEK_CUR", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#13">SEEK_CURValue</a>, FALSE);</a>
+<a name="699">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "SEEK_END", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#14">SEEK_ENDValue</a>, FALSE);</a>
+<a name="700">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "BUFSIZ", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#15">BUFSIZValue</a>, FALSE);</a>
+<a name="701">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "FILENAME_MAX", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#16">FILENAME_MAXValue</a>, FALSE);</a>
+<a name="702">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "_IOFBF", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#17">_IOFBFValue</a>, FALSE);</a>
+<a name="703">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "_IOLBF", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#18">_IOLBFValue</a>, FALSE);</a>
+<a name="704">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "_IONBF", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#19">_IONBFValue</a>, FALSE);</a>
+<a name="705">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "L_tmpnam", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#20">L_tmpnamValue</a>, FALSE);</a>
+<a name="706">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "GETS_MAX", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#21">GETS_MAXValue</a>, FALSE);</a>
+<a name="707">    </a>
+<a name="708">    <font color="gray">/*<searched> define stdin, stdout and stderr */</font></a>
+<a name="709">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "stdin", <a href="stdio_c.html#684">FilePtrType</a>, (union AnyValue *)&<a href="stdio_c.html#23">stdinValue</a>, FALSE);</a>
+<a name="710">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "stdout", <a href="stdio_c.html#684">FilePtrType</a>, (union AnyValue *)&<a href="stdio_c.html#24">stdoutValue</a>, FALSE);</a>
+<a name="711">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "stderr", <a href="stdio_c.html#684">FilePtrType</a>, (union AnyValue *)&<a href="stdio_c.html#25">stderrValue</a>, FALSE);</a>
+<a name="712"></a>
+<a name="713">    <font color="gray">/*<searched> define NULL, TRUE and FALSE */</font></a>
+<a name="714">    <font color="green">if</font> (!<a href="variable_c.html#346">VariableDefined</a>(pc, <a href="table_c.html#166">TableStrRegister</a>(pc, "NULL")))</a>
+<a name="715">        <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "NULL", &<a href="stdio_c.html#681">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdio_c.html#10">Stdio_ZeroValue</a>, FALSE);</a>
+<a name="716">}</a>
+<a name="717"></a>
+<a name="718"><font color="gray">/*<searched> portability-related I/O calls */</font></a>
+<a name="719"><font color="red">void</font> <a href="stdio_c.html#719">PrintCh</a>(<font color="red">char</font> <a name="searched">OutCh</a>, FILE *<a name="searched">Stream</a>)</a>
+<a name="720">{</a>
+<a name="721">    putc(OutCh, <a href="stdio_c.html#719">Stream</a>);</a>
+<a name="722">}</a>
+<a name="723"></a>
+<a name="724"><font color="red">void</font> <a href="stdio_c.html#724">PrintSimpleInt</a>(<font color="red">long</font> <a name="searched">Num</a>, FILE *<a name="searched">Stream</a>)</a>
+<a name="725">{</a>
+<a name="726">    fprintf(Stream, "%ld", <a href="stdio_c.html#724">Num</a>);</a>
+<a name="727">}</a>
+<a name="728"></a>
+<a name="729"><font color="red">void</font> Print<a name="searched">Str</a>(const <font color="red">char</font> *<a name="searched">Str</a>, FILE *<a name="searched">Str</a>eam)</a>
+<a name="730">{</a>
+<a name="731">    fputs(Str, <a href="stdio_c.html#729">Stream</a>);</a>
+<a name="732">}</a>
+<a name="733"></a>
+<a name="734"><font color="red">void</font> <a href="stdio_c.html#734">PrintFP</a>(<font color="red">double</font> <a name="searched">Num</a>, FILE *<a name="searched">Stream</a>)</a>
+<a name="735">{</a>
+<a name="736">    fprintf(Stream, "%f", <a href="stdio_c.html#734">Num</a>);</a>
+<a name="737">}</a>
+<a name="738"></a>
+<a name="739">#endif <font color="gray">/*<searched> !BUILTIN_MINI_STDLIB */</font></a>
+</pre></body></html>

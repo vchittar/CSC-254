@@ -1,0 +1,1008 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc parser - parses source and executes statements */</a>
+<a name="2"></a>
+<a name="3">#include "picoc.h"</a>
+<a name="4">#include "interpreter.h"</a>
+<a name="5"></a>
+<a name="6">/* deallocate any memory */</a>
+<a name="7">void <a name="searched">ParseCleanup</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="8">{</a>
+<a name="9">    while (<a href="parse_c.html#7">pc</a>-&gtCleanupTokenList != NULL)</a>
+<a name="10">    {</a>
+<a name="11">        struct CleanupTokenNode *<a name="searched">Next</a> = <a href="parse_c.html#7">pc</a>-&gtCleanupTokenList-&gt<a href="parse_c.html#11">Next</a>;</a>
+<a name="12">        </a>
+<a name="13">        HeapFreeMem(<a href="parse_c.html#7">pc</a>, <a href="parse_c.html#7">pc</a>-&gtCleanupTokenList-&gtTokens);</a>
+<a name="14">        if (<a href="parse_c.html#7">pc</a>-&gtCleanupTokenList-&gtSourceText != NULL)</a>
+<a name="15">            HeapFreeMem(<a href="parse_c.html#7">pc</a>, (void *)<a href="parse_c.html#7">pc</a>-&gtCleanupTokenList-&gtSourceText);</a>
+<a name="16">            </a>
+<a name="17">        HeapFreeMem(<a href="parse_c.html#7">pc</a>, <a href="parse_c.html#7">pc</a>-&gtCleanupTokenList);</a>
+<a name="18">        <a href="parse_c.html#7">pc</a>-&gtCleanupTokenList = <a href="parse_c.html#11">Next</a>;</a>
+<a name="19">    }</a>
+<a name="20">}</a>
+<a name="21"></a>
+<a name="22">/* parse a statement, but only run it if Condition is TRUE */</a>
+<a name="23">enum ParseResult <a name="searched">ParseStatementMaybeRun</a>(struct ParseState *<a name="searched">Parser</a>, int <a name="searched">Condition</a>, int <a name="searched">CheckTrailingSemicolon</a>)</a>
+<a name="24">{</a>
+<a name="25">    if (<a href="parse_c.html#23">Parser</a>-&gtMode != RunModeSkip && !<a href="parse_c.html#23">Condition</a>)</a>
+<a name="26">    {</a>
+<a name="27">        enum RunMode <a name="searched">OldMode</a> = <a href="parse_c.html#23">Parser</a>-&gtMode;</a>
+<a name="28">        int <a name="searched">Result</a>;</a>
+<a name="29">        <a href="parse_c.html#23">Parser</a>-&gtMode = RunModeSkip;</a>
+<a name="30">        <a href="parse_c.html#28">Result</a> = ParseStatement(<a href="parse_c.html#23">Parser</a>, <a href="parse_c.html#23">CheckTrailingSemicolon</a>);</a>
+<a name="31">        <a href="parse_c.html#23">Parser</a>-&gtMode = <a href="parse_c.html#27">OldMode</a>;</a>
+<a name="32">        return <a href="parse_c.html#28">Result</a>;</a>
+<a name="33">    }</a>
+<a name="34">    else</a>
+<a name="35">        return ParseStatement(<a href="parse_c.html#23">Parser</a>, <a href="parse_c.html#23">CheckTrailingSemicolon</a>);</a>
+<a name="36">}</a>
+<a name="37"></a>
+<a name="38">/* count the number of parameters to a function or macro */</a>
+<a name="39">int <a name="searched">ParseCountParams</a>(struct ParseState *<a name="searched">Parser</a>)</a>
+<a name="40">{</a>
+<a name="41">    int <a name="searched">ParamCount</a> = 0;</a>
+<a name="42">    </a>
+<a name="43">    enum Lex<a name="searched">Token</a> <a href="parse_c.html#43">Token</a> = LexGet<a href="parse_c.html#43">Token</a>(<a href="parse_c.html#39">Parser</a>, NULL, TRUE);</a>
+<a name="44">    if (<a href="parse_c.html#43">Token</a> != <a href="parse_c.html#43">Token</a>CloseBracket && <a href="parse_c.html#43">Token</a> != <a href="parse_c.html#43">Token</a>EOF)</a>
+<a name="45">    { </a>
+<a name="46">        /* count the number of parameters */</a>
+<a name="47">        <a href="parse_c.html#41">ParamCount</a>++;</a>
+<a name="48">        while ((<a href="parse_c.html#43">Token</a> = LexGet<a href="parse_c.html#43">Token</a>(<a href="parse_c.html#39">Parser</a>, NULL, TRUE)) != <a href="parse_c.html#43">Token</a>CloseBracket && <a href="parse_c.html#43">Token</a> != <a href="parse_c.html#43">Token</a>EOF)</a>
+<a name="49">        { </a>
+<a name="50">            if (<a href="parse_c.html#43">Token</a> == <a href="parse_c.html#43">Token</a>Comma)</a>
+<a name="51">                <a href="parse_c.html#41">ParamCount</a>++;</a>
+<a name="52">        } </a>
+<a name="53">    }</a>
+<a name="54">    </a>
+<a name="55">    return <a href="parse_c.html#41">ParamCount</a>;</a>
+<a name="56">}</a>
+<a name="57"></a>
+<a name="58">/* parse a function definition and store it for later */</a>
+<a name="59">struct Value *<a name="searched">ParseFunctionDefinition</a>(struct ParseState *<a name="searched">Parser</a>, struct ValueType *<a name="searched">ReturnType</a>, char *<a name="searched">Identifier</a>)</a>
+<a name="60">{</a>
+<a name="61">    struct ValueType *<a name="searched">ParamType</a>;</a>
+<a name="62">    char *<a name="searched">Param<a href="parse_c.html#59">Identifier</a></a>;</a>
+<a name="63">    enum Lex<a name="searched">Token</a> <a href="parse_c.html#63">Token</a> = <a href="parse_c.html#63">Token</a>None;</a>
+<a name="64">    struct ParseState <a name="searched">Param<a href="parse_c.html#59">Parser</a></a>;</a>
+<a name="65">    struct Value *<a name="searched">FuncValue</a>;</a>
+<a name="66">    struct Value *Old<a href="parse_c.html#65">FuncValue</a>;</a>
+<a name="67">    struct ParseState <a name="searched">FuncBody</a>;</a>
+<a name="68">    int <a name="searched">ParamCount</a> = 0;</a>
+<a name="69">    Picoc *<a name="searched">pc</a> = <a href="parse_c.html#59">Parser</a>-&gt<a href="parse_c.html#69">pc</a>;</a>
+<a name="70"></a>
+<a name="71">    if (<a href="parse_c.html#69">pc</a>-&gtTopStackFrame != NULL)</a>
+<a name="72">        ProgramFail(<a href="parse_c.html#59">Parser</a>, "nested function definitions are not allowed");</a>
+<a name="73">        </a>
+<a name="74">    LexGet<a href="parse_c.html#63">Token</a>(<a href="parse_c.html#59">Parser</a>, NULL, TRUE);  /* open bracket */</a>
+<a name="75">    <a href="parse_c.html#59">Parser</a>Copy(&<a href="parse_c.html#64">Param<a href="parse_c.html#59">Parser</a></a>, <a href="parse_c.html#59">Parser</a>);</a>
+<a name="76">    <a href="parse_c.html#68">ParamCount</a> = ParseCountParams(<a href="parse_c.html#59">Parser</a>);</a>
+<a name="77">    if (<a href="parse_c.html#68">ParamCount</a> &gt PARAMETER_MAX)</a>
+<a name="78">        ProgramFail(<a href="parse_c.html#59">Parser</a>, "too many parameters (%d allowed)", PARAMETER_MAX);</a>
+<a name="79">    </a>
+<a name="80">    <a href="parse_c.html#65">FuncValue</a> = VariableAllocValueAndData(<a href="parse_c.html#69">pc</a>, <a href="parse_c.html#59">Parser</a>, sizeof(struct FuncDef) + sizeof(struct ValueType *) * <a href="parse_c.html#68">ParamCount</a> + sizeof(const char *) * <a href="parse_c.html#68">ParamCount</a>, FALSE, NULL, TRUE);</a>
+<a name="81">    <a href="parse_c.html#65">FuncValue</a>-&gtTyp = &<a href="parse_c.html#69">pc</a>-&gtFunctionType;</a>
+<a name="82">    <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#59">ReturnType</a> = <a href="parse_c.html#59">ReturnType</a>;</a>
+<a name="83">    <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams = <a href="parse_c.html#68">ParamCount</a>;</a>
+<a name="84">    <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.VarArgs = FALSE;</a>
+<a name="85">    <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#61">ParamType</a> = (struct ValueType **)((char *)<a href="parse_c.html#65">FuncValue</a>-&gtVal + sizeof(struct FuncDef));</a>
+<a name="86">    <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.ParamName = (char **)((char *)<a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#61">ParamType</a> + sizeof(struct ValueType *) * <a href="parse_c.html#68">ParamCount</a>);</a>
+<a name="87">   </a>
+<a name="88">    for (<a href="parse_c.html#68">ParamCount</a> = 0; <a href="parse_c.html#68">ParamCount</a> &lt <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams; <a href="parse_c.html#68">ParamCount</a>++)</a>
+<a name="89">    { </a>
+<a name="90">        /* harvest the parameters into the function definition */</a>
+<a name="91">        if (<a href="parse_c.html#68">ParamCount</a> == <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams-1 && LexGet<a href="parse_c.html#63">Token</a>(&<a href="parse_c.html#64">Param<a href="parse_c.html#59">Parser</a></a>, NULL, FALSE) == <a href="parse_c.html#63">Token</a>Ellipsis)</a>
+<a name="92">        { </a>
+<a name="93">            /* ellipsis at end */</a>
+<a name="94">            <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams--;</a>
+<a name="95">            <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.VarArgs = TRUE;</a>
+<a name="96">            break;</a>
+<a name="97">        }</a>
+<a name="98">        else</a>
+<a name="99">        { </a>
+<a name="100">            /* add a parameter */</a>
+<a name="101">            TypeParse(&<a href="parse_c.html#64">Param<a href="parse_c.html#59">Parser</a></a>, &<a href="parse_c.html#61">ParamType</a>, &<a href="parse_c.html#62">Param<a href="parse_c.html#59">Identifier</a></a>, NULL);</a>
+<a name="102">            if (<a href="parse_c.html#61">ParamType</a>-&gtBase == TypeVoid)</a>
+<a name="103">            {</a>
+<a name="104">                /* this isn't a real parameter at all - delete it */</a>
+<a name="105">                <a href="parse_c.html#68">ParamCount</a>--;</a>
+<a name="106">                <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams--;</a>
+<a name="107">            }</a>
+<a name="108">            else</a>
+<a name="109">            {</a>
+<a name="110">                <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#61">ParamType</a>[<a href="parse_c.html#68">ParamCount</a>] = <a href="parse_c.html#61">ParamType</a>;</a>
+<a name="111">                <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.ParamName[<a href="parse_c.html#68">ParamCount</a>] = <a href="parse_c.html#62">Param<a href="parse_c.html#59">Identifier</a></a>;</a>
+<a name="112">            }</a>
+<a name="113">        }</a>
+<a name="114">        </a>
+<a name="115">        <a href="parse_c.html#63">Token</a> = LexGet<a href="parse_c.html#63">Token</a>(&<a href="parse_c.html#64">Param<a href="parse_c.html#59">Parser</a></a>, NULL, TRUE);</a>
+<a name="116">        if (<a href="parse_c.html#63">Token</a> != <a href="parse_c.html#63">Token</a>Comma && <a href="parse_c.html#68">ParamCount</a> &lt <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams-1)</a>
+<a name="117">            ProgramFail(&<a href="parse_c.html#64">Param<a href="parse_c.html#59">Parser</a></a>, "comma expected");</a>
+<a name="118">    }</a>
+<a name="119">    </a>
+<a name="120">    if (<a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams != 0 && <a href="parse_c.html#63">Token</a> != <a href="parse_c.html#63">Token</a>CloseBracket && <a href="parse_c.html#63">Token</a> != <a href="parse_c.html#63">Token</a>Comma && <a href="parse_c.html#63">Token</a> != <a href="parse_c.html#63">Token</a>Ellipsis)</a>
+<a name="121">        ProgramFail(&<a href="parse_c.html#64">Param<a href="parse_c.html#59">Parser</a></a>, "bad parameter");</a>
+<a name="122">    </a>
+<a name="123">    if (strcmp(<a href="parse_c.html#59">Identifier</a>, "main") == 0)</a>
+<a name="124">    {</a>
+<a name="125">        /* make sure it's int main() */</a>
+<a name="126">        if ( <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#59">ReturnType</a> != &<a href="parse_c.html#69">pc</a>-&gtIntType &&</a>
+<a name="127">             <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#59">ReturnType</a> != &<a href="parse_c.html#69">pc</a>-&gtVoidType )</a>
+<a name="128">            ProgramFail(<a href="parse_c.html#59">Parser</a>, "main() should return an int or void");</a>
+<a name="129"></a>
+<a name="130">        if (<a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams != 0 &&</a>
+<a name="131">             (<a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.NumParams != 2 || <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.<a href="parse_c.html#61">ParamType</a>[0] != &<a href="parse_c.html#69">pc</a>-&gtIntType) )</a>
+<a name="132">            ProgramFail(<a href="parse_c.html#59">Parser</a>, "bad parameters to main()");</a>
+<a name="133">    }</a>
+<a name="134">    </a>
+<a name="135">    /* look for a function body */</a>
+<a name="136">    <a href="parse_c.html#63">Token</a> = LexGet<a href="parse_c.html#63">Token</a>(<a href="parse_c.html#59">Parser</a>, NULL, FALSE);</a>
+<a name="137">    if (<a href="parse_c.html#63">Token</a> == <a href="parse_c.html#63">Token</a>Semicolon)</a>
+<a name="138">        LexGet<a href="parse_c.html#63">Token</a>(<a href="parse_c.html#59">Parser</a>, NULL, TRUE);    /* it's a prototype, absorb the trailing semicolon */</a>
+<a name="139">    else</a>
+<a name="140">    {</a>
+<a name="141">        /* it's a full function definition with a body */</a>
+<a name="142">        if (<a href="parse_c.html#63">Token</a> != <a href="parse_c.html#63">Token</a>LeftBrace)</a>
+<a name="143">            ProgramFail(<a href="parse_c.html#59">Parser</a>, "bad function definition");</a>
+<a name="144">        </a>
+<a name="145">        <a href="parse_c.html#59">Parser</a>Copy(&<a href="parse_c.html#67">FuncBody</a>, <a href="parse_c.html#59">Parser</a>);</a>
+<a name="146">        if (ParseStatementMaybeRun(<a href="parse_c.html#59">Parser</a>, FALSE, TRUE) != ParseResultOk)</a>
+<a name="147">            ProgramFail(<a href="parse_c.html#59">Parser</a>, "function definition expected");</a>
+<a name="148"></a>
+<a name="149">        <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.Body = <a href="parse_c.html#67">FuncBody</a>;</a>
+<a name="150">        <a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.Body.Pos = LexCopy<a href="parse_c.html#63">Token</a>s(&<a href="parse_c.html#67">FuncBody</a>, <a href="parse_c.html#59">Parser</a>);</a>
+<a name="151"></a>
+<a name="152">        /* is this function already in the global table? */</a>
+<a name="153">        if (TableGet(&<a href="parse_c.html#69">pc</a>-&gtGlobalTable, <a href="parse_c.html#59">Identifier</a>, &Old<a href="parse_c.html#65">FuncValue</a>, NULL, NULL, NULL))</a>
+<a name="154">        {</a>
+<a name="155">            if (Old<a href="parse_c.html#65">FuncValue</a>-&gtVal-&gtFuncDef.Body.Pos == NULL)</a>
+<a name="156">            {</a>
+<a name="157">                /* override an old function prototype */</a>
+<a name="158">                VariableFree(<a href="parse_c.html#69">pc</a>, TableDelete(<a href="parse_c.html#69">pc</a>, &<a href="parse_c.html#69">pc</a>-&gtGlobalTable, <a href="parse_c.html#59">Identifier</a>));</a>
+<a name="159">            }</a>
+<a name="160">            else</a>
+<a name="161">                ProgramFail(<a href="parse_c.html#59">Parser</a>, "'%s' is already defined", <a href="parse_c.html#59">Identifier</a>);</a>
+<a name="162">        }</a>
+<a name="163">    }</a>
+<a name="164"></a>
+<a name="165">    if (!TableSet(<a href="parse_c.html#69">pc</a>, &<a href="parse_c.html#69">pc</a>-&gtGlobalTable, <a href="parse_c.html#59">Identifier</a>, <a href="parse_c.html#65">FuncValue</a>, (char *)<a href="parse_c.html#59">Parser</a>-&gtFileName, <a href="parse_c.html#59">Parser</a>-&gtLine, <a href="parse_c.html#59">Parser</a>-&gtCharacterPos))</a>
+<a name="166">        ProgramFail(<a href="parse_c.html#59">Parser</a>, "'%s' is already defined", <a href="parse_c.html#59">Identifier</a>);</a>
+<a name="167">        </a>
+<a name="168">    return <a href="parse_c.html#65">FuncValue</a>;</a>
+<a name="169">}</a>
+<a name="170"></a>
+<a name="171">/* parse an array initialiser and assign to a variable */</a>
+<a name="172">int <a name="searched">ParseArrayInitialiser</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">NewVariable</a>, int <a name="searched">DoAssignment</a>)</a>
+<a name="173">{</a>
+<a name="174">    int <a name="searched">ArrayIndex</a> = 0;</a>
+<a name="175">    enum Lex<a name="searched">Token</a> <a href="parse_c.html#175">Token</a>;</a>
+<a name="176">    struct Value *<a name="searched">CValue</a>;</a>
+<a name="177">    </a>
+<a name="178">    /* count the number of elements in the array */</a>
+<a name="179">    if (<a href="parse_c.html#172">DoAssignment</a> && <a href="parse_c.html#172">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="180">    {</a>
+<a name="181">        struct ParseState <a name="searched">Count<a href="parse_c.html#172">Parser</a></a>;</a>
+<a name="182">        int <a name="searched">NumElements</a>;</a>
+<a name="183">        </a>
+<a name="184">        <a href="parse_c.html#172">Parser</a>Copy(&<a href="parse_c.html#181">Count<a href="parse_c.html#172">Parser</a></a>, <a href="parse_c.html#172">Parser</a>);</a>
+<a name="185">        <a href="parse_c.html#182">NumElements</a> = ParseArrayInitialiser(&<a href="parse_c.html#181">Count<a href="parse_c.html#172">Parser</a></a>, <a href="parse_c.html#172">NewVariable</a>, FALSE);</a>
+<a name="186"></a>
+<a name="187">        if (<a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtBase != TypeArray)</a>
+<a name="188">            AssignFail(<a href="parse_c.html#172">Parser</a>, "%t from array initializer", <a href="parse_c.html#172">NewVariable</a>-&gtTyp, NULL, 0, 0, NULL, 0);</a>
+<a name="189"></a>
+<a name="190">        if (<a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtArraySize == 0)</a>
+<a name="191">        {</a>
+<a name="192">            <a href="parse_c.html#172">NewVariable</a>-&gtTyp = TypeGetMatching(<a href="parse_c.html#172">Parser</a>-&gtpc, <a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtFromType, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtBase, <a href="parse_c.html#182">NumElements</a>, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtIdentifier, TRUE);</a>
+<a name="193">            VariableRealloc(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#172">NewVariable</a>, TypeSizeValue(<a href="parse_c.html#172">NewVariable</a>, FALSE));</a>
+<a name="194">        }</a>
+<a name="195">        #ifdef DEBUG_ARRAY_INITIALIZER</a>
+<a name="196">        PRINT_SOURCE_POS;</a>
+<a name="197">        printf("array size: %d \n", <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtArraySize);</a>
+<a name="198">        #endif</a>
+<a name="199">    }</a>
+<a name="200">    </a>
+<a name="201">    /* parse the array initialiser */</a>
+<a name="202">    <a href="parse_c.html#175">Token</a> = LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, FALSE);</a>
+<a name="203">    while (<a href="parse_c.html#175">Token</a> != <a href="parse_c.html#175">Token</a>RightBrace)</a>
+<a name="204">    {</a>
+<a name="205">        if (LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, FALSE) == <a href="parse_c.html#175">Token</a>LeftBrace)</a>
+<a name="206">        {</a>
+<a name="207">            /* this is a sub-array initialiser */</a>
+<a name="208">            int <a name="searched">SubArraySize</a> = 0;</a>
+<a name="209">            struct Value *<a name="searched">SubArray</a> = <a href="parse_c.html#172">NewVariable</a>; </a>
+<a name="210">            if (<a href="parse_c.html#172">Parser</a>-&gtMode == RunModeRun && <a href="parse_c.html#172">DoAssignment</a>)</a>
+<a name="211">            {</a>
+<a name="212">                <a href="parse_c.html#209">SubArray</a>Size = TypeSize(<a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtFromType, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtFromType-&gtArraySize, TRUE);</a>
+<a name="213">                <a href="parse_c.html#209">SubArray</a> = VariableAllocValueFromExistingData(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtFromType, (union AnyValue *)(&<a href="parse_c.html#172">NewVariable</a>-&gtVal-&gtArrayMem[0] + <a href="parse_c.html#209">SubArray</a>Size * <a href="parse_c.html#174">ArrayIndex</a>), TRUE, <a href="parse_c.html#172">NewVariable</a>);</a>
+<a name="214">                #ifdef DEBUG_ARRAY_INITIALIZER</a>
+<a name="215">                int FullArraySize = TypeSize(<a href="parse_c.html#172">NewVariable</a>-&gtTyp, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtArraySize, TRUE);</a>
+<a name="216">                PRINT_SOURCE_POS;</a>
+<a name="217">                PRINT_TYPE(<a href="parse_c.html#172">NewVariable</a>-&gtTyp)</a>
+<a name="218">                printf("[%d] subarray size: %d (full: %d,%d) \n", <a href="parse_c.html#174">ArrayIndex</a>, <a href="parse_c.html#209">SubArray</a>Size, FullArraySize, <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtArraySize);</a>
+<a name="219">                #endif</a>
+<a name="220">                if (<a href="parse_c.html#174">ArrayIndex</a> &gt= <a href="parse_c.html#172">NewVariable</a>-&gtTyp-&gtArraySize)</a>
+<a name="221">                    ProgramFail(<a href="parse_c.html#172">Parser</a>, "too many array elements");</a>
+<a name="222">            }</a>
+<a name="223">            LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, TRUE);</a>
+<a name="224">            ParseArrayInitialiser(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#209">SubArray</a>, <a href="parse_c.html#172">DoAssignment</a>);</a>
+<a name="225">        }</a>
+<a name="226">        else</a>
+<a name="227">        {</a>
+<a name="228">            struct Value *<a name="searched">ArrayElement</a> = NULL;</a>
+<a name="229">        </a>
+<a name="230">            if (<a href="parse_c.html#172">Parser</a>-&gtMode == RunModeRun && <a href="parse_c.html#172">DoAssignment</a>)</a>
+<a name="231">            {</a>
+<a name="232">                struct ValueType * <a name="searched">ElementType</a> = <a href="parse_c.html#172">NewVariable</a>-&gtTyp;</a>
+<a name="233">                int <a name="searched">TotalSize</a> = 1;</a>
+<a name="234">                int <a name="searched">ElementSize</a> = 0;</a>
+<a name="235">                </a>
+<a name="236">                /* int x[3][3] = {1,2,3,4} =&gt handle it just like int x[9] = {1,2,3,4} */</a>
+<a name="237">                while (<a href="parse_c.html#232">ElementType</a>-&gtBase == TypeArray)</a>
+<a name="238">                {</a>
+<a name="239">                    <a href="parse_c.html#233">TotalSize</a> *= <a href="parse_c.html#232">ElementType</a>-&gtArraySize;</a>
+<a name="240">                    <a href="parse_c.html#232">ElementType</a> = <a href="parse_c.html#232">ElementType</a>-&gtFromType;</a>
+<a name="241">                    </a>
+<a name="242">                    /* char x[10][10] = {"abc", "def"} =&gt assign "abc" to x[0], "def" to x[1] etc */</a>
+<a name="243">                    if (LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, FALSE) == <a href="parse_c.html#175">Token</a>StringConstant && <a href="parse_c.html#232">ElementType</a>-&gtFromType-&gtBase == TypeChar)</a>
+<a name="244">                        break;</a>
+<a name="245">                }</a>
+<a name="246">                <a href="parse_c.html#234">ElementSize</a> = TypeSize(<a href="parse_c.html#232">ElementType</a>, <a href="parse_c.html#232">ElementType</a>-&gtArraySize, TRUE);</a>
+<a name="247">                #ifdef DEBUG_ARRAY_INITIALIZER</a>
+<a name="248">                PRINT_SOURCE_POS;</a>
+<a name="249">                printf("[%d/%d] element size: %d (x%d) \n", <a href="parse_c.html#174">ArrayIndex</a>, <a href="parse_c.html#233">TotalSize</a>, <a href="parse_c.html#234">ElementSize</a>, <a href="parse_c.html#232">ElementType</a>-&gtArraySize);</a>
+<a name="250">                #endif</a>
+<a name="251">                if (<a href="parse_c.html#174">ArrayIndex</a> &gt= <a href="parse_c.html#233">TotalSize</a>)</a>
+<a name="252">                    ProgramFail(<a href="parse_c.html#172">Parser</a>, "too many array elements");</a>
+<a name="253">                <a href="parse_c.html#228">ArrayElement</a> = VariableAllocValueFromExistingData(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#232">ElementType</a>, (union AnyValue *)(&<a href="parse_c.html#172">NewVariable</a>-&gtVal-&gtArrayMem[0] + <a href="parse_c.html#234">ElementSize</a> * <a href="parse_c.html#174">ArrayIndex</a>), TRUE, <a href="parse_c.html#172">NewVariable</a>);</a>
+<a name="254">            }</a>
+<a name="255"></a>
+<a name="256">            /* this is a normal expression initialiser */</a>
+<a name="257">            if (!ExpressionParse(<a href="parse_c.html#172">Parser</a>, &<a href="parse_c.html#176">CValue</a>))</a>
+<a name="258">                ProgramFail(<a href="parse_c.html#172">Parser</a>, "expression expected");</a>
+<a name="259"></a>
+<a name="260">            if (<a href="parse_c.html#172">Parser</a>-&gtMode == RunModeRun && <a href="parse_c.html#172">DoAssignment</a>)</a>
+<a name="261">            {</a>
+<a name="262">                ExpressionAssign(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#228">ArrayElement</a>, <a href="parse_c.html#176">CValue</a>, FALSE, NULL, 0, FALSE);</a>
+<a name="263">                VariableStackPop(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#176">CValue</a>);</a>
+<a name="264">                VariableStackPop(<a href="parse_c.html#172">Parser</a>, <a href="parse_c.html#228">ArrayElement</a>);</a>
+<a name="265">            }</a>
+<a name="266">        }</a>
+<a name="267">        </a>
+<a name="268">        <a href="parse_c.html#174">ArrayIndex</a>++;</a>
+<a name="269"></a>
+<a name="270">        <a href="parse_c.html#175">Token</a> = LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, FALSE);</a>
+<a name="271">        if (<a href="parse_c.html#175">Token</a> == <a href="parse_c.html#175">Token</a>Comma)</a>
+<a name="272">        {</a>
+<a name="273">            LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, TRUE);</a>
+<a name="274">            <a href="parse_c.html#175">Token</a> = LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, FALSE);</a>
+<a name="275">        }   </a>
+<a name="276">        else if (<a href="parse_c.html#175">Token</a> != <a href="parse_c.html#175">Token</a>RightBrace)</a>
+<a name="277">            ProgramFail(<a href="parse_c.html#172">Parser</a>, "comma expected");</a>
+<a name="278">    }</a>
+<a name="279">    </a>
+<a name="280">    if (<a href="parse_c.html#175">Token</a> == <a href="parse_c.html#175">Token</a>RightBrace)</a>
+<a name="281">        LexGet<a href="parse_c.html#175">Token</a>(<a href="parse_c.html#172">Parser</a>, NULL, TRUE);</a>
+<a name="282">    else</a>
+<a name="283">        ProgramFail(<a href="parse_c.html#172">Parser</a>, "'}' expected");</a>
+<a name="284">    </a>
+<a name="285">    return <a href="parse_c.html#174">ArrayIndex</a>;</a>
+<a name="286">}</a>
+<a name="287"></a>
+<a name="288">/* assign an initial value to a variable */</a>
+<a name="289">void <a name="searched">ParseDeclarationAssignment</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">NewVariable</a>, int <a name="searched">DoAssignment</a>)</a>
+<a name="290">{</a>
+<a name="291">    struct Value *<a name="searched">CValue</a>;</a>
+<a name="292"></a>
+<a name="293">    if (LexGetToken(<a href="parse_c.html#289">Parser</a>, NULL, FALSE) == TokenLeftBrace)</a>
+<a name="294">    {</a>
+<a name="295">        /* this is an array initialiser */</a>
+<a name="296">        LexGetToken(<a href="parse_c.html#289">Parser</a>, NULL, TRUE);</a>
+<a name="297">        ParseArrayInitialiser(<a href="parse_c.html#289">Parser</a>, <a href="parse_c.html#289">NewVariable</a>, <a href="parse_c.html#289">DoAssignment</a>);</a>
+<a name="298">    }</a>
+<a name="299">    else</a>
+<a name="300">    {</a>
+<a name="301">        /* this is a normal expression initialiser */</a>
+<a name="302">        if (!ExpressionParse(<a href="parse_c.html#289">Parser</a>, &<a href="parse_c.html#291">CValue</a>))</a>
+<a name="303">            ProgramFail(<a href="parse_c.html#289">Parser</a>, "expression expected");</a>
+<a name="304">            </a>
+<a name="305">        if (<a href="parse_c.html#289">Parser</a>-&gtMode == RunModeRun && <a href="parse_c.html#289">DoAssignment</a>)</a>
+<a name="306">        {</a>
+<a name="307">            ExpressionAssign(<a href="parse_c.html#289">Parser</a>, <a href="parse_c.html#289">NewVariable</a>, <a href="parse_c.html#291">CValue</a>, FALSE, NULL, 0, FALSE);</a>
+<a name="308">            VariableStackPop(<a href="parse_c.html#289">Parser</a>, <a href="parse_c.html#291">CValue</a>);</a>
+<a name="309">        }</a>
+<a name="310">    }</a>
+<a name="311">}</a>
+<a name="312"></a>
+<a name="313">/* declare a variable or function */</a>
+<a name="314">int <a name="searched">ParseDeclaration</a>(struct ParseState *<a name="searched">Parser</a>, enum Lex<a name="searched">Token</a> <a href="parse_c.html#314">Token</a>)</a>
+<a name="315">{</a>
+<a name="316">    char *<a name="searched">Identifier</a>;</a>
+<a name="317">    struct ValueType *<a name="searched">BasicType</a>;</a>
+<a name="318">    struct Value<a name="searched">Typ</a>e *<a href="parse_c.html#318">Typ</a>;</a>
+<a name="319">    struct Value *<a name="searched">NewVariable</a> = NULL;</a>
+<a name="320">    int <a name="searched">IsStatic</a> = FALSE;</a>
+<a name="321">    int <a name="searched">FirstVisit</a> = FALSE;</a>
+<a name="322">    Picoc *<a name="searched">pc</a> = <a href="parse_c.html#314">Parser</a>-&gt<a href="parse_c.html#322">pc</a>;</a>
+<a name="323"></a>
+<a name="324">    <a href="parse_c.html#318">Typ</a>eParseFront(<a href="parse_c.html#314">Parser</a>, &<a href="parse_c.html#317">Basic<a href="parse_c.html#318">Typ</a>e</a>, &<a href="parse_c.html#320">IsStatic</a>);</a>
+<a name="325">    do</a>
+<a name="326">    {</a>
+<a name="327">        <a href="parse_c.html#318">Typ</a>eParseIdentPart(<a href="parse_c.html#314">Parser</a>, <a href="parse_c.html#317">Basic<a href="parse_c.html#318">Typ</a>e</a>, &<a href="parse_c.html#318">Typ</a>, &<a href="parse_c.html#316">Identifier</a>);</a>
+<a name="328">        if ((<a href="parse_c.html#314">Token</a> != <a href="parse_c.html#314">Token</a>Void<a href="parse_c.html#318">Typ</a>e && <a href="parse_c.html#314">Token</a> != <a href="parse_c.html#314">Token</a>Struct<a href="parse_c.html#318">Typ</a>e && <a href="parse_c.html#314">Token</a> != <a href="parse_c.html#314">Token</a>Union<a href="parse_c.html#318">Typ</a>e && <a href="parse_c.html#314">Token</a> != <a href="parse_c.html#314">Token</a>Enum<a href="parse_c.html#318">Typ</a>e) && <a href="parse_c.html#316">Identifier</a> == <a href="parse_c.html#322">pc</a>-&gtStrEmpty)</a>
+<a name="329">            ProgramFail(<a href="parse_c.html#314">Parser</a>, "identifier expected");</a>
+<a name="330">            </a>
+<a name="331">        if (<a href="parse_c.html#316">Identifier</a> != <a href="parse_c.html#322">pc</a>-&gtStrEmpty)</a>
+<a name="332">        {</a>
+<a name="333">            /* handle function definitions */</a>
+<a name="334">            if (LexGet<a href="parse_c.html#314">Token</a>(<a href="parse_c.html#314">Parser</a>, NULL, FALSE) == <a href="parse_c.html#314">Token</a>OpenBracket)</a>
+<a name="335">            {</a>
+<a name="336">                ParseFunctionDefinition(<a href="parse_c.html#314">Parser</a>, <a href="parse_c.html#318">Typ</a>, <a href="parse_c.html#316">Identifier</a>);</a>
+<a name="337">                return FALSE;</a>
+<a name="338">            }</a>
+<a name="339">            else</a>
+<a name="340">            {</a>
+<a name="341">                if (<a href="parse_c.html#318">Typ</a> == &<a href="parse_c.html#322">pc</a>-&gtVoid<a href="parse_c.html#318">Typ</a>e && <a href="parse_c.html#316">Identifier</a> != <a href="parse_c.html#322">pc</a>-&gtStrEmpty)</a>
+<a name="342">                    ProgramFail(<a href="parse_c.html#314">Parser</a>, "can't define a void variable");</a>
+<a name="343">                    </a>
+<a name="344">                if (<a href="parse_c.html#314">Parser</a>-&gtMode == RunModeRun || <a href="parse_c.html#314">Parser</a>-&gtMode == RunModeGoto)</a>
+<a name="345">                    <a href="parse_c.html#319">NewVariable</a> = VariableDefineButIgnoreIdentical(<a href="parse_c.html#314">Parser</a>, <a href="parse_c.html#316">Identifier</a>, <a href="parse_c.html#318">Typ</a>, <a href="parse_c.html#320">IsStatic</a>, &<a href="parse_c.html#321">FirstVisit</a>);</a>
+<a name="346">                </a>
+<a name="347">                if (LexGet<a href="parse_c.html#314">Token</a>(<a href="parse_c.html#314">Parser</a>, NULL, FALSE) == <a href="parse_c.html#314">Token</a>Assign)</a>
+<a name="348">                {</a>
+<a name="349">                    /* we're assigning an initial value */</a>
+<a name="350">                    LexGet<a href="parse_c.html#314">Token</a>(<a href="parse_c.html#314">Parser</a>, NULL, TRUE);</a>
+<a name="351">                    ParseDeclarationAssignment(<a href="parse_c.html#314">Parser</a>, <a href="parse_c.html#319">NewVariable</a>, !<a href="parse_c.html#320">IsStatic</a> || <a href="parse_c.html#321">FirstVisit</a>);</a>
+<a name="352">                }</a>
+<a name="353">            }</a>
+<a name="354">        }</a>
+<a name="355">        </a>
+<a name="356">        <a href="parse_c.html#314">Token</a> = LexGet<a href="parse_c.html#314">Token</a>(<a href="parse_c.html#314">Parser</a>, NULL, FALSE);</a>
+<a name="357">        if (<a href="parse_c.html#314">Token</a> == <a href="parse_c.html#314">Token</a>Comma)</a>
+<a name="358">            LexGet<a href="parse_c.html#314">Token</a>(<a href="parse_c.html#314">Parser</a>, NULL, TRUE);</a>
+<a name="359">            </a>
+<a name="360">    } while (<a href="parse_c.html#314">Token</a> == <a href="parse_c.html#314">Token</a>Comma);</a>
+<a name="361">    </a>
+<a name="362">    return TRUE;</a>
+<a name="363">}</a>
+<a name="364"></a>
+<a name="365">/* parse a #define macro definition and store it for later */</a>
+<a name="366">void <a name="searched">ParseMacroDefinition</a>(struct ParseState *<a name="searched">Parser</a>)</a>
+<a name="367">{</a>
+<a name="368">    struct Value *<a name="searched">MacroName</a>;</a>
+<a name="369">    char *<a href="parse_c.html#368">MacroName</a>Str;</a>
+<a name="370">    struct Value *<a name="searched">ParamName</a>;</a>
+<a name="371">    struct Value *<a name="searched">MacroValue</a>;</a>
+<a name="372"></a>
+<a name="373">    if (LexGetToken(<a href="parse_c.html#366">Parser</a>, &<a href="parse_c.html#368">MacroName</a>, TRUE) != TokenIdentifier)</a>
+<a name="374">        ProgramFail(<a href="parse_c.html#366">Parser</a>, "identifier expected");</a>
+<a name="375">    </a>
+<a name="376">    <a href="parse_c.html#368">MacroName</a>Str = <a href="parse_c.html#368">MacroName</a>-&gtVal-&gtIdentifier;</a>
+<a name="377">    </a>
+<a name="378">    if (LexRawPeekToken(<a href="parse_c.html#366">Parser</a>) == TokenOpenMacroBracket)</a>
+<a name="379">    {</a>
+<a name="380">        /* it's a parameterised macro, read the parameters */</a>
+<a name="381">        enum Lex<a name="searched">Token</a> <a href="parse_c.html#381">Token</a> = LexGet<a href="parse_c.html#381">Token</a>(<a href="parse_c.html#366">Parser</a>, NULL, TRUE);</a>
+<a name="382">        struct ParseState <a name="searched">Param<a href="parse_c.html#366">Parser</a></a>;</a>
+<a name="383">        int <a name="searched">NumParams</a>;</a>
+<a name="384">        int <a name="searched">ParamCount</a> = 0;</a>
+<a name="385">        </a>
+<a name="386">        <a href="parse_c.html#366">Parser</a>Copy(&<a href="parse_c.html#382">Param<a href="parse_c.html#366">Parser</a></a>, <a href="parse_c.html#366">Parser</a>);</a>
+<a name="387">        <a href="parse_c.html#383">NumParams</a> = ParseCountParams(&<a href="parse_c.html#382">Param<a href="parse_c.html#366">Parser</a></a>);</a>
+<a name="388">        <a href="parse_c.html#371">MacroValue</a> = VariableAllocValueAndData(<a href="parse_c.html#366">Parser</a>-&gtpc, <a href="parse_c.html#366">Parser</a>, sizeof(struct MacroDef) + sizeof(const char *) * <a href="parse_c.html#383">NumParams</a>, FALSE, NULL, TRUE);</a>
+<a name="389">        <a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.<a href="parse_c.html#383">NumParams</a> = <a href="parse_c.html#383">NumParams</a>;</a>
+<a name="390">        <a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.<a href="parse_c.html#370">ParamName</a> = (char **)((char *)<a href="parse_c.html#371">MacroValue</a>-&gtVal + sizeof(struct MacroDef));</a>
+<a name="391"></a>
+<a name="392">        <a href="parse_c.html#381">Token</a> = LexGet<a href="parse_c.html#381">Token</a>(<a href="parse_c.html#366">Parser</a>, &<a href="parse_c.html#370">ParamName</a>, TRUE);</a>
+<a name="393">        </a>
+<a name="394">        while (<a href="parse_c.html#381">Token</a> == <a href="parse_c.html#381">Token</a>Identifier)</a>
+<a name="395">        {</a>
+<a name="396">            /* store a parameter name */</a>
+<a name="397">            <a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.<a href="parse_c.html#370">ParamName</a>[<a href="parse_c.html#384">ParamCount</a>++] = <a href="parse_c.html#370">ParamName</a>-&gtVal-&gtIdentifier;</a>
+<a name="398">            </a>
+<a name="399">            /* get the trailing comma */</a>
+<a name="400">            <a href="parse_c.html#381">Token</a> = LexGet<a href="parse_c.html#381">Token</a>(<a href="parse_c.html#366">Parser</a>, NULL, TRUE);</a>
+<a name="401">            if (<a href="parse_c.html#381">Token</a> == <a href="parse_c.html#381">Token</a>Comma)</a>
+<a name="402">                <a href="parse_c.html#381">Token</a> = LexGet<a href="parse_c.html#381">Token</a>(<a href="parse_c.html#366">Parser</a>, &<a href="parse_c.html#370">ParamName</a>, TRUE);</a>
+<a name="403">                </a>
+<a name="404">            else if (<a href="parse_c.html#381">Token</a> != <a href="parse_c.html#381">Token</a>CloseBracket)</a>
+<a name="405">                ProgramFail(<a href="parse_c.html#366">Parser</a>, "comma expected");</a>
+<a name="406">        }</a>
+<a name="407">        </a>
+<a name="408">        if (<a href="parse_c.html#381">Token</a> != <a href="parse_c.html#381">Token</a>CloseBracket)</a>
+<a name="409">            ProgramFail(<a href="parse_c.html#366">Parser</a>, "close bracket expected");</a>
+<a name="410">    }</a>
+<a name="411">    else</a>
+<a name="412">    {</a>
+<a name="413">        /* allocate a simple unparameterised macro */</a>
+<a name="414">        <a href="parse_c.html#371">MacroValue</a> = VariableAllocValueAndData(<a href="parse_c.html#366">Parser</a>-&gtpc, <a href="parse_c.html#366">Parser</a>, sizeof(struct MacroDef), FALSE, NULL, TRUE);</a>
+<a name="415">        <a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.NumParams = 0;</a>
+<a name="416">    }</a>
+<a name="417">    </a>
+<a name="418">    /* copy the body of the macro to execute later */</a>
+<a name="419">    <a href="parse_c.html#366">Parser</a>Copy(&<a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.Body, <a href="parse_c.html#366">Parser</a>);</a>
+<a name="420">    <a href="parse_c.html#371">MacroValue</a>-&gtTyp = &<a href="parse_c.html#366">Parser</a>-&gtpc-&gtMacroType;</a>
+<a name="421">    LexToEndOfLine(<a href="parse_c.html#366">Parser</a>);</a>
+<a name="422">    <a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.Body.Pos = LexCopyTokens(&<a href="parse_c.html#371">MacroValue</a>-&gtVal-&gtMacroDef.Body, <a href="parse_c.html#366">Parser</a>);</a>
+<a name="423">    </a>
+<a name="424">    if (!TableSet(<a href="parse_c.html#366">Parser</a>-&gtpc, &<a href="parse_c.html#366">Parser</a>-&gtpc-&gtGlobalTable, <a href="parse_c.html#368">MacroName</a>Str, <a href="parse_c.html#371">MacroValue</a>, (char *)<a href="parse_c.html#366">Parser</a>-&gtFileName, <a href="parse_c.html#366">Parser</a>-&gtLine, <a href="parse_c.html#366">Parser</a>-&gtCharacterPos))</a>
+<a name="425">        ProgramFail(<a href="parse_c.html#366">Parser</a>, "'%s' is already defined", <a href="parse_c.html#368">MacroName</a>Str);</a>
+<a name="426">}</a>
+<a name="427"></a>
+<a name="428">/* copy the entire parser state */</a>
+<a name="429">void <a name="searched">ParserCopy</a>(struct ParseState *<a name="searched">To</a>, struct ParseState *<a name="searched">From</a>)</a>
+<a name="430">{</a>
+<a name="431">    memcpy((void *)<a href="parse_c.html#429">To</a>, (void *)<a href="parse_c.html#429">From</a>, sizeof(*<a href="parse_c.html#429">To</a>));</a>
+<a name="432">}</a>
+<a name="433"></a>
+<a name="434">/* copy where we're at in the parsing */</a>
+<a name="435">void <a name="searched">ParserCopyPos</a>(struct ParseState *<a name="searched">To</a>, struct ParseState *<a name="searched">From</a>)</a>
+<a name="436">{</a>
+<a name="437">    <a href="parse_c.html#435">To</a>-&gtPos = <a href="parse_c.html#435">From</a>-&gtPos;</a>
+<a name="438">    <a href="parse_c.html#435">To</a>-&gtLine = <a href="parse_c.html#435">From</a>-&gtLine;</a>
+<a name="439">    <a href="parse_c.html#435">To</a>-&gtHashIfLevel = <a href="parse_c.html#435">From</a>-&gtHashIfLevel;</a>
+<a name="440">    <a href="parse_c.html#435">To</a>-&gtHashIfEvaluate<a href="parse_c.html#435">To</a>Level = <a href="parse_c.html#435">From</a>-&gtHashIfEvaluate<a href="parse_c.html#435">To</a>Level;</a>
+<a name="441">    <a href="parse_c.html#435">To</a>-&gtCharacterPos = <a href="parse_c.html#435">From</a>-&gtCharacterPos;</a>
+<a name="442">}</a>
+<a name="443"></a>
+<a name="444">/* parse a "for" statement */</a>
+<a name="445">void <a name="searched">ParseFor</a>(struct ParseState *<a name="searched">Parser</a>)</a>
+<a name="446">{</a>
+<a name="447">    int <a name="searched">Condition</a>;</a>
+<a name="448">    struct ParseState Pre<a href="parse_c.html#447">Condition</a>al;</a>
+<a name="449">    struct ParseState <a name="searched">PreIncrement</a>;</a>
+<a name="450">    struct ParseState <a name="searched">PreStatement</a>;</a>
+<a name="451">    struct ParseState <a name="searched">After</a>;</a>
+<a name="452">    </a>
+<a name="453">    enum RunMode <a name="searched">OldMode</a> = <a href="parse_c.html#445">Parser</a>-&gtMode;</a>
+<a name="454">    </a>
+<a name="455">    int <a name="searched">Prev<a name="searched">ScopeID</a></a> = 0, <a href="parse_c.html#455">ScopeID</a> = VariableScopeBegin(<a href="parse_c.html#445">Parser</a>, &<a href="parse_c.html#455">Prev<a href="parse_c.html#455">ScopeID</a></a>);</a>
+<a name="456"></a>
+<a name="457">    if (LexGetToken(<a href="parse_c.html#445">Parser</a>, NULL, TRUE) != TokenOpenBracket)</a>
+<a name="458">        ProgramFail(<a href="parse_c.html#445">Parser</a>, "'(' expected");</a>
+<a name="459">                        </a>
+<a name="460">    if (ParseStatement(<a href="parse_c.html#445">Parser</a>, TRUE) != ParseResultOk)</a>
+<a name="461">        ProgramFail(<a href="parse_c.html#445">Parser</a>, "statement expected");</a>
+<a name="462">    </a>
+<a name="463">    <a href="parse_c.html#445">Parser</a>CopyPos(&Pre<a href="parse_c.html#447">Condition</a>al, <a href="parse_c.html#445">Parser</a>);</a>
+<a name="464">    if (LexGetToken(<a href="parse_c.html#445">Parser</a>, NULL, FALSE) == TokenSemicolon)</a>
+<a name="465">        <a href="parse_c.html#447">Condition</a> = TRUE;</a>
+<a name="466">    else</a>
+<a name="467">        <a href="parse_c.html#447">Condition</a> = ExpressionParseInt(<a href="parse_c.html#445">Parser</a>);</a>
+<a name="468">    </a>
+<a name="469">    if (LexGetToken(<a href="parse_c.html#445">Parser</a>, NULL, TRUE) != TokenSemicolon)</a>
+<a name="470">        ProgramFail(<a href="parse_c.html#445">Parser</a>, "';' expected");</a>
+<a name="471">    </a>
+<a name="472">    <a href="parse_c.html#445">Parser</a>CopyPos(&<a href="parse_c.html#449">PreIncrement</a>, <a href="parse_c.html#445">Parser</a>);</a>
+<a name="473">    ParseStatementMaybeRun(<a href="parse_c.html#445">Parser</a>, FALSE, FALSE);</a>
+<a name="474">    </a>
+<a name="475">    if (LexGetToken(<a href="parse_c.html#445">Parser</a>, NULL, TRUE) != TokenCloseBracket)</a>
+<a name="476">        ProgramFail(<a href="parse_c.html#445">Parser</a>, "')' expected");</a>
+<a name="477">    </a>
+<a name="478">    <a href="parse_c.html#445">Parser</a>CopyPos(&<a href="parse_c.html#450">PreStatement</a>, <a href="parse_c.html#445">Parser</a>);</a>
+<a name="479">    if (ParseStatementMaybeRun(<a href="parse_c.html#445">Parser</a>, <a href="parse_c.html#447">Condition</a>, TRUE) != ParseResultOk)</a>
+<a name="480">        ProgramFail(<a href="parse_c.html#445">Parser</a>, "statement expected");</a>
+<a name="481">    </a>
+<a name="482">    if (<a href="parse_c.html#445">Parser</a>-&gtMode == RunModeContinue && <a href="parse_c.html#453">OldMode</a> == RunModeRun)</a>
+<a name="483">        <a href="parse_c.html#445">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="484">        </a>
+<a name="485">    <a href="parse_c.html#445">Parser</a>CopyPos(&<a href="parse_c.html#451">After</a>, <a href="parse_c.html#445">Parser</a>);</a>
+<a name="486">        </a>
+<a name="487">    while (<a href="parse_c.html#447">Condition</a> && <a href="parse_c.html#445">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="488">    {</a>
+<a name="489">        <a href="parse_c.html#445">Parser</a>CopyPos(<a href="parse_c.html#445">Parser</a>, &<a href="parse_c.html#449">PreIncrement</a>);</a>
+<a name="490">        ParseStatement(<a href="parse_c.html#445">Parser</a>, FALSE);</a>
+<a name="491">                        </a>
+<a name="492">        <a href="parse_c.html#445">Parser</a>CopyPos(<a href="parse_c.html#445">Parser</a>, &Pre<a href="parse_c.html#447">Condition</a>al);</a>
+<a name="493">        if (LexGetToken(<a href="parse_c.html#445">Parser</a>, NULL, FALSE) == TokenSemicolon)</a>
+<a name="494">            <a href="parse_c.html#447">Condition</a> = TRUE;</a>
+<a name="495">        else</a>
+<a name="496">            <a href="parse_c.html#447">Condition</a> = ExpressionParseInt(<a href="parse_c.html#445">Parser</a>);</a>
+<a name="497">        </a>
+<a name="498">        if (<a href="parse_c.html#447">Condition</a>)</a>
+<a name="499">        {</a>
+<a name="500">            <a href="parse_c.html#445">Parser</a>CopyPos(<a href="parse_c.html#445">Parser</a>, &<a href="parse_c.html#450">PreStatement</a>);</a>
+<a name="501">            ParseStatement(<a href="parse_c.html#445">Parser</a>, TRUE);</a>
+<a name="502">            </a>
+<a name="503">            if (<a href="parse_c.html#445">Parser</a>-&gtMode == RunModeContinue)</a>
+<a name="504">                <a href="parse_c.html#445">Parser</a>-&gtMode = RunModeRun;                </a>
+<a name="505">        }</a>
+<a name="506">    }</a>
+<a name="507">    </a>
+<a name="508">    if (<a href="parse_c.html#445">Parser</a>-&gtMode == RunModeBreak && <a href="parse_c.html#453">OldMode</a> == RunModeRun)</a>
+<a name="509">        <a href="parse_c.html#445">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="510"></a>
+<a name="511">    VariableScopeEnd(<a href="parse_c.html#445">Parser</a>, <a href="parse_c.html#455">ScopeID</a>, <a href="parse_c.html#455">Prev<a href="parse_c.html#455">ScopeID</a></a>);</a>
+<a name="512"></a>
+<a name="513">    <a href="parse_c.html#445">Parser</a>CopyPos(<a href="parse_c.html#445">Parser</a>, &<a href="parse_c.html#451">After</a>);</a>
+<a name="514">}</a>
+<a name="515"></a>
+<a name="516">/* parse a block of code and return what mode it returned in */</a>
+<a name="517">enum RunMode <a name="searched">ParseBlock</a>(struct ParseState *<a name="searched">Parser</a>, int <a name="searched">AbsorbOpenBrace</a>, int <a name="searched">Condition</a>)</a>
+<a name="518">{</a>
+<a name="519">    int <a name="searched">Prev<a name="searched">ScopeID</a></a> = 0, <a href="parse_c.html#519">ScopeID</a> = VariableScopeBegin(<a href="parse_c.html#517">Parser</a>, &<a href="parse_c.html#519">Prev<a href="parse_c.html#519">ScopeID</a></a>);</a>
+<a name="520"></a>
+<a name="521">    if (<a href="parse_c.html#517">AbsorbOpenBrace</a> && LexGetToken(<a href="parse_c.html#517">Parser</a>, NULL, TRUE) != TokenLeftBrace)</a>
+<a name="522">        ProgramFail(<a href="parse_c.html#517">Parser</a>, "'{' expected");</a>
+<a name="523"></a>
+<a name="524">    if (<a href="parse_c.html#517">Parser</a>-&gtMode == RunModeSkip || !<a href="parse_c.html#517">Condition</a>)</a>
+<a name="525">    { </a>
+<a name="526">        /* condition failed - skip this block instead */</a>
+<a name="527">        enum RunMode <a name="searched">OldMode</a> = <a href="parse_c.html#517">Parser</a>-&gtMode;</a>
+<a name="528">        <a href="parse_c.html#517">Parser</a>-&gtMode = RunModeSkip;</a>
+<a name="529">        while (ParseStatement(<a href="parse_c.html#517">Parser</a>, TRUE) == ParseResultOk)</a>
+<a name="530">        {}</a>
+<a name="531">        <a href="parse_c.html#517">Parser</a>-&gtMode = <a href="parse_c.html#527">OldMode</a>;</a>
+<a name="532">    }</a>
+<a name="533">    else</a>
+<a name="534">    { </a>
+<a name="535">        /* just run it in its current mode */</a>
+<a name="536">        while (ParseStatement(<a href="parse_c.html#517">Parser</a>, TRUE) == ParseResultOk)</a>
+<a name="537">        {}</a>
+<a name="538">    }</a>
+<a name="539">    </a>
+<a name="540">    if (LexGetToken(<a href="parse_c.html#517">Parser</a>, NULL, TRUE) != TokenRightBrace)</a>
+<a name="541">        ProgramFail(<a href="parse_c.html#517">Parser</a>, "'}' expected");</a>
+<a name="542"></a>
+<a name="543">    VariableScopeEnd(<a href="parse_c.html#517">Parser</a>, <a href="parse_c.html#519">ScopeID</a>, <a href="parse_c.html#519">Prev<a href="parse_c.html#519">ScopeID</a></a>);</a>
+<a name="544"></a>
+<a name="545">    return <a href="parse_c.html#517">Parser</a>-&gtMode;</a>
+<a name="546">}</a>
+<a name="547"></a>
+<a name="548">/* parse a typedef declaration */</a>
+<a name="549">void <a name="searched">ParseTypedef</a>(struct ParseState *<a name="searched">Parser</a>)</a>
+<a name="550">{</a>
+<a name="551">    struct Value<a name="searched">Typ</a>e *<a href="parse_c.html#551">Typ</a>;</a>
+<a name="552">    struct Value<a href="parse_c.html#551">Typ</a>e **<a href="parse_c.html#551">Typ</a>Ptr;</a>
+<a name="553">    char *<a href="parse_c.html#551">Typ</a>eName;</a>
+<a name="554">    struct Value <a name="searched">InitValue</a>;</a>
+<a name="555">    </a>
+<a name="556">    <a href="parse_c.html#551">Typ</a>eParse(<a href="parse_c.html#549">Parser</a>, &<a href="parse_c.html#551">Typ</a>, &<a href="parse_c.html#551">Typ</a>eName, NULL);</a>
+<a name="557">    </a>
+<a name="558">    if (<a href="parse_c.html#549">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="559">    {</a>
+<a name="560">        <a href="parse_c.html#551">Typ</a>Ptr = &<a href="parse_c.html#551">Typ</a>;</a>
+<a name="561">        <a href="parse_c.html#554">InitValue</a>.<a href="parse_c.html#551">Typ</a> = &<a href="parse_c.html#549">Parser</a>-&gtpc-&gt<a href="parse_c.html#551">Typ</a>e<a href="parse_c.html#551">Typ</a>e;</a>
+<a name="562">        <a href="parse_c.html#554">InitValue</a>.Val = (union AnyValue *)<a href="parse_c.html#551">Typ</a>Ptr;</a>
+<a name="563">        VariableDefine(<a href="parse_c.html#549">Parser</a>-&gtpc, <a href="parse_c.html#549">Parser</a>, <a href="parse_c.html#551">Typ</a>eName, &<a href="parse_c.html#554">InitValue</a>, NULL, FALSE);</a>
+<a name="564">    }</a>
+<a name="565">}</a>
+<a name="566"></a>
+<a name="567">/* parse a statement */</a>
+<a name="568">enum ParseResult <a name="searched">ParseStatement</a>(struct ParseState *<a name="searched">Parser</a>, int <a name="searched">CheckTrailingSemicolon</a>)</a>
+<a name="569">{</a>
+<a name="570">    struct Value *<a name="searched">CValue</a>;</a>
+<a name="571">    struct Value *<a name="searched">LexerValue</a>;</a>
+<a name="572">    struct Value *<a name="searched">VarValue</a>;</a>
+<a name="573">    int <a name="searched">Condition</a>;</a>
+<a name="574">    struct ParseState <a name="searched">PreState</a>;</a>
+<a name="575">    enum Lex<a name="searched">Token</a> <a href="parse_c.html#575">Token</a>;</a>
+<a name="576">    </a>
+<a name="577">    /* if we're debugging, check for a breakpoint */</a>
+<a name="578">    if (<a href="parse_c.html#568">Parser</a>-&gtDebugMode && <a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="579">        DebugCheckStatement(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="580">    </a>
+<a name="581">    /* take note of where we are and then grab a token to see what statement we have */   </a>
+<a name="582">    <a href="parse_c.html#568">Parser</a>Copy(&<a href="parse_c.html#574">PreState</a>, <a href="parse_c.html#568">Parser</a>);</a>
+<a name="583">    <a href="parse_c.html#575">Token</a> = LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#571">LexerValue</a>, TRUE);</a>
+<a name="584">    </a>
+<a name="585">    switch (<a href="parse_c.html#575">Token</a>)</a>
+<a name="586">    {</a>
+<a name="587">        case <a href="parse_c.html#575">Token</a>EOF:</a>
+<a name="588">            return ParseResultEOF;</a>
+<a name="589">            </a>
+<a name="590">        case <a href="parse_c.html#575">Token</a>Identifier:</a>
+<a name="591">            /* might be a typedef-typed variable declaration or it might be an expression */</a>
+<a name="592">            if (VariableDefined(<a href="parse_c.html#568">Parser</a>-&gtpc, <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier))</a>
+<a name="593">            {</a>
+<a name="594">                VariableGet(<a href="parse_c.html#568">Parser</a>-&gtpc, <a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier, &<a href="parse_c.html#572">VarValue</a>);</a>
+<a name="595">                if (<a href="parse_c.html#572">VarValue</a>-&gtTyp-&gtBase == Type_Type)</a>
+<a name="596">                {</a>
+<a name="597">                    *<a href="parse_c.html#568">Parser</a> = <a href="parse_c.html#574">PreState</a>;</a>
+<a name="598">                    ParseDeclaration(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#575">Token</a>);</a>
+<a name="599">                    break;</a>
+<a name="600">                }</a>
+<a name="601">            }</a>
+<a name="602">            else</a>
+<a name="603">            {</a>
+<a name="604">                /* it might be a goto label */</a>
+<a name="605">                enum Lex<a href="parse_c.html#575">Token</a> <a name="searched">Next<a href="parse_c.html#575">Token</a></a> = LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, FALSE);</a>
+<a name="606">                if (<a href="parse_c.html#605">Next<a href="parse_c.html#575">Token</a></a> == <a href="parse_c.html#575">Token</a>Colon)</a>
+<a name="607">                {</a>
+<a name="608">                    /* declare the identifier as a goto label */</a>
+<a name="609">                    LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE);</a>
+<a name="610">                    if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeGoto && <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier == <a href="parse_c.html#568">Parser</a>-&gtSearchGotoLabel)</a>
+<a name="611">                        <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="612">        </a>
+<a name="613">                    <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="614">                    break;</a>
+<a name="615">                }</a>
+<a name="616">#ifdef FEATURE_AUTO_DECLARE_VARIABLES</a>
+<a name="617">                else /* new_identifier = something */</a>
+<a name="618">                {    /* try to guess type and declare the variable based on assigned value */</a>
+<a name="619">                    if (<a href="parse_c.html#605">Next<a href="parse_c.html#575">Token</a></a> == <a href="parse_c.html#575">Token</a>Assign && !VariableDefinedAndOutOfScope(<a href="parse_c.html#568">Parser</a>-&gtpc, <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier))</a>
+<a name="620">                    {</a>
+<a name="621">                        if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="622">                        {</a>
+<a name="623">                            struct Value *<a href="parse_c.html#570">CValue</a>;</a>
+<a name="624">                            char* Identifier = <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier;</a>
+<a name="625"></a>
+<a name="626">                            LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE);</a>
+<a name="627">                            if (!ExpressionParse(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#570">CValue</a>))</a>
+<a name="628">                            {</a>
+<a name="629">                                ProgramFail(<a href="parse_c.html#568">Parser</a>, "expected: expression");</a>
+<a name="630">                            }</a>
+<a name="631">                            </a>
+<a name="632">                            #if 0</a>
+<a name="633">                            PRINT_SOURCE_POS;</a>
+<a name="634">                            PlatformPrintf(<a href="parse_c.html#568">Parser</a>-&gtpc-&gtCStdOut, "%t %s = %d;\n", <a href="parse_c.html#570">CValue</a>-&gtTyp, Identifier, <a href="parse_c.html#570">CValue</a>-&gtVal-&gtInteger);</a>
+<a name="635">                            printf("%d\n", VariableDefined(<a href="parse_c.html#568">Parser</a>-&gtpc, Identifier));</a>
+<a name="636">                            #endif</a>
+<a name="637">                            VariableDefine(<a href="parse_c.html#568">Parser</a>-&gtpc, <a href="parse_c.html#568">Parser</a>, Identifier, <a href="parse_c.html#570">CValue</a>, <a href="parse_c.html#570">CValue</a>-&gtTyp, TRUE);</a>
+<a name="638">                            break;</a>
+<a name="639">                        }</a>
+<a name="640">                    }</a>
+<a name="641">                }</a>
+<a name="642">#endif</a>
+<a name="643">            }</a>
+<a name="644">            /* else fallthrough to expression */</a>
+<a name="645">	    /* no break */</a>
+<a name="646">            </a>
+<a name="647">        case <a href="parse_c.html#575">Token</a>Asterisk: </a>
+<a name="648">        case <a href="parse_c.html#575">Token</a>Ampersand: </a>
+<a name="649">        case <a href="parse_c.html#575">Token</a>Increment: </a>
+<a name="650">        case <a href="parse_c.html#575">Token</a>Decrement: </a>
+<a name="651">        case <a href="parse_c.html#575">Token</a>OpenBracket: </a>
+<a name="652">            *<a href="parse_c.html#568">Parser</a> = <a href="parse_c.html#574">PreState</a>;</a>
+<a name="653">            ExpressionParse(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#570">CValue</a>);</a>
+<a name="654">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun) </a>
+<a name="655">                VariableStackPop(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#570">CValue</a>);</a>
+<a name="656">            break;</a>
+<a name="657">            </a>
+<a name="658">        case <a href="parse_c.html#575">Token</a>LeftBrace:</a>
+<a name="659">            ParseBlock(<a href="parse_c.html#568">Parser</a>, FALSE, TRUE);</a>
+<a name="660">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="661">            break;</a>
+<a name="662">            </a>
+<a name="663">        case <a href="parse_c.html#575">Token</a>If:</a>
+<a name="664">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>OpenBracket)</a>
+<a name="665">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "'(' expected");</a>
+<a name="666">                </a>
+<a name="667">            <a href="parse_c.html#573">Condition</a> = ExpressionParseInt(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="668">            </a>
+<a name="669">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>CloseBracket)</a>
+<a name="670">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "')' expected");</a>
+<a name="671"></a>
+<a name="672">            if (ParseStatementMaybeRun(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#573">Condition</a>, TRUE) != ParseResultOk)</a>
+<a name="673">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "statement expected");</a>
+<a name="674">            </a>
+<a name="675">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, FALSE) == <a href="parse_c.html#575">Token</a>Else)</a>
+<a name="676">            {</a>
+<a name="677">                LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE);</a>
+<a name="678">                if (ParseStatementMaybeRun(<a href="parse_c.html#568">Parser</a>, !<a href="parse_c.html#573">Condition</a>, TRUE) != ParseResultOk)</a>
+<a name="679">                    ProgramFail(<a href="parse_c.html#568">Parser</a>, "statement expected");</a>
+<a name="680">            }</a>
+<a name="681">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="682">            break;</a>
+<a name="683">        </a>
+<a name="684">        case <a href="parse_c.html#575">Token</a>While:</a>
+<a name="685">            {</a>
+<a name="686">                struct ParseState <a name="searched">Pre<a href="parse_c.html#573">Condition</a>al</a>;</a>
+<a name="687">                enum RunMode <a name="searched">PreMode</a> = <a href="parse_c.html#568">Parser</a>-&gtMode;</a>
+<a name="688"></a>
+<a name="689">                if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>OpenBracket)</a>
+<a name="690">                    ProgramFail(<a href="parse_c.html#568">Parser</a>, "'(' expected");</a>
+<a name="691">                    </a>
+<a name="692">                <a href="parse_c.html#568">Parser</a>CopyPos(&<a href="parse_c.html#686">Pre<a href="parse_c.html#573">Condition</a>al</a>, <a href="parse_c.html#568">Parser</a>);</a>
+<a name="693">                do</a>
+<a name="694">                {</a>
+<a name="695">                    <a href="parse_c.html#568">Parser</a>CopyPos(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#686">Pre<a href="parse_c.html#573">Condition</a>al</a>);</a>
+<a name="696">                    <a href="parse_c.html#573">Condition</a> = ExpressionParseInt(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="697">                    if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>CloseBracket)</a>
+<a name="698">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "')' expected");</a>
+<a name="699">                    </a>
+<a name="700">                    if (ParseStatementMaybeRun(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#573">Condition</a>, TRUE) != ParseResultOk)</a>
+<a name="701">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "statement expected");</a>
+<a name="702">                    </a>
+<a name="703">                    if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeContinue)</a>
+<a name="704">                        <a href="parse_c.html#568">Parser</a>-&gtMode = <a href="parse_c.html#687">PreMode</a>;</a>
+<a name="705">                    </a>
+<a name="706">                } while (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun && <a href="parse_c.html#573">Condition</a>);</a>
+<a name="707">                </a>
+<a name="708">                if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeBreak)</a>
+<a name="709">                    <a href="parse_c.html#568">Parser</a>-&gtMode = <a href="parse_c.html#687">PreMode</a>;</a>
+<a name="710"></a>
+<a name="711">                <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="712">            }</a>
+<a name="713">            break;</a>
+<a name="714">                </a>
+<a name="715">        case <a href="parse_c.html#575">Token</a>Do:</a>
+<a name="716">            {</a>
+<a name="717">                struct ParseState <a name="searched">PreStatement</a>;</a>
+<a name="718">                enum RunMode <a name="searched">PreMode</a> = <a href="parse_c.html#568">Parser</a>-&gtMode;</a>
+<a name="719">                <a href="parse_c.html#568">Parser</a>CopyPos(&<a href="parse_c.html#717">PreStatement</a>, <a href="parse_c.html#568">Parser</a>);</a>
+<a name="720">                do</a>
+<a name="721">                {</a>
+<a name="722">                    <a href="parse_c.html#568">Parser</a>CopyPos(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#717">PreStatement</a>);</a>
+<a name="723">                    if (ParseStatement(<a href="parse_c.html#568">Parser</a>, TRUE) != ParseResultOk)</a>
+<a name="724">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "statement expected");</a>
+<a name="725">                </a>
+<a name="726">                    if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeContinue)</a>
+<a name="727">                        <a href="parse_c.html#568">Parser</a>-&gtMode = <a href="parse_c.html#718">PreMode</a>;</a>
+<a name="728"></a>
+<a name="729">                    if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>While)</a>
+<a name="730">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "'while' expected");</a>
+<a name="731">                    </a>
+<a name="732">                    if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>OpenBracket)</a>
+<a name="733">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "'(' expected");</a>
+<a name="734">                        </a>
+<a name="735">                    <a href="parse_c.html#573">Condition</a> = ExpressionParseInt(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="736">                    if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>CloseBracket)</a>
+<a name="737">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "')' expected");</a>
+<a name="738">                    </a>
+<a name="739">                } while (<a href="parse_c.html#573">Condition</a> && <a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun);           </a>
+<a name="740">                </a>
+<a name="741">                if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeBreak)</a>
+<a name="742">                    <a href="parse_c.html#568">Parser</a>-&gtMode = <a href="parse_c.html#718">PreMode</a>;</a>
+<a name="743">            }</a>
+<a name="744">            break;</a>
+<a name="745">                </a>
+<a name="746">        case <a href="parse_c.html#575">Token</a>For:</a>
+<a name="747">            ParseFor(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="748">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="749">            break;</a>
+<a name="750"></a>
+<a name="751">        case <a href="parse_c.html#575">Token</a>Semicolon: </a>
+<a name="752">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE; </a>
+<a name="753">            break;</a>
+<a name="754"></a>
+<a name="755">        case <a href="parse_c.html#575">Token</a>IntType:</a>
+<a name="756">        case <a href="parse_c.html#575">Token</a>ShortType:</a>
+<a name="757">        case <a href="parse_c.html#575">Token</a>CharType:</a>
+<a name="758">        case <a href="parse_c.html#575">Token</a>LongType:</a>
+<a name="759">        case <a href="parse_c.html#575">Token</a>FloatType:</a>
+<a name="760">        case <a href="parse_c.html#575">Token</a>DoubleType:</a>
+<a name="761">        case <a href="parse_c.html#575">Token</a>VoidType:</a>
+<a name="762">        case <a href="parse_c.html#575">Token</a>StructType:</a>
+<a name="763">        case <a href="parse_c.html#575">Token</a>UnionType:</a>
+<a name="764">        case <a href="parse_c.html#575">Token</a>EnumType:</a>
+<a name="765">        case <a href="parse_c.html#575">Token</a>SignedType:</a>
+<a name="766">        case <a href="parse_c.html#575">Token</a>UnsignedType:</a>
+<a name="767">        case <a href="parse_c.html#575">Token</a>StaticType:</a>
+<a name="768">        case <a href="parse_c.html#575">Token</a>AutoType:</a>
+<a name="769">        case <a href="parse_c.html#575">Token</a>RegisterType:</a>
+<a name="770">        case <a href="parse_c.html#575">Token</a>ExternType:</a>
+<a name="771">            *<a href="parse_c.html#568">Parser</a> = <a href="parse_c.html#574">PreState</a>;</a>
+<a name="772">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = ParseDeclaration(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#575">Token</a>);</a>
+<a name="773">            break;</a>
+<a name="774">        </a>
+<a name="775">        case <a href="parse_c.html#575">Token</a>HashDefine:</a>
+<a name="776">            ParseMacroDefinition(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="777">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="778">            break;</a>
+<a name="779">            </a>
+<a name="780">#ifndef NO_HASH_INCLUDE</a>
+<a name="781">        case <a href="parse_c.html#575">Token</a>HashInclude:</a>
+<a name="782">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#571">LexerValue</a>, TRUE) != <a href="parse_c.html#575">Token</a>StringConstant)</a>
+<a name="783">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "\"filename.h\" expected");</a>
+<a name="784">            </a>
+<a name="785">            IncludeFile(<a href="parse_c.html#568">Parser</a>-&gtpc, (char *)<a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtPointer);</a>
+<a name="786">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="787">            break;</a>
+<a name="788">#endif</a>
+<a name="789"></a>
+<a name="790">        case <a href="parse_c.html#575">Token</a>Switch:</a>
+<a name="791">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>OpenBracket)</a>
+<a name="792">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "'(' expected");</a>
+<a name="793">                </a>
+<a name="794">            <a href="parse_c.html#573">Condition</a> = ExpressionParseInt(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="795">            </a>
+<a name="796">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>CloseBracket)</a>
+<a name="797">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "')' expected");</a>
+<a name="798">            </a>
+<a name="799">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, FALSE) != <a href="parse_c.html#575">Token</a>LeftBrace)</a>
+<a name="800">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "'{' expected");</a>
+<a name="801">            </a>
+<a name="802">            { </a>
+<a name="803">                /* new block so we can store parser state */</a>
+<a name="804">                enum RunMode <a name="searched">OldMode</a> = <a href="parse_c.html#568">Parser</a>-&gtMode;</a>
+<a name="805">                int <a name="searched">OldSearchLabel</a> = <a href="parse_c.html#568">Parser</a>-&gtSearchLabel;</a>
+<a name="806">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeCaseSearch;</a>
+<a name="807">                <a href="parse_c.html#568">Parser</a>-&gtSearchLabel = <a href="parse_c.html#573">Condition</a>;</a>
+<a name="808">                </a>
+<a name="809">                ParseBlock(<a href="parse_c.html#568">Parser</a>, TRUE, (<a href="parse_c.html#804">OldMode</a> != RunModeSkip) && (<a href="parse_c.html#804">OldMode</a> != RunModeReturn));</a>
+<a name="810">                </a>
+<a name="811">                if (<a href="parse_c.html#568">Parser</a>-&gtMode != RunModeReturn)</a>
+<a name="812">                    <a href="parse_c.html#568">Parser</a>-&gtMode = <a href="parse_c.html#804">OldMode</a>;</a>
+<a name="813"></a>
+<a name="814">                <a href="parse_c.html#568">Parser</a>-&gtSearchLabel = <a href="parse_c.html#805">OldSearchLabel</a>;</a>
+<a name="815">            }</a>
+<a name="816"></a>
+<a name="817">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="818">            break;</a>
+<a name="819"></a>
+<a name="820">        case <a href="parse_c.html#575">Token</a>Case:</a>
+<a name="821">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeCaseSearch)</a>
+<a name="822">            {</a>
+<a name="823">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="824">                <a href="parse_c.html#573">Condition</a> = ExpressionParseInt(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="825">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeCaseSearch;</a>
+<a name="826">            }</a>
+<a name="827">            else</a>
+<a name="828">                <a href="parse_c.html#573">Condition</a> = ExpressionParseInt(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="829">                </a>
+<a name="830">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>Colon)</a>
+<a name="831">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "':' expected");</a>
+<a name="832">            </a>
+<a name="833">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeCaseSearch && <a href="parse_c.html#573">Condition</a> == <a href="parse_c.html#568">Parser</a>-&gtSearchLabel)</a>
+<a name="834">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="835"></a>
+<a name="836">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="837">            break;</a>
+<a name="838">            </a>
+<a name="839">        case <a href="parse_c.html#575">Token</a>Default:</a>
+<a name="840">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>Colon)</a>
+<a name="841">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "':' expected");</a>
+<a name="842">            </a>
+<a name="843">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeCaseSearch)</a>
+<a name="844">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="845">                </a>
+<a name="846">            <a href="parse_c.html#568">CheckTrailingSemicolon</a> = FALSE;</a>
+<a name="847">            break;</a>
+<a name="848"></a>
+<a name="849">        case <a href="parse_c.html#575">Token</a>Break:</a>
+<a name="850">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="851">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeBreak;</a>
+<a name="852">            break;</a>
+<a name="853">            </a>
+<a name="854">        case <a href="parse_c.html#575">Token</a>Continue:</a>
+<a name="855">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="856">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeContinue;</a>
+<a name="857">            break;</a>
+<a name="858">            </a>
+<a name="859">        case <a href="parse_c.html#575">Token</a>Return:</a>
+<a name="860">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="861">            {</a>
+<a name="862">                if (!<a href="parse_c.html#568">Parser</a>-&gtpc-&gtTopStackFrame || <a href="parse_c.html#568">Parser</a>-&gtpc-&gtTopStackFrame-&gtReturnValue-&gtTyp-&gtBase != TypeVoid)</a>
+<a name="863">                {</a>
+<a name="864">                    if (!ExpressionParse(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#570">CValue</a>))</a>
+<a name="865">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "value required in return");</a>
+<a name="866">                    </a>
+<a name="867">                    if (!<a href="parse_c.html#568">Parser</a>-&gtpc-&gtTopStackFrame) /* return from top-level program? */</a>
+<a name="868">                        PlatformExit(<a href="parse_c.html#568">Parser</a>-&gtpc, ExpressionCoerceInteger(<a href="parse_c.html#570">CValue</a>));</a>
+<a name="869">                    else</a>
+<a name="870">                        ExpressionAssign(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#568">Parser</a>-&gtpc-&gtTopStackFrame-&gtReturnValue, <a href="parse_c.html#570">CValue</a>, TRUE, NULL, 0, FALSE);</a>
+<a name="871"></a>
+<a name="872">                    VariableStackPop(<a href="parse_c.html#568">Parser</a>, <a href="parse_c.html#570">CValue</a>);</a>
+<a name="873">                }</a>
+<a name="874">                else</a>
+<a name="875">                {</a>
+<a name="876">                    if (ExpressionParse(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#570">CValue</a>))</a>
+<a name="877">                        ProgramFail(<a href="parse_c.html#568">Parser</a>, "value in return from a void function");                    </a>
+<a name="878">                }</a>
+<a name="879">                </a>
+<a name="880">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeReturn;</a>
+<a name="881">            }</a>
+<a name="882">            else</a>
+<a name="883">                ExpressionParse(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#570">CValue</a>);</a>
+<a name="884">            break;</a>
+<a name="885"></a>
+<a name="886">        case <a href="parse_c.html#575">Token</a>Typedef:</a>
+<a name="887">            ParseTypedef(<a href="parse_c.html#568">Parser</a>);</a>
+<a name="888">            break;</a>
+<a name="889">            </a>
+<a name="890">        case <a href="parse_c.html#575">Token</a>Goto:</a>
+<a name="891">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#571">LexerValue</a>, TRUE) != <a href="parse_c.html#575">Token</a>Identifier)</a>
+<a name="892">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "identifier expected");</a>
+<a name="893">            </a>
+<a name="894">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="895">            { </a>
+<a name="896">                /* start scanning for the goto label */</a>
+<a name="897">                <a href="parse_c.html#568">Parser</a>-&gtSearchGotoLabel = <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier;</a>
+<a name="898">                <a href="parse_c.html#568">Parser</a>-&gtMode = RunModeGoto;</a>
+<a name="899">            }</a>
+<a name="900">            break;</a>
+<a name="901">                </a>
+<a name="902">        case <a href="parse_c.html#575">Token</a>Delete:</a>
+<a name="903">        {</a>
+<a name="904">            /* try it as a function or variable name to delete */</a>
+<a name="905">            if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, &<a href="parse_c.html#571">LexerValue</a>, TRUE) != <a href="parse_c.html#575">Token</a>Identifier)</a>
+<a name="906">                ProgramFail(<a href="parse_c.html#568">Parser</a>, "identifier expected");</a>
+<a name="907">                </a>
+<a name="908">            if (<a href="parse_c.html#568">Parser</a>-&gtMode == RunModeRun)</a>
+<a name="909">            { </a>
+<a name="910">                /* delete this variable or function */</a>
+<a name="911">                <a href="parse_c.html#570">CValue</a> = TableDelete(<a href="parse_c.html#568">Parser</a>-&gtpc, &<a href="parse_c.html#568">Parser</a>-&gtpc-&gtGlobalTable, <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier);</a>
+<a name="912"></a>
+<a name="913">                if (<a href="parse_c.html#570">CValue</a> == NULL)</a>
+<a name="914">                    ProgramFail(<a href="parse_c.html#568">Parser</a>, "'%s' is not defined", <a href="parse_c.html#571">LexerValue</a>-&gtVal-&gtIdentifier);</a>
+<a name="915">                </a>
+<a name="916">                VariableFree(<a href="parse_c.html#568">Parser</a>-&gtpc, <a href="parse_c.html#570">CValue</a>);</a>
+<a name="917">            }</a>
+<a name="918">            break;</a>
+<a name="919">        }</a>
+<a name="920">        </a>
+<a name="921">        default:</a>
+<a name="922">            *<a href="parse_c.html#568">Parser</a> = <a href="parse_c.html#574">PreState</a>;</a>
+<a name="923">            return ParseResultError;</a>
+<a name="924">    }</a>
+<a name="925">    </a>
+<a name="926">    if (<a href="parse_c.html#568">CheckTrailingSemicolon</a>)</a>
+<a name="927">    {</a>
+<a name="928">        if (LexGet<a href="parse_c.html#575">Token</a>(<a href="parse_c.html#568">Parser</a>, NULL, TRUE) != <a href="parse_c.html#575">Token</a>Semicolon)</a>
+<a name="929">            ProgramFail(<a href="parse_c.html#568">Parser</a>, "';' expected");</a>
+<a name="930">    }</a>
+<a name="931">    </a>
+<a name="932">    return ParseResultOk;</a>
+<a name="933">}</a>
+<a name="934"></a>
+<a name="935">/* quick scan a source file for definitions */</a>
+<a name="936">void <a name="searched">PicocParse</a>(Picoc *<a name="searched">pc</a>, const char *<a name="searched">FileName</a>, const char *<a name="searched">Source</a>, int <a name="searched">SourceLen</a>, int <a name="searched">RunIt</a>, int <a name="searched">CleanupNow</a>, int <a name="searched">Cleanup<a href="parse_c.html#936">Source</a></a>, int <a name="searched">EnableDebugger</a>)</a>
+<a name="937">{</a>
+<a name="938">    struct ParseState <a name="searched">Parser</a>;</a>
+<a name="939">    enum ParseResult <a name="searched">Ok</a>;</a>
+<a name="940">    struct CleanupTokenNode *<a name="searched">NewCleanupNode</a>;</a>
+<a name="941">    char *<a name="searched">Reg<a href="parse_c.html#936">FileName</a></a> = TableStrRegister(<a href="parse_c.html#936">pc</a>, <a href="parse_c.html#936">FileName</a>);</a>
+<a name="942">    </a>
+<a name="943">    void *<a name="searched">Tokens</a> = LexAnalyse(<a href="parse_c.html#936">pc</a>, <a href="parse_c.html#941">Reg<a href="parse_c.html#936">FileName</a></a>, <a href="parse_c.html#936">Source</a>, <a href="parse_c.html#936">SourceLen</a>, NULL);</a>
+<a name="944">    </a>
+<a name="945">    /* allocate a cleanup node so we can clean up the tokens later */</a>
+<a name="946">    if (!<a href="parse_c.html#936">CleanupNow</a>)</a>
+<a name="947">    {</a>
+<a name="948">        <a href="parse_c.html#940">NewCleanupNode</a> = HeapAllocMem(<a href="parse_c.html#936">pc</a>, sizeof(struct CleanupTokenNode));</a>
+<a name="949">        if (<a href="parse_c.html#940">NewCleanupNode</a> == NULL)</a>
+<a name="950">            ProgramFailNo<a href="parse_c.html#938">Parser</a>(<a href="parse_c.html#936">pc</a>, "out of memory");</a>
+<a name="951">        </a>
+<a name="952">        <a href="parse_c.html#940">NewCleanupNode</a>-&gt<a href="parse_c.html#943">Tokens</a> = <a href="parse_c.html#943">Tokens</a>;</a>
+<a name="953">        if (<a href="parse_c.html#936">Cleanup<a href="parse_c.html#936">Source</a></a>)</a>
+<a name="954">            <a href="parse_c.html#940">NewCleanupNode</a>-&gt<a href="parse_c.html#936">Source</a>Text = <a href="parse_c.html#936">Source</a>;</a>
+<a name="955">        else</a>
+<a name="956">            <a href="parse_c.html#940">NewCleanupNode</a>-&gt<a href="parse_c.html#936">Source</a>Text = NULL;</a>
+<a name="957">            </a>
+<a name="958">        <a href="parse_c.html#940">NewCleanupNode</a>-&gtNext = <a href="parse_c.html#936">pc</a>-&gtCleanupTokenList;</a>
+<a name="959">        <a href="parse_c.html#936">pc</a>-&gtCleanupTokenList = <a href="parse_c.html#940">NewCleanupNode</a>;</a>
+<a name="960">    }</a>
+<a name="961">    </a>
+<a name="962">    /* do the parsing */</a>
+<a name="963">    LexInit<a href="parse_c.html#938">Parser</a>(&<a href="parse_c.html#938">Parser</a>, <a href="parse_c.html#936">pc</a>, <a href="parse_c.html#936">Source</a>, <a href="parse_c.html#943">Tokens</a>, <a href="parse_c.html#941">Reg<a href="parse_c.html#936">FileName</a></a>, <a href="parse_c.html#936">RunIt</a>, <a href="parse_c.html#936">EnableDebugger</a>);</a>
+<a name="964"></a>
+<a name="965">    do {</a>
+<a name="966">        <a href="parse_c.html#939">Ok</a> = ParseStatement(&<a href="parse_c.html#938">Parser</a>, TRUE);</a>
+<a name="967">    } while (<a href="parse_c.html#939">Ok</a> == ParseResult<a href="parse_c.html#939">Ok</a>);</a>
+<a name="968">    </a>
+<a name="969">    if (<a href="parse_c.html#939">Ok</a> == ParseResultError)</a>
+<a name="970">        ProgramFail(&<a href="parse_c.html#938">Parser</a>, "parse error");</a>
+<a name="971">    </a>
+<a name="972">    /* clean up */</a>
+<a name="973">    if (<a href="parse_c.html#936">CleanupNow</a>)</a>
+<a name="974">        HeapFreeMem(<a href="parse_c.html#936">pc</a>, <a href="parse_c.html#943">Tokens</a>);</a>
+<a name="975">}</a>
+<a name="976"></a>
+<a name="977">/* parse interactively */</a>
+<a name="978">void <a name="searched">PicocParseInteractiveNoStartPrompt</a>(Picoc *<a name="searched">pc</a>, int <a name="searched">EnableDebugger</a>)</a>
+<a name="979">{</a>
+<a name="980">    struct ParseState <a name="searched">Parser</a>;</a>
+<a name="981">    enum ParseResult <a name="searched">Ok</a>;</a>
+<a name="982">    </a>
+<a name="983">    LexInit<a href="parse_c.html#980">Parser</a>(&<a href="parse_c.html#980">Parser</a>, <a href="parse_c.html#978">pc</a>, NULL, NULL, <a href="parse_c.html#978">pc</a>-&gtStrEmpty, TRUE, <a href="parse_c.html#978">EnableDebugger</a>);</a>
+<a name="984">    PicocPlatformSetExitPoint(<a href="parse_c.html#978">pc</a>);</a>
+<a name="985">    LexInteractiveClear(<a href="parse_c.html#978">pc</a>, &<a href="parse_c.html#980">Parser</a>);</a>
+<a name="986"></a>
+<a name="987">    do</a>
+<a name="988">    {</a>
+<a name="989">        LexInteractiveStatementPrompt(<a href="parse_c.html#978">pc</a>);</a>
+<a name="990">        <a href="parse_c.html#981">Ok</a> = ParseStatement(&<a href="parse_c.html#980">Parser</a>, TRUE);</a>
+<a name="991">        LexInteractiveCompleted(<a href="parse_c.html#978">pc</a>, &<a href="parse_c.html#980">Parser</a>);</a>
+<a name="992">        </a>
+<a name="993">    } while (<a href="parse_c.html#981">Ok</a> == ParseResult<a href="parse_c.html#981">Ok</a>);</a>
+<a name="994">    </a>
+<a name="995">    if (<a href="parse_c.html#981">Ok</a> == ParseResultError)</a>
+<a name="996">        ProgramFail(&<a href="parse_c.html#980">Parser</a>, "parse error");</a>
+<a name="997">    </a>
+<a name="998">    PlatformPrintf(<a href="parse_c.html#978">pc</a>-&gtCStdOut, "\n");</a>
+<a name="999">}</a>
+<a name="1000"></a>
+<a name="1001">/* parse interactively, showing a startup message */</a>
+<a name="1002">void <a name="searched">PicocParseInteractive</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="1003">{</a>
+<a name="1004">    PlatformPrintf(<a href="parse_c.html#1002">pc</a>-&gtCStdOut, INTERACTIVE_PROMPT_START);</a>
+<a name="1005">    PicocParseInteractiveNoStartPrompt(<a href="parse_c.html#1002">pc</a>, TRUE);</a>
+<a name="1006">}</a>
+</pre></body></html>

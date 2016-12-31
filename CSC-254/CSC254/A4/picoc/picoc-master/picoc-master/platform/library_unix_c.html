@@ -1,0 +1,31 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">#include "../interpreter.h"</a>
+<a name="2"></a>
+<a name="3">void <a href="library_unix_c.html#3">UnixSetupFunc</a>()</a>
+<a name="4">{    </a>
+<a name="5">}</a>
+<a name="6"></a>
+<a name="7">void <a href="library_unix_c.html#7">Ctest</a> (struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>) </a>
+<a name="8">{</a>
+<a name="9">    printf("test(%d)\n", <a href="library_unix_c.html#7">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="10">    <a href="library_unix_c.html#7">Param</a>[0]-&gtVal-&gtInteger = 1234;</a>
+<a name="11">}</a>
+<a name="12"></a>
+<a name="13">void <a href="library_unix_c.html#13">Clineno</a> (struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>) </a>
+<a name="14">{</a>
+<a name="15">    <a href="library_unix_c.html#13">ReturnValue</a>-&gtVal-&gtInteger = <a href="library_unix_c.html#13">Parser</a>-&gtLine;</a>
+<a name="16">}</a>
+<a name="17"></a>
+<a name="18">/* list of all library functions and their prototypes */</a>
+<a name="19">struct LibraryFunction <a href="library_unix_c.html#19">UnixFunctions</a>[] =</a>
+<a name="20">{</a>
+<a name="21">    { <a href="library_unix_c.html#7">Ctest</a>,        "void test(int);" },</a>
+<a name="22">    { <a href="library_unix_c.html#13">Clineno</a>,      "int lineno();" },</a>
+<a name="23">    { NULL,         NULL }</a>
+<a name="24">};</a>
+<a name="25"></a>
+<a name="26">void <a href="library_unix_c.html#26">PlatformLibraryInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="27">{</a>
+<a name="28">    <a href="include_c.html#47">IncludeRegister</a>(<a href="library_unix_c.html#26">pc</a>, "picoc_unix.h", &<a href="library_unix_c.html#3">UnixSetupFunc</a>, &<a href="library_unix_c.html#19">UnixFunctions</a>[0], NULL);</a>
+<a name="29">}</a>
+</pre></body></html>

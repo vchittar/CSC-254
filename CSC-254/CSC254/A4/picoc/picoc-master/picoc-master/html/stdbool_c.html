@@ -1,0 +1,24 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1"><font color="gray">/*<searched> string.h library for large systems - small embedded systems use clibrary.c instead */</font></a>
+<a name="2">#include "../interpreter.h"</a>
+<a name="3"></a>
+<a name="4">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="5"></a>
+<a name="6">static <font color="red">int</font> <a href="stdbool_c.html#6">trueValue</a> = 1;</a>
+<a name="7">static <font color="red">int</font> <a href="stdbool_c.html#7">falseValue</a> = 0;</a>
+<a name="8"></a>
+<a name="9"></a>
+<a name="10"><font color="gray">/*<searched> structure definitions */</font></a>
+<a name="11">const <font color="red">char</font> <a href="interpreter_h.html#647">StdboolDefs</a>[] = "<font color="brown">typedef</font> <font color="red">int</font> bool;";</a>
+<a name="12"></a>
+<a name="13"><font color="gray">/*<searched> creates various system-dependent definitions */</font></a>
+<a name="14"><font color="red">void</font> <a href="stdbool_c.html#14">StdboolSetupFunc</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="15">{</a>
+<a name="16">    <font color="gray">/*<searched> defines */</font></a>
+<a name="17">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "true", &<a href="stdbool_c.html#14">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdbool_c.html#6">trueValue</a>, FALSE);</a>
+<a name="18">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "false", &<a href="stdbool_c.html#14">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdbool_c.html#7">falseValue</a>, FALSE);</a>
+<a name="19">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(pc, NULL, "__bool_true_false_are_defined", &<a href="stdbool_c.html#14">pc</a>-&gtIntType, (union AnyValue *)&<a href="stdbool_c.html#6">trueValue</a>, FALSE);</a>
+<a name="20">}</a>
+<a name="21"></a>
+<a name="22">#endif <font color="gray">/*<searched> !BUILTIN_MINI_STDLIB */</font></a>
+</pre></body></html>

@@ -1,0 +1,279 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc heap memory allocation. This is a complete (but small) memory</a>
+<a name="2"> * allocator for embedded systems which have no memory allocator. Alternatively</a>
+<a name="3"> * you can define USE_MALLOC_HEAP to use your system's own malloc() allocator */</a>
+<a name="4"> </a>
+<a name="5">/* stack grows up from the bottom and heap grows down from the top of heap space */</a>
+<a name="6">#include "interpreter.h"</a>
+<a name="7"></a>
+<a name="8">#ifdef DEBUG_HEAP</a>
+<a name="9">void ShowBigList(Picoc *pc)</a>
+<a name="10">{</a>
+<a name="11">    struct AllocNode *LPos;</a>
+<a name="12">    </a>
+<a name="13">    printf("Heap: bottom=0x%lx 0x%lx-0x%lx, big freelist=", (long)pc-&gtHeapBottom, (long)&(pc-&gtHeapMemory)[0], (long)&(pc-&gtHeapMemory)[HEAP_SIZE]);</a>
+<a name="14">    for (LPos = pc-&gtFreeListBig; LPos != NULL; LPos = LPos-&gtNextFree)</a>
+<a name="15">        printf("0x%lx:%d ", (long)LPos, LPos-&gtSize);</a>
+<a name="16">    </a>
+<a name="17">    printf("\n");</a>
+<a name="18">}</a>
+<a name="19">#endif</a>
+<a name="20"></a>
+<a name="21">/* initialise the stack and heap storage */</a>
+<a name="22">void <a name="searched">HeapInit</a>(Picoc *<a name="searched">pc</a>, int <a name="searched">StackOrHeapSize</a>)</a>
+<a name="23">{</a>
+<a name="24">    int <a name="searched">Count</a>;</a>
+<a name="25">    int <a name="searched">AlignOffset</a> = 0;</a>
+<a name="26">    </a>
+<a name="27">#ifdef USE_MALLOC_STACK</a>
+<a name="28">    <a href="heap_c.html#22">pc</a>-&gtHeapMemory = malloc(<a href="heap_c.html#22">StackOrHeapSize</a>);</a>
+<a name="29">    <a href="heap_c.html#22">pc</a>-&gtHeapBottom = NULL;                     /* the bottom of the (downward-growing) heap */</a>
+<a name="30">    <a href="heap_c.html#22">pc</a>-&gtStackFrame = NULL;                     /* the current stack frame */</a>
+<a name="31">    <a href="heap_c.html#22">pc</a>-&gtHeapStackTop = NULL;                          /* the top of the stack */</a>
+<a name="32">#else</a>
+<a name="33"># ifdef SURVEYOR_HOST</a>
+<a name="34">    <a href="heap_c.html#22">pc</a>-&gtHeapMemory = (unsigned char *)C_HEAPSTART;      /* all memory - stack and heap */</a>
+<a name="35">    <a href="heap_c.html#22">pc</a>-&gtHeapBottom = (void *)C_HEAPSTART + HEAP_SIZE;  /* the bottom of the (downward-growing) heap */</a>
+<a name="36">    <a href="heap_c.html#22">pc</a>-&gtStackFrame = (void *)C_HEAPSTART;              /* the current stack frame */</a>
+<a name="37">    <a href="heap_c.html#22">pc</a>-&gtHeapStackTop = (void *)C_HEAPSTART;                   /* the top of the stack */</a>
+<a name="38">    <a href="heap_c.html#22">pc</a>-&gtHeapMemStart = (void *)C_HEAPSTART;</a>
+<a name="39"># else</a>
+<a name="40">    <a href="heap_c.html#22">pc</a>-&gtHeapBottom = &HeapMemory[HEAP_SIZE];   /* the bottom of the (downward-growing) heap */</a>
+<a name="41">    <a href="heap_c.html#22">pc</a>-&gtStackFrame = &HeapMemory[0];           /* the current stack frame */</a>
+<a name="42">    <a href="heap_c.html#22">pc</a>-&gtHeapStackTop = &HeapMemory[0];                /* the top of the stack */</a>
+<a name="43"># endif</a>
+<a name="44">#endif</a>
+<a name="45"></a>
+<a name="46">    while (((unsigned long)&<a href="heap_c.html#22">pc</a>-&gtHeapMemory[<a href="heap_c.html#25">AlignOffset</a>] & (sizeof(ALIGN_TYPE)-1)) != 0)</a>
+<a name="47">        <a href="heap_c.html#25">AlignOffset</a>++;</a>
+<a name="48">        </a>
+<a name="49">    <a href="heap_c.html#22">pc</a>-&gtStackFrame = &(<a href="heap_c.html#22">pc</a>-&gtHeapMemory)[<a href="heap_c.html#25">AlignOffset</a>];</a>
+<a name="50">    <a href="heap_c.html#22">pc</a>-&gtHeapStackTop = &(<a href="heap_c.html#22">pc</a>-&gtHeapMemory)[<a href="heap_c.html#25">AlignOffset</a>];</a>
+<a name="51">    *(void **)(<a href="heap_c.html#22">pc</a>-&gtStackFrame) = NULL;</a>
+<a name="52">    <a href="heap_c.html#22">pc</a>-&gtHeapBottom = &(<a href="heap_c.html#22">pc</a>-&gtHeapMemory)[<a href="heap_c.html#22">StackOrHeapSize</a>-sizeof(ALIGN_TYPE)+<a href="heap_c.html#25">AlignOffset</a>];</a>
+<a name="53">    <a href="heap_c.html#22">pc</a>-&gtFreeListBig = NULL;</a>
+<a name="54">    for (<a href="heap_c.html#24">Count</a> = 0; <a href="heap_c.html#24">Count</a> &lt FREELIST_BUCKETS; <a href="heap_c.html#24">Count</a>++)</a>
+<a name="55">        <a href="heap_c.html#22">pc</a>-&gtFreeListBucket[<a href="heap_c.html#24">Count</a>] = NULL;</a>
+<a name="56">}</a>
+<a name="57"></a>
+<a name="58">void <a name="searched">HeapCleanup</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="59">{</a>
+<a name="60">#ifdef USE_MALLOC_STACK</a>
+<a name="61">    free(<a href="heap_c.html#58">pc</a>-&gtHeapMemory);</a>
+<a name="62">#endif</a>
+<a name="63">}</a>
+<a name="64"></a>
+<a name="65">/* allocate some space on the stack, in the current stack frame</a>
+<a name="66"> * clears memory. can return NULL if out of stack space */</a>
+<a name="67">void *<a name="searched">HeapAllocStack</a>(Picoc *<a name="searched">pc</a>, int <a name="searched">Size</a>)</a>
+<a name="68">{</a>
+<a name="69">    char *<a name="searched">NewMem</a> = <a href="heap_c.html#67">pc</a>-&gtHeapStackTop;</a>
+<a name="70">    char *<a name="searched">NewTop</a> = (char *)<a href="heap_c.html#67">pc</a>-&gtHeapStackTop + MEM_ALIGN(<a href="heap_c.html#67">Size</a>);</a>
+<a name="71">#ifdef DEBUG_HEAP</a>
+<a name="72">    printf("<a href="heap_c.html#67">HeapAllocStack</a>(%ld) at 0x%lx\n", (unsigned long)MEM_ALIGN(<a href="heap_c.html#67">Size</a>), (unsigned long)<a href="heap_c.html#67">pc</a>-&gtHeapStackTop);</a>
+<a name="73">#endif</a>
+<a name="74">    if (<a href="heap_c.html#70">NewTop</a> &gt (char *)<a href="heap_c.html#67">pc</a>-&gtHeapBottom)</a>
+<a name="75">        return NULL;</a>
+<a name="76">        </a>
+<a name="77">    <a href="heap_c.html#67">pc</a>-&gtHeapStackTop = (void *)<a href="heap_c.html#70">NewTop</a>;</a>
+<a name="78">    memset((void *)<a href="heap_c.html#69">NewMem</a>, '\0', <a href="heap_c.html#67">Size</a>);</a>
+<a name="79">    return <a href="heap_c.html#69">NewMem</a>;</a>
+<a name="80">}</a>
+<a name="81"></a>
+<a name="82">/* allocate some space on the stack, in the current stack frame */</a>
+<a name="83">void <a name="searched">HeapUnpopStack</a>(Picoc *<a name="searched">pc</a>, int <a name="searched">Size</a>)</a>
+<a name="84">{</a>
+<a name="85">#ifdef DEBUG_HEAP</a>
+<a name="86">    printf("<a href="heap_c.html#83">HeapUnpopStack</a>(%ld) at 0x%lx\n", (unsigned long)MEM_ALIGN(<a href="heap_c.html#83">Size</a>), (unsigned long)<a href="heap_c.html#83">pc</a>-&gtHeapStackTop);</a>
+<a name="87">#endif</a>
+<a name="88">    <a href="heap_c.html#83">pc</a>-&gtHeapStackTop = (void *)((char *)<a href="heap_c.html#83">pc</a>-&gtHeapStackTop + MEM_ALIGN(<a href="heap_c.html#83">Size</a>));</a>
+<a name="89">}</a>
+<a name="90"></a>
+<a name="91">/* free some space at the top of the stack */</a>
+<a name="92">int <a name="searched">HeapPopStack</a>(Picoc *<a name="searched">pc</a>, void *<a name="searched">Addr</a>, int <a name="searched">Size</a>)</a>
+<a name="93">{</a>
+<a name="94">    int <a name="searched">ToLose</a> = MEM_ALIGN(<a href="heap_c.html#92">Size</a>);</a>
+<a name="95">    if (<a href="heap_c.html#94">ToLose</a> &gt ((char *)<a href="heap_c.html#92">pc</a>-&gtHeapStackTop - (char *)&(<a href="heap_c.html#92">pc</a>-&gtHeapMemory)[0]))</a>
+<a name="96">        return FALSE;</a>
+<a name="97">    </a>
+<a name="98">#ifdef DEBUG_HEAP</a>
+<a name="99">    printf("<a href="heap_c.html#92">HeapPopStack</a>(0x%lx, %ld) back to 0x%lx\n", (unsigned long)<a href="heap_c.html#92">Addr</a>, (unsigned long)MEM_ALIGN(<a href="heap_c.html#92">Size</a>), (unsigned long)<a href="heap_c.html#92">pc</a>-&gtHeapStackTop - <a href="heap_c.html#94">ToLose</a>);</a>
+<a name="100">#endif</a>
+<a name="101">    <a href="heap_c.html#92">pc</a>-&gtHeapStackTop = (void *)((char *)<a href="heap_c.html#92">pc</a>-&gtHeapStackTop - <a href="heap_c.html#94">ToLose</a>);</a>
+<a name="102">    assert(<a href="heap_c.html#92">Addr</a> == NULL || <a href="heap_c.html#92">pc</a>-&gtHeapStackTop == <a href="heap_c.html#92">Addr</a>);</a>
+<a name="103">    </a>
+<a name="104">    return TRUE;</a>
+<a name="105">}</a>
+<a name="106"></a>
+<a name="107">/* push a new stack frame on to the stack */</a>
+<a name="108">void <a name="searched">HeapPushStackFrame</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="109">{</a>
+<a name="110">#ifdef DEBUG_HEAP</a>
+<a name="111">    printf("Adding stack frame at 0x%lx\n", (unsigned long)<a href="heap_c.html#108">pc</a>-&gtHeapStackTop);</a>
+<a name="112">#endif</a>
+<a name="113">    *(void **)<a href="heap_c.html#108">pc</a>-&gtHeapStackTop = <a href="heap_c.html#108">pc</a>-&gtStackFrame;</a>
+<a name="114">    <a href="heap_c.html#108">pc</a>-&gtStackFrame = <a href="heap_c.html#108">pc</a>-&gtHeapStackTop;</a>
+<a name="115">    <a href="heap_c.html#108">pc</a>-&gtHeapStackTop = (void *)((char *)<a href="heap_c.html#108">pc</a>-&gtHeapStackTop + MEM_ALIGN(sizeof(ALIGN_TYPE)));</a>
+<a name="116">}</a>
+<a name="117"></a>
+<a name="118">/* pop the current stack frame, freeing all memory in the frame. can return NULL */</a>
+<a name="119">int <a name="searched">HeapPopStackFrame</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="120">{</a>
+<a name="121">    if (*(void **)<a href="heap_c.html#119">pc</a>-&gtStackFrame != NULL)</a>
+<a name="122">    {</a>
+<a name="123">        <a href="heap_c.html#119">pc</a>-&gtHeapStackTop = <a href="heap_c.html#119">pc</a>-&gtStackFrame;</a>
+<a name="124">        <a href="heap_c.html#119">pc</a>-&gtStackFrame = *(void **)<a href="heap_c.html#119">pc</a>-&gtStackFrame;</a>
+<a name="125">#ifdef DEBUG_HEAP</a>
+<a name="126">        printf("Popping stack frame back to 0x%lx\n", (unsigned long)<a href="heap_c.html#119">pc</a>-&gtHeapStackTop);</a>
+<a name="127">#endif</a>
+<a name="128">        return TRUE;</a>
+<a name="129">    }</a>
+<a name="130">    else</a>
+<a name="131">        return FALSE;</a>
+<a name="132">}</a>
+<a name="133"></a>
+<a name="134">/* allocate some dynamically allocated memory. memory is cleared. can return NULL if out of memory */</a>
+<a name="135">void *<a name="searched">HeapAllocMem</a>(Picoc *<a name="searched">pc</a>, int <a name="searched">Size</a>)</a>
+<a name="136">{</a>
+<a name="137">#ifdef USE_MALLOC_HEAP</a>
+<a name="138">    return calloc(<a href="heap_c.html#135">Size</a>, 1);</a>
+<a name="139">#else</a>
+<a name="140">    struct AllocNode *NewMem = NULL;</a>
+<a name="141">    struct AllocNode **FreeNode;</a>
+<a name="142">    int AllocSize = MEM_ALIGN(<a href="heap_c.html#135">Size</a>) + MEM_ALIGN(sizeof(NewMem-&gtSize));</a>
+<a name="143">    int Bucket;</a>
+<a name="144">    void *ReturnMem;</a>
+<a name="145">    </a>
+<a name="146">    if (<a href="heap_c.html#135">Size</a> == 0)</a>
+<a name="147">        return NULL;</a>
+<a name="148">    </a>
+<a name="149">    assert(<a href="heap_c.html#135">Size</a> &gt 0);</a>
+<a name="150">    </a>
+<a name="151">    /* make sure we have enough space for an AllocNode */</a>
+<a name="152">    if (AllocSize &lt sizeof(struct AllocNode))</a>
+<a name="153">        AllocSize = sizeof(struct AllocNode);</a>
+<a name="154">    </a>
+<a name="155">    Bucket = AllocSize &gt&gt 2;</a>
+<a name="156">    if (Bucket &lt FREELIST_BUCKETS && <a href="heap_c.html#135">pc</a>-&gtFreeListBucket[Bucket] != NULL)</a>
+<a name="157">    { </a>
+<a name="158">        /* try to allocate from a freelist bucket first */</a>
+<a name="159">#ifdef DEBUG_HEAP</a>
+<a name="160">        printf("allocating %d(%d) from bucket", <a href="heap_c.html#135">Size</a>, AllocSize);</a>
+<a name="161">#endif</a>
+<a name="162">        NewMem = <a href="heap_c.html#135">pc</a>-&gtFreeListBucket[Bucket];</a>
+<a name="163">        assert((unsigned long)NewMem &gt= (unsigned long)&(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] && (unsigned char *)NewMem - &(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE);</a>
+<a name="164">        <a href="heap_c.html#135">pc</a>-&gtFreeListBucket[Bucket] = *(struct AllocNode **)NewMem;</a>
+<a name="165">        assert(<a href="heap_c.html#135">pc</a>-&gtFreeListBucket[Bucket] == NULL || ((unsigned long)<a href="heap_c.html#135">pc</a>-&gtFreeListBucket[Bucket] &gt= (unsigned long)&(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] && (unsigned char *)<a href="heap_c.html#135">pc</a>-&gtFreeListBucket[Bucket] - &(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE));</a>
+<a name="166">        NewMem-&gtSize = AllocSize;</a>
+<a name="167">    }</a>
+<a name="168">    else if (<a href="heap_c.html#135">pc</a>-&gtFreeListBig != NULL)</a>
+<a name="169">    { </a>
+<a name="170">        /* grab the first item from the "big" freelist we can fit in */</a>
+<a name="171">        for (FreeNode = &<a href="heap_c.html#135">pc</a>-&gtFreeListBig; *FreeNode != NULL && (*FreeNode)-&gtSize &lt AllocSize; FreeNode = &(*FreeNode)-&gtNextFree)</a>
+<a name="172">        {}</a>
+<a name="173">        </a>
+<a name="174">        if (*FreeNode != NULL)</a>
+<a name="175">        {</a>
+<a name="176">            assert((unsigned long)*FreeNode &gt= (unsigned long)&(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] && (unsigned char *)*FreeNode - &(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE);</a>
+<a name="177">            assert((*FreeNode)-&gtSize &lt HEAP_SIZE && (*FreeNode)-&gtSize &gt 0);</a>
+<a name="178">            if ((*FreeNode)-&gtSize &lt AllocSize + SPLIT_MEM_THRESHOLD)</a>
+<a name="179">            { </a>
+<a name="180">                /* close in size - reduce fragmentation by not splitting */</a>
+<a name="181">#ifdef DEBUG_HEAP</a>
+<a name="182">               printf("allocating %d(%d) from freelist, no split (%d)", <a href="heap_c.html#135">Size</a>, AllocSize, (*FreeNode)-&gtSize);</a>
+<a name="183">#endif</a>
+<a name="184">                NewMem = *FreeNode;</a>
+<a name="185">                assert((unsigned long)NewMem &gt= (unsigned long)&(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] && (unsigned char *)NewMem - &(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE);</a>
+<a name="186">                *FreeNode = NewMem-&gtNextFree;</a>
+<a name="187">            }</a>
+<a name="188">            else</a>
+<a name="189">            { </a>
+<a name="190">                /* split this big memory chunk */</a>
+<a name="191">#ifdef DEBUG_HEAP</a>
+<a name="192">                printf("allocating %d(%d) from freelist, split chunk (%d)", <a href="heap_c.html#135">Size</a>, AllocSize, (*FreeNode)-&gtSize);</a>
+<a name="193">#endif</a>
+<a name="194">                NewMem = (void *)((char *)*FreeNode + (*FreeNode)-&gtSize - AllocSize);</a>
+<a name="195">                assert((unsigned long)NewMem &gt= (unsigned long)&(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] && (unsigned char *)NewMem - &(<a href="heap_c.html#135">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE);</a>
+<a name="196">                (*FreeNode)-&gtSize -= AllocSize;</a>
+<a name="197">                NewMem-&gtSize = AllocSize;</a>
+<a name="198">            }</a>
+<a name="199">        }</a>
+<a name="200">    }</a>
+<a name="201">    </a>
+<a name="202">    if (NewMem == NULL)</a>
+<a name="203">    { </a>
+<a name="204">        /* couldn't allocate from a freelist - try to increase the size of the heap area */</a>
+<a name="205">#ifdef DEBUG_HEAP</a>
+<a name="206">        printf("allocating %d(%d) at bottom of heap (0x%lx-0x%lx)", <a href="heap_c.html#135">Size</a>, AllocSize, (long)((char *)<a href="heap_c.html#135">pc</a>-&gtHeapBottom - AllocSize), (long)HeapBottom);</a>
+<a name="207">#endif</a>
+<a name="208">        if ((char *)<a href="heap_c.html#135">pc</a>-&gtHeapBottom - AllocSize &lt (char *)<a href="heap_c.html#135">pc</a>-&gtHeapStackTop)</a>
+<a name="209">            return NULL;</a>
+<a name="210">        </a>
+<a name="211">        <a href="heap_c.html#135">pc</a>-&gtHeapBottom = (void *)((char *)<a href="heap_c.html#135">pc</a>-&gtHeapBottom - AllocSize);</a>
+<a name="212">        NewMem = <a href="heap_c.html#135">pc</a>-&gtHeapBottom;</a>
+<a name="213">        NewMem-&gtSize = AllocSize;</a>
+<a name="214">    }</a>
+<a name="215">    </a>
+<a name="216">    ReturnMem = (void *)((char *)NewMem + MEM_ALIGN(sizeof(NewMem-&gtSize)));</a>
+<a name="217">    memset(ReturnMem, '\0', AllocSize - MEM_ALIGN(sizeof(NewMem-&gtSize)));</a>
+<a name="218">#ifdef DEBUG_HEAP</a>
+<a name="219">    printf(" = %lx\n", (unsigned long)ReturnMem);</a>
+<a name="220">#endif</a>
+<a name="221">    return ReturnMem;</a>
+<a name="222">#endif</a>
+<a name="223">}</a>
+<a name="224"></a>
+<a name="225">/* free some dynamically allocated memory */</a>
+<a name="226">void HeapFree<a name="searched">Mem</a>(Picoc *<a name="searched">pc</a>, void *<a name="searched">Mem</a>)</a>
+<a name="227">{</a>
+<a name="228">#ifdef USE_MALLOC_HEAP</a>
+<a name="229">    free(<a href="heap_c.html#226">Mem</a>);</a>
+<a name="230">#else</a>
+<a name="231">    struct AllocNode *MemNode = (struct AllocNode *)((char *)<a href="heap_c.html#226">Mem</a> - MEM_ALIGN(sizeof(MemNode-&gtSize)));</a>
+<a name="232">    int Bucket = MemNode-&gtSize &gt&gt 2;</a>
+<a name="233">    </a>
+<a name="234">#ifdef DEBUG_HEAP</a>
+<a name="235">    printf("<a href="heap_c.html#226">HeapFreeMem</a>(0x%lx)\n", (unsigned long)<a href="heap_c.html#226">Mem</a>);</a>
+<a name="236">#endif</a>
+<a name="237">    assert((unsigned long)<a href="heap_c.html#226">Mem</a> &gt= (unsigned long)&(<a href="heap_c.html#226">pc</a>-&gtHeapMemory)[0] && (unsigned char *)<a href="heap_c.html#226">Mem</a> - &(<a href="heap_c.html#226">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE);</a>
+<a name="238">    assert(MemNode-&gtSize &lt HEAP_SIZE && MemNode-&gtSize &gt 0);</a>
+<a name="239">    if (<a href="heap_c.html#226">Mem</a> == NULL)</a>
+<a name="240">        return;</a>
+<a name="241">    </a>
+<a name="242">    if ((void *)MemNode == <a href="heap_c.html#226">pc</a>-&gtHeapBottom)</a>
+<a name="243">    { </a>
+<a name="244">        /* pop it off the bottom of the heap, reducing the heap size */</a>
+<a name="245">#ifdef DEBUG_HEAP</a>
+<a name="246">        printf("freeing %d from bottom of heap\n", MemNode-&gtSize);</a>
+<a name="247">#endif</a>
+<a name="248">        <a href="heap_c.html#226">pc</a>-&gtHeapBottom = (void *)((char *)<a href="heap_c.html#226">pc</a>-&gtHeapBottom + MemNode-&gtSize);</a>
+<a name="249">#ifdef DEBUG_HEAP</a>
+<a name="250">        ShowBigList(<a href="heap_c.html#226">pc</a>);</a>
+<a name="251">#endif</a>
+<a name="252">    }</a>
+<a name="253">    else if (Bucket &lt FREELIST_BUCKETS)</a>
+<a name="254">    { </a>
+<a name="255">        /* we can fit it in a bucket */</a>
+<a name="256">#ifdef DEBUG_HEAP</a>
+<a name="257">        printf("freeing %d to bucket\n", MemNode-&gtSize);</a>
+<a name="258">#endif</a>
+<a name="259">        assert(<a href="heap_c.html#226">pc</a>-&gtFreeListBucket[Bucket] == NULL || ((unsigned long)<a href="heap_c.html#226">pc</a>-&gtFreeListBucket[Bucket] &gt= (unsigned long)&(<a href="heap_c.html#226">pc</a>-&gtHeapMemory)[0] && (unsigned char *)FreeListBucket[Bucket] - &HeapMemory[0] &lt HEAP_SIZE));</a>
+<a name="260">        *(struct AllocNode **)MemNode = <a href="heap_c.html#226">pc</a>-&gtFreeListBucket[Bucket];</a>
+<a name="261">        <a href="heap_c.html#226">pc</a>-&gtFreeListBucket[Bucket] = (struct AllocNode *)MemNode;</a>
+<a name="262">    }</a>
+<a name="263">    else</a>
+<a name="264">    { </a>
+<a name="265">        /* put it in the big memory freelist */</a>
+<a name="266">#ifdef DEBUG_HEAP</a>
+<a name="267">        printf("freeing %lx:%d to freelist\n", (unsigned long)<a href="heap_c.html#226">Mem</a>, MemNode-&gtSize);</a>
+<a name="268">#endif</a>
+<a name="269">        assert(<a href="heap_c.html#226">pc</a>-&gtFreeListBig == NULL || ((unsigned long)<a href="heap_c.html#226">pc</a>-&gtFreeListBig &gt= (unsigned long)&(<a href="heap_c.html#226">pc</a>-&gtHeapMemory)[0] && (unsigned char *)<a href="heap_c.html#226">pc</a>-&gtFreeListBig - &(<a href="heap_c.html#226">pc</a>-&gtHeapMemory)[0] &lt HEAP_SIZE));</a>
+<a name="270">        MemNode-&gtNextFree = <a href="heap_c.html#226">pc</a>-&gtFreeListBig;</a>
+<a name="271">        FreeListBig = MemNode;</a>
+<a name="272">#ifdef DEBUG_HEAP</a>
+<a name="273">        ShowBigList(<a href="heap_c.html#226">pc</a>);</a>
+<a name="274">#endif</a>
+<a name="275">    }</a>
+<a name="276">#endif</a>
+<a name="277">}</a>
+</pre></body></html>

@@ -1,0 +1,31 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">#include "../interpreter.h"</a>
+<a name="2"></a>
+<a name="3"><font color="red">void</font> <a href="library_unix_c.html#3">UnixSetupFunc</a>()</a>
+<a name="4">{    </a>
+<a name="5">}</a>
+<a name="6"></a>
+<a name="7"><font color="red">void</font> <a href="library_unix_c.html#7">Ctest</a> (<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="8">{</a>
+<a name="9">    printf("test(%d)\n", <a href="library_unix_c.html#7">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="10">    <a href="library_unix_c.html#7">Param</a>[0]-&gtVal-&gtInteger = 1234;</a>
+<a name="11">}</a>
+<a name="12"></a>
+<a name="13"><font color="red">void</font> <a href="library_unix_c.html#13">Clineno</a> (<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a>, <font color="brown">struct</font> Value **<a name="searched">Param</a>, <font color="red">int</font> <a name="searched">NumArgs</a>) </a>
+<a name="14">{</a>
+<a name="15">    <a href="library_unix_c.html#13">ReturnValue</a>-&gtVal-&gtInteger = <a href="library_unix_c.html#13">Parser</a>-&gtLine;</a>
+<a name="16">}</a>
+<a name="17"></a>
+<a name="18"><font color="gray">/*<searched> list of all library functions and their prototypes */</font></a>
+<a name="19"><font color="brown">struct</font> LibraryFunction <a href="library_unix_c.html#19">UnixFunctions</a>[] =</a>
+<a name="20">{</a>
+<a name="21">    { <a href="library_unix_c.html#7">Ctest</a>,        "<font color="red">void</font> test(<font color="red">int</font>);" },</a>
+<a name="22">    { <a href="library_unix_c.html#13">Clineno</a>,      "<font color="red">int</font> lineno();" },</a>
+<a name="23">    { NULL,         NULL }</a>
+<a name="24">};</a>
+<a name="25"></a>
+<a name="26"><font color="red">void</font> <a href="library_unix_c.html#26">PlatformLibraryInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="27">{</a>
+<a name="28">    <a href="include_c.html#47">IncludeRegister</a>(pc, "picoc_unix.h", &<a href="library_unix_c.html#3">UnixSetupFunc</a>, &<a href="library_unix_c.html#19">UnixFunctions</a>[0], NULL);</a>
+<a name="29">}</a>
+</pre></body></html>

@@ -1,0 +1,4 @@
+ERROR - token not matched.
+ERROR - token not matched.
+ERROR - token not matched.
+OUTPUT: (:= A (+ (3 )(/ (* (18 )(* (B )(45 )))(/ (C )(22 )))))(read D)(write (== (+ (B )(I ))(- (C )(E ))))(if ( (R )) (do (:= C (- (999 )(/ (10 )(2 ))))))(check (== (+ (10 )(* (20 )(5 )))(Y )))

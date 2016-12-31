@@ -1,0 +1,51 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc external interface. This should be the only header you need to use if</a>
+<a name="2"> * you're using picoc as a library. Internal details are in interpreter.h */</a>
+<a name="3">#ifndef PICOC_H</a>
+<a name="4">#define PICOC_H</a>
+<a name="5"></a>
+<a name="6">/* picoc version number */</a>
+<a name="7">#ifdef VER</a>
+<a name="8">#define PICOC_VERSION "v2.2 beta r" VER         /* VER is the subversion version number, obtained via the Makefile */</a>
+<a name="9">#else</a>
+<a name="10">#define PICOC_VERSION "v2.2"</a>
+<a name="11">#endif</a>
+<a name="12"></a>
+<a name="13">/* handy definitions */</a>
+<a name="14">#ifndef TRUE</a>
+<a name="15">#define TRUE 1</a>
+<a name="16">#define FALSE 0</a>
+<a name="17">#endif</a>
+<a name="18"></a>
+<a name="19">#include "interpreter.h"</a>
+<a name="20"></a>
+<a name="21"></a>
+<a name="22">#if defined(UNIX_HOST) || defined(WIN32)</a>
+<a name="23">#include &ltsetjmp.h&gt</a>
+<a name="24"></a>
+<a name="25">/* this has to be a macro, otherwise errors will occur due to the stack being corrupt */</a>
+<a name="26">#define PicocPlatformSetExitPoint(pc) setjmp((pc)-&gtPicocExitBuf)</a>
+<a name="27">#endif</a>
+<a name="28"></a>
+<a name="29">#ifdef SURVEYOR_HOST</a>
+<a name="30">/* mark where to end the program for platforms which require this */</a>
+<a name="31">extern int PicocExitBuf[];</a>
+<a name="32"></a>
+<a name="33">#define PicocPlatformSetExitPoint(pc) setjmp((pc)-&gtPicocExitBuf)</a>
+<a name="34">#endif</a>
+<a name="35"></a>
+<a name="36">/* parse.c */</a>
+<a name="37">void <a href="parse_c.html#936">PicocParse</a>(Picoc *pc, const char *FileName, const char *Source, int SourceLen, int RunIt, int CleanupNow, int CleanupSource, int EnableDebugger);</a>
+<a name="38">void <a href="parse_c.html#936">PicocParse</a>Interactive(Picoc *pc);</a>
+<a name="39"></a>
+<a name="40">/* platform.c */</a>
+<a name="41">void <a href="platform_c.html#55">PicocCallMain</a>(Picoc *pc, int argc, char **argv);</a>
+<a name="42">void <a name="searched">PicocInitialise</a>(Picoc *pc, int StackSize);</a>
+<a name="43">void <a name="searched">PicocCleanup</a>(Picoc *pc);</a>
+<a name="44">void <a href="platform_unix_c.html#120">PicocPlatformScanFile</a>(Picoc *pc, const char *FileName);</a>
+<a name="45"></a>
+<a name="46">/* include.c */</a>
+<a name="47">void <a href="include_c.html#59">PicocIncludeAllSystemHeaders</a>(Picoc *pc);</a>
+<a name="48"></a>
+<a name="49">#endif /* PICOC_H */</a>
+</pre></body></html>

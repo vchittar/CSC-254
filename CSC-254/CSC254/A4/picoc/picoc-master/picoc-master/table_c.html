@@ -1,0 +1,188 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc hash table module. This hash table code is used for both symbol tables</a>
+<a name="2"> * and the shared string table. */</a>
+<a name="3"> </a>
+<a name="4">#include "interpreter.h"</a>
+<a name="5"></a>
+<a name="6">/* initialise the shared string system */</a>
+<a name="7">void <a name="searched">TableInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="8">{</a>
+<a name="9">    <a href="table_c.html#32">TableInitTable</a>(&<a href="table_c.html#7">pc</a>-&gtStringTable, &<a href="table_c.html#7">pc</a>-&gtStringHashTable[0], STRING_TABLE_SIZE, TRUE);</a>
+<a name="10">    <a href="table_c.html#7">pc</a>-&gtStrEmpty = <a href="table_c.html#166">TableStrRegister</a>(<a href="table_c.html#7">pc</a>, "");</a>
+<a name="11">}</a>
+<a name="12"></a>
+<a name="13">/* hash function for strings */</a>
+<a name="14">static unsigned int <a name="searched">TableHash</a>(const char *<a name="searched">Key</a>, int <a name="searched">Len</a>)</a>
+<a name="15">{</a>
+<a name="16">    unsigned int <a name="searched">Hash</a> = <a href="table_c.html#14">Len</a>;</a>
+<a name="17">    int <a name="searched">Offset</a>;</a>
+<a name="18">    int <a name="searched">Count</a>;</a>
+<a name="19">    </a>
+<a name="20">    for (<a href="table_c.html#18">Count</a> = 0, <a href="table_c.html#17">Offset</a> = 8; <a href="table_c.html#18">Count</a> &lt <a href="table_c.html#14">Len</a>; <a href="table_c.html#18">Count</a>++, <a href="table_c.html#17">Offset</a>+=7)</a>
+<a name="21">    {</a>
+<a name="22">        if (<a href="table_c.html#17">Offset</a> &gt sizeof(unsigned int) * 8 - 7)</a>
+<a name="23">            <a href="table_c.html#17">Offset</a> -= sizeof(unsigned int) * 8 - 6;</a>
+<a name="24">            </a>
+<a name="25">        <a href="table_c.html#16">Hash</a> ^= *<a href="table_c.html#14">Key</a>++ &lt&lt <a href="table_c.html#17">Offset</a>;</a>
+<a name="26">    }</a>
+<a name="27">    </a>
+<a name="28">    return <a href="table_c.html#16">Hash</a>;</a>
+<a name="29">}</a>
+<a name="30"></a>
+<a name="31">/* initialise a table */</a>
+<a name="32">void <a name="searched">TableInitTable</a>(struct Table *<a name="searched">Tbl</a>, struct TableEntry **<a name="searched">HashTable</a>, int <a name="searched">Size</a>, int <a name="searched">OnHeap</a>)</a>
+<a name="33">{</a>
+<a name="34">    <a href="table_c.html#32">Tbl</a>-&gtSize = <a href="table_c.html#32">Size</a>;</a>
+<a name="35">    <a href="table_c.html#32">Tbl</a>-&gtOnHeap = <a href="table_c.html#32">OnHeap</a>;</a>
+<a name="36">    <a href="table_c.html#32">Tbl</a>-&gtHashTable = <a href="table_c.html#32">HashTable</a>;</a>
+<a name="37">    memset((void *)<a href="table_c.html#32">HashTable</a>, '\0', sizeof(struct TableEntry *) * <a href="table_c.html#32">Size</a>);</a>
+<a name="38">}</a>
+<a name="39"></a>
+<a name="40">/* check a hash table entry for a key */</a>
+<a name="41">static struct TableEntry *<a name="searched">TableSearch</a>(struct Table *<a name="searched">Tbl</a>, const char *<a name="searched">Key</a>, int *<a name="searched">AddAt</a>)</a>
+<a name="42">{</a>
+<a name="43">    struct Table<a name="searched">Entry</a> *<a name="searched">Entry</a>;</a>
+<a name="44">    int <a name="searched">HashValue</a> = ((unsigned long)<a href="table_c.html#41">Key</a>) % <a href="table_c.html#41">Tbl</a>-&gtSize;   /* shared strings have unique addresses so we don't need to hash them */</a>
+<a name="45">    </a>
+<a name="46">    for (<a href="table_c.html#43">Entry</a> = <a href="table_c.html#41">Tbl</a>-&gtHashTable[<a href="table_c.html#44">HashValue</a>]; <a href="table_c.html#43">Entry</a> != NULL; <a href="table_c.html#43">Entry</a> = <a href="table_c.html#43">Entry</a>-&gtNext)</a>
+<a name="47">    {</a>
+<a name="48">        if (<a href="table_c.html#43">Entry</a>-&gtp.v.<a href="table_c.html#41">Key</a> == <a href="table_c.html#41">Key</a>)</a>
+<a name="49">            return <a href="table_c.html#43">Entry</a>;   /* found */</a>
+<a name="50">    }</a>
+<a name="51">    </a>
+<a name="52">    *<a href="table_c.html#41">AddAt</a> = <a href="table_c.html#44">HashValue</a>;    /* didn't find it in the chain */</a>
+<a name="53">    return NULL;</a>
+<a name="54">}</a>
+<a name="55"></a>
+<a name="56">/* set an identifier to a value. returns FALSE if it already exists. </a>
+<a name="57"> * Key must be a shared string from <a href="table_c.html#166">TableStrRegister</a>() */</a>
+<a name="58">int <a name="searched">TableSet</a>(Picoc *<a name="searched">pc</a>, struct Table *<a name="searched">Tbl</a>, char *<a name="searched">Key</a>, struct <a name="searched">Val</a>ue *<a name="searched">Val</a>, const char *<a name="searched">DeclFileName</a>, int <a name="searched">DeclLine</a>, int <a name="searched">DeclColumn</a>)</a>
+<a name="59">{</a>
+<a name="60">    int <a name="searched">AddAt</a>;</a>
+<a name="61">    struct TableEntry *<a name="searched">FoundEntry</a> = <a href="table_c.html#41">TableSearch</a>(<a href="table_c.html#58">Tbl</a>, <a href="table_c.html#58">Key</a>, &<a href="table_c.html#60">AddAt</a>);</a>
+<a name="62">    </a>
+<a name="63">    if (<a href="table_c.html#61">FoundEntry</a> == NULL)</a>
+<a name="64">    {   /* add it to the table */</a>
+<a name="65">        struct TableEntry *<a name="searched">NewEntry</a> = <a href="variable_c.html#68">VariableAlloc</a>(<a href="table_c.html#58">pc</a>, NULL, sizeof(struct TableEntry), <a href="table_c.html#58">Tbl</a>-&gtOnHeap);</a>
+<a name="66">        <a href="table_c.html#65">NewEntry</a>-&gtDeclFileName = <a href="table_c.html#58">DeclFileName</a>;</a>
+<a name="67">        <a href="table_c.html#65">NewEntry</a>-&gtDeclLine = <a href="table_c.html#58">DeclLine</a>;</a>
+<a name="68">        <a href="table_c.html#65">NewEntry</a>-&gtDeclColumn = <a href="table_c.html#58">DeclColumn</a>;</a>
+<a name="69">        <a href="table_c.html#65">NewEntry</a>-&gtp.v.<a href="table_c.html#58">Key</a> = <a href="table_c.html#58">Key</a>;</a>
+<a name="70">        <a href="table_c.html#65">NewEntry</a>-&gtp.v.<a href="table_c.html#58">Val</a> = <a href="table_c.html#58">Val</a>;</a>
+<a name="71">        <a href="table_c.html#65">NewEntry</a>-&gtNext = <a href="table_c.html#58">Tbl</a>-&gtHashTable[<a href="table_c.html#60">AddAt</a>];</a>
+<a name="72">        <a href="table_c.html#58">Tbl</a>-&gtHashTable[<a href="table_c.html#60">AddAt</a>] = <a href="table_c.html#65">NewEntry</a>;</a>
+<a name="73">        return TRUE;</a>
+<a name="74">    }</a>
+<a name="75"></a>
+<a name="76">    return FALSE;</a>
+<a name="77">}</a>
+<a name="78"></a>
+<a name="79">/* find a value in a table. returns FALSE if not found. </a>
+<a name="80"> * Key must be a shared string from <a href="table_c.html#166">TableStrRegister</a>() */</a>
+<a name="81">int <a name="searched">TableGet</a>(struct Table *<a name="searched">Tbl</a>, const char *<a name="searched">Key</a>, struct <a name="searched">Val</a>ue **<a name="searched">Val</a>, const char **<a name="searched">DeclFileName</a>, int *<a name="searched">DeclLine</a>, int *<a name="searched">DeclColumn</a>)</a>
+<a name="82">{</a>
+<a name="83">    int <a name="searched">AddAt</a>;</a>
+<a name="84">    struct TableEntry *<a name="searched">FoundEntry</a> = <a href="table_c.html#41">TableSearch</a>(<a href="table_c.html#81">Tbl</a>, <a href="table_c.html#81">Key</a>, &<a href="table_c.html#83">AddAt</a>);</a>
+<a name="85">    if (<a href="table_c.html#84">FoundEntry</a> == NULL)</a>
+<a name="86">        return FALSE;</a>
+<a name="87">    </a>
+<a name="88">    *<a href="table_c.html#81">Val</a> = <a href="table_c.html#84">FoundEntry</a>-&gtp.v.<a href="table_c.html#81">Val</a>;</a>
+<a name="89">    </a>
+<a name="90">    if (<a href="table_c.html#81">DeclFileName</a> != NULL)</a>
+<a name="91">    {</a>
+<a name="92">        *<a href="table_c.html#81">DeclFileName</a> = <a href="table_c.html#84">FoundEntry</a>-&gtDeclFileName;</a>
+<a name="93">        *<a href="table_c.html#81">DeclLine</a> = <a href="table_c.html#84">FoundEntry</a>-&gtDeclLine;</a>
+<a name="94">        *<a href="table_c.html#81">DeclColumn</a> = <a href="table_c.html#84">FoundEntry</a>-&gtDeclColumn;</a>
+<a name="95">    }</a>
+<a name="96">    </a>
+<a name="97">    return TRUE;</a>
+<a name="98">}</a>
+<a name="99"></a>
+<a name="100">/* remove an entry from the table */</a>
+<a name="101">struct Value *<a name="searched">TableDelete</a>(Picoc *<a name="searched">pc</a>, struct Table *<a name="searched">Tbl</a>, const char *<a name="searched">Key</a>)</a>
+<a name="102">{</a>
+<a name="103">    struct TableEntry **<a name="searched">EntryPtr</a>;</a>
+<a name="104">    int <a name="searched">HashValue</a> = ((unsigned long)<a href="table_c.html#101">Key</a>) % <a href="table_c.html#101">Tbl</a>-&gtSize;   /* shared strings have unique addresses so we don't need to hash them */</a>
+<a name="105">    </a>
+<a name="106">    for (<a href="table_c.html#103">EntryPtr</a> = &<a href="table_c.html#101">Tbl</a>-&gtHashTable[<a href="table_c.html#104">HashValue</a>]; *<a href="table_c.html#103">EntryPtr</a> != NULL; <a href="table_c.html#103">EntryPtr</a> = &(*<a href="table_c.html#103">EntryPtr</a>)-&gtNext)</a>
+<a name="107">    {</a>
+<a name="108">        if ((*<a href="table_c.html#103">EntryPtr</a>)-&gtp.v.<a href="table_c.html#101">Key</a> == <a href="table_c.html#101">Key</a>)</a>
+<a name="109">        {</a>
+<a name="110">            struct TableEntry *<a name="searched">DeleteEntry</a> = *<a href="table_c.html#103">EntryPtr</a>;</a>
+<a name="111">            struct <a name="searched">Val</a>ue *<a name="searched">Val</a> = <a href="table_c.html#110">DeleteEntry</a>-&gtp.v.<a name="searched">Val</a>;</a>
+<a name="112">            *<a href="table_c.html#103">EntryPtr</a> = <a href="table_c.html#110">DeleteEntry</a>-&gtNext;</a>
+<a name="113">            <a href="heap_c.html#226">HeapFreeMem</a>(<a href="table_c.html#101">pc</a>, <a href="table_c.html#110">DeleteEntry</a>);</a>
+<a name="114"></a>
+<a name="115">            return <a href="table_c.html#111">Val</a>;</a>
+<a name="116">        }</a>
+<a name="117">    }</a>
+<a name="118"></a>
+<a name="119">    return NULL;</a>
+<a name="120">}</a>
+<a name="121"></a>
+<a name="122">/* check a hash table entry for an identifier */</a>
+<a name="123">static struct TableEntry *<a name="searched">TableSearchIdentifier</a>(struct Table *<a name="searched">Tbl</a>, const char *<a name="searched">Key</a>, int <a name="searched">Len</a>, int *<a name="searched">AddAt</a>)</a>
+<a name="124">{</a>
+<a name="125">    struct Table<a name="searched">Entry</a> *<a name="searched">Entry</a>;</a>
+<a name="126">    int <a name="searched">HashValue</a> = <a href="table_c.html#14">TableHash</a>(<a href="table_c.html#123">Key</a>, <a href="table_c.html#123">Len</a>) % <a href="table_c.html#123">Tbl</a>-&gtSize;</a>
+<a name="127">    </a>
+<a name="128">    for (<a href="table_c.html#125">Entry</a> = <a href="table_c.html#123">Tbl</a>-&gtHashTable[<a href="table_c.html#126">HashValue</a>]; <a href="table_c.html#125">Entry</a> != NULL; <a href="table_c.html#125">Entry</a> = <a href="table_c.html#125">Entry</a>-&gtNext)</a>
+<a name="129">    {</a>
+<a name="130">        if (strncmp(&<a href="table_c.html#125">Entry</a>-&gtp.<a href="table_c.html#123">Key</a>[0], (char *)<a href="table_c.html#123">Key</a>, <a href="table_c.html#123">Len</a>) == 0 && <a href="table_c.html#125">Entry</a>-&gtp.<a href="table_c.html#123">Key</a>[<a href="table_c.html#123">Len</a>] == '\0')</a>
+<a name="131">            return <a href="table_c.html#125">Entry</a>;   /* found */</a>
+<a name="132">    }</a>
+<a name="133">    </a>
+<a name="134">    *<a href="table_c.html#123">AddAt</a> = <a href="table_c.html#126">HashValue</a>;    /* didn't find it in the chain */</a>
+<a name="135">    return NULL;</a>
+<a name="136">}</a>
+<a name="137"></a>
+<a name="138">/* set an identifier and return the identifier. share if possible */</a>
+<a name="139">char *<a name="searched">TableSetIdentifier</a>(Picoc *<a name="searched">pc</a>, struct Table *<a name="searched">Tbl</a>, const char *Ident, int <a name="searched">IdentLen</a>)</a>
+<a name="140">{</a>
+<a name="141">    int <a name="searched">AddAt</a>;</a>
+<a name="142">    struct TableEntry *<a name="searched">FoundEntry</a> = <a href="table_c.html#123">TableSearchIdentifier</a>(<a href="table_c.html#139">Tbl</a>, Ident, <a href="table_c.html#139">IdentLen</a>, &<a href="table_c.html#141">AddAt</a>);</a>
+<a name="143">    </a>
+<a name="144">    if (<a href="table_c.html#142">FoundEntry</a> != NULL)</a>
+<a name="145">        return &<a href="table_c.html#142">FoundEntry</a>-&gtp.Key[0];</a>
+<a name="146">    else</a>
+<a name="147">    {   /* add it to the table - we economise by not allocating the whole structure here */</a>
+<a name="148">        struct TableEntry *<a name="searched">NewEntry</a> = <a href="heap_c.html#135">HeapAllocMem</a>(<a href="table_c.html#139">pc</a>, sizeof(struct TableEntry) - sizeof(union TableEntryPayload) + <a href="table_c.html#139">IdentLen</a> + 1);</a>
+<a name="149">        if (<a href="table_c.html#148">NewEntry</a> == NULL)</a>
+<a name="150">            <a href="platform_c.html#147">ProgramFailNoParser</a>(<a href="table_c.html#139">pc</a>, "out of memory");</a>
+<a name="151">            </a>
+<a name="152">        strncpy((char *)&<a href="table_c.html#148">NewEntry</a>-&gtp.Key[0], (char *)Ident, <a href="table_c.html#139">IdentLen</a>);</a>
+<a name="153">        <a href="table_c.html#148">NewEntry</a>-&gtp.Key[<a href="table_c.html#139">IdentLen</a>] = '\0';</a>
+<a name="154">        <a href="table_c.html#148">NewEntry</a>-&gtNext = <a href="table_c.html#139">Tbl</a>-&gtHashTable[<a href="table_c.html#141">AddAt</a>];</a>
+<a name="155">        <a href="table_c.html#139">Tbl</a>-&gtHashTable[<a href="table_c.html#141">AddAt</a>] = <a href="table_c.html#148">NewEntry</a>;</a>
+<a name="156">        return &<a href="table_c.html#148">NewEntry</a>-&gtp.Key[0];</a>
+<a name="157">    }</a>
+<a name="158">}</a>
+<a name="159"></a>
+<a name="160">/* register a string in the shared string store */</a>
+<a name="161">char *Table<a name="searched">Str</a>Register2(Picoc *<a name="searched">pc</a>, const char *<a name="searched">Str</a>, int <a name="searched">Len</a>)</a>
+<a name="162">{</a>
+<a name="163">    return <a href="table_c.html#139">TableSetIdentifier</a>(<a href="table_c.html#161">pc</a>, &<a href="table_c.html#161">pc</a>-&gtStringTable, <a href="table_c.html#161">Str</a>, <a href="table_c.html#161">Len</a>);</a>
+<a name="164">}</a>
+<a name="165"></a>
+<a name="166">char *Table<a name="searched">Str</a>Register(Picoc *<a name="searched">pc</a>, const char *<a name="searched">Str</a>)</a>
+<a name="167">{</a>
+<a name="168">    return <a href="table_c.html#161">TableStrRegister2</a>(<a href="table_c.html#166">pc</a>, <a href="table_c.html#166">Str</a>, strlen((char *)<a href="table_c.html#166">Str</a>));</a>
+<a name="169">}</a>
+<a name="170"></a>
+<a name="171">/* free all the strings */</a>
+<a name="172">void <a name="searched">TableStrFree</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="173">{</a>
+<a name="174">    struct Table<a name="searched">Entry</a> *<a name="searched">Entry</a>;</a>
+<a name="175">    struct TableEntry *<a name="searched">NextEntry</a>;</a>
+<a name="176">    int <a name="searched">Count</a>;</a>
+<a name="177">    </a>
+<a name="178">    for (<a href="table_c.html#176">Count</a> = 0; <a href="table_c.html#176">Count</a> &lt <a href="table_c.html#172">pc</a>-&gtStringTable.Size; <a href="table_c.html#176">Count</a>++)</a>
+<a name="179">    {</a>
+<a name="180">        for (<a href="table_c.html#174">Entry</a> = <a href="table_c.html#172">pc</a>-&gtStringTable.HashTable[<a href="table_c.html#176">Count</a>]; <a href="table_c.html#174">Entry</a> != NULL; <a href="table_c.html#174">Entry</a> = <a href="table_c.html#175">NextEntry</a>)</a>
+<a name="181">        {</a>
+<a name="182">            <a href="table_c.html#175">NextEntry</a> = <a href="table_c.html#174">Entry</a>-&gtNext;</a>
+<a name="183">            <a href="heap_c.html#226">HeapFreeMem</a>(<a href="table_c.html#172">pc</a>, <a href="table_c.html#174">Entry</a>);</a>
+<a name="184">        }</a>
+<a name="185">    }</a>
+<a name="186">}</a>
+</pre></body></html>

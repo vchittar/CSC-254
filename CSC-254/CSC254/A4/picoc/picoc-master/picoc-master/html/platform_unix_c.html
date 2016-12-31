@@ -1,0 +1,141 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">#include "../picoc.h"</a>
+<a name="2">#include "../interpreter.h"</a>
+<a name="3"></a>
+<a name="4">#ifdef USE_READLINE</a>
+<a name="5">#include &ltreadline/readline.h&gt</a>
+<a name="6">#include &ltreadline/history.h&gt</a>
+<a name="7">#endif</a>
+<a name="8"></a>
+<a name="9"><font color="gray">/*<searched> mark where to end the program for platforms which require this */</font></a>
+<a name="10">jmp_buf <a href="platform_unix_c.html#10">PicocExitBuf</a>;</a>
+<a name="11"></a>
+<a name="12">#ifndef NO_DEBUGGER</a>
+<a name="13">#include &ltsignal.h&gt</a>
+<a name="14"></a>
+<a name="15">Picoc *break_pc = NULL;</a>
+<a name="16"></a>
+<a name="17">static <font color="red">void</font> <a href="platform_unix_c.html#17">BreakHandler</a>(<font color="red">int</font> <a name="searched">Signal</a>)</a>
+<a name="18">{</a>
+<a name="19">    <a href="platform_unix_c.html#15">break_pc</a>-&gtDebugManualBreak = TRUE;</a>
+<a name="20">}</a>
+<a name="21"></a>
+<a name="22"><font color="red">void</font> <a href="platform_unix_c.html#22">PlatformInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="23">{</a>
+<a name="24">    <font color="gray">/*<searched> capture the break signal and pass it to the debugger */</font></a>
+<a name="25">    <a href="platform_unix_c.html#15">break_pc</a> = <a href="platform_unix_c.html#22">pc</a>;</a>
+<a name="26">    signal(SIGINT, <a href="platform_unix_c.html#17">BreakHandler</a>);</a>
+<a name="27">}</a>
+<a name="28">#<font color="green">else</font></a>
+<a name="29"><font color="red">void</font> <a href="platform_unix_c.html#22">PlatformInit</a>(Picoc *pc)</a>
+<a name="30">{</a>
+<a name="31">}</a>
+<a name="32">#endif</a>
+<a name="33"></a>
+<a name="34"><font color="red">void</font> <a href="platform_unix_c.html#34">PlatformCleanup</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="35">{</a>
+<a name="36">}</a>
+<a name="37"></a>
+<a name="38"><font color="gray">/*<searched> get a line of interactive input */</font></a>
+<a name="39"><font color="red">char</font> *PlatformGetLine(<font color="red">char</font> *<a name="searched">Buf</a>, <font color="red">int</font> <a name="searched">MaxLen</a>, const <font color="red">char</font> *<a name="searched">Prompt</a>)</a>
+<a name="40">{</a>
+<a name="41">#ifdef USE_READLINE</a>
+<a name="42">    <font color="green">if</font> (Prompt != NULL)</a>
+<a name="43">    {</a>
+<a name="44">        <font color="gray">/*<searched> use GNU readline to read the line */</font></a>
+<a name="45">        <font color="red">char</font> *InLine = readline(Prompt);</a>
+<a name="46">        <font color="green">if</font> (InLine == NULL)</a>
+<a name="47">            <font color="green">return</font> NULL;</a>
+<a name="48">    </a>
+<a name="49">        <a href="platform_unix_c.html#39">Buf</a>[<a href="platform_unix_c.html#39">MaxLen</a>-1] = '\0';</a>
+<a name="50">        strncpy(Buf, InLine, <a href="platform_unix_c.html#39">MaxLen</a>-2);</a>
+<a name="51">        strncat(Buf, "\n", <a href="platform_unix_c.html#39">MaxLen</a>-2);</a>
+<a name="52">        </a>
+<a name="53">        <font color="green">if</font> (InLine[0] != '\0')</a>
+<a name="54">            add_history(InLine);</a>
+<a name="55">            </a>
+<a name="56">        free(InLine);</a>
+<a name="57">        <font color="green">return</font> <a href="platform_unix_c.html#39">Buf</a>;</a>
+<a name="58">    }</a>
+<a name="59">#endif</a>
+<a name="60"></a>
+<a name="61">    <font color="green">if</font> (Prompt != NULL)</a>
+<a name="62">        printf("%s", <a href="platform_unix_c.html#39">Prompt</a>);</a>
+<a name="63">        </a>
+<a name="64">    fflush(stdout);</a>
+<a name="65">    <font color="green">return</font> fgets(Buf, <a href="platform_unix_c.html#39">MaxLen</a>, stdin);</a>
+<a name="66">}</a>
+<a name="67"></a>
+<a name="68"><font color="gray">/*<searched> get a character of interactive input */</font></a>
+<a name="69"><font color="red">int</font> <a href="platform_unix_c.html#69">PlatformGetCharacter</a>()</a>
+<a name="70">{</a>
+<a name="71">    fflush(stdout);</a>
+<a name="72">    <font color="green">return</font> getchar();</a>
+<a name="73">}</a>
+<a name="74"></a>
+<a name="75"><font color="gray">/*<searched> write a character to the console */</font></a>
+<a name="76"><font color="red">void</font> <a href="platform_unix_c.html#76">PlatformPutc</a>(<font color="red">unsigned</font> <font color="red">char</font> <a name="searched">OutCh</a>, union Output<a name="searched">Stream</a>Info *<a name="searched">Stream</a>)</a>
+<a name="77">{</a>
+<a name="78">    putchar(OutCh);</a>
+<a name="79">}</a>
+<a name="80"></a>
+<a name="81"><font color="gray">/*<searched> read a file into memory */</font></a>
+<a name="82"><font color="red">char</font> *PlatformReadFile(Picoc *<a name="searched">pc</a>, const <font color="red">char</font> *<a name="searched">FileName</a>)</a>
+<a name="83">{</a>
+<a name="84">    <font color="brown">struct</font> stat <a name="searched">FileInfo</a>;</a>
+<a name="85">    <font color="red">char</font> *<a name="searched">ReadText</a>;</a>
+<a name="86">    FILE *<a name="searched">InFile</a>;</a>
+<a name="87">    <font color="red">int</font> <a name="searched">BytesRead</a>;</a>
+<a name="88">    <font color="red">char</font> *<a name="searched">p</a>;</a>
+<a name="89">    </a>
+<a name="90">    <font color="green">if</font> (stat(FileName, &<a href="platform_unix_c.html#84">FileInfo</a>))</a>
+<a name="91">        <a href="platform_c.html#147">ProgramFailNoParser</a>(pc, "can't read file %s\n", <a href="platform_unix_c.html#82">FileName</a>);</a>
+<a name="92">    </a>
+<a name="93">    <a href="platform_unix_c.html#85">ReadText</a> = malloc(FileInfo.st_size + 1);</a>
+<a name="94">    <font color="green">if</font> (ReadText == NULL)</a>
+<a name="95">        <a href="platform_c.html#147">ProgramFailNoParser</a>(pc, "out of memory\n");</a>
+<a name="96">        </a>
+<a name="97">    <a href="platform_unix_c.html#86">InFile</a> = fopen(FileName, "r");</a>
+<a name="98">    <font color="green">if</font> (InFile == NULL)</a>
+<a name="99">        <a href="platform_c.html#147">ProgramFailNoParser</a>(pc, "can't read file %s\n", <a href="platform_unix_c.html#82">FileName</a>);</a>
+<a name="100">    </a>
+<a name="101">    <a href="platform_unix_c.html#87">BytesRead</a> = fread(ReadText, 1, <a href="platform_unix_c.html#84">FileInfo</a>.st_size, <a href="platform_unix_c.html#86">InFile</a>);</a>
+<a name="102">    <font color="green">if</font> (BytesRead == 0)</a>
+<a name="103">        <a href="platform_c.html#147">ProgramFailNoParser</a>(pc, "can't read file %s\n", <a href="platform_unix_c.html#82">FileName</a>);</a>
+<a name="104"></a>
+<a name="105">    <a href="platform_unix_c.html#85">ReadText</a>[<a href="platform_unix_c.html#87">BytesRead</a>] = '\0';</a>
+<a name="106">    fclose(InFile);</a>
+<a name="107">    </a>
+<a name="108">    <font color="green">if</font> ((ReadText[0] == '#') && (ReadText[1] == '!'))</a>
+<a name="109">    {</a>
+<a name="110">        <font color="green">for</font> (p = <a href="platform_unix_c.html#85">ReadText</a>; (*p != '\r') && (*p != '\n'); ++<a href="platform_unix_c.html#88">p</a>)</a>
+<a name="111">        {</a>
+<a name="112">            *p = ' ';</a>
+<a name="113">        }</a>
+<a name="114">    }</a>
+<a name="115">    </a>
+<a name="116">    <font color="green">return</font> <a href="platform_unix_c.html#85">ReadText</a>;    </a>
+<a name="117">}</a>
+<a name="118"></a>
+<a name="119"><font color="gray">/*<searched> read and scan a file for definitions */</font></a>
+<a name="120"><font color="red">void</font> <a href="platform_unix_c.html#120">PicocPlatformScanFile</a>(Picoc *<a name="searched">pc</a>, const <font color="red">char</font> *<a name="searched">FileName</a>)</a>
+<a name="121">{</a>
+<a name="122">    <font color="red">char</font> *<a name="searched">SourceStr</a> = <a href="platform_unix_c.html#82">PlatformReadFile</a>(pc, <a href="platform_unix_c.html#120">FileName</a>);</a>
+<a name="123"></a>
+<a name="124">    <font color="gray">/*<searched> ignore "#!/path/to/picoc" .. by replacing the "#!" with "//" */</font></a>
+<a name="125">    <font color="green">if</font> (SourceStr != NULL && <a href="platform_unix_c.html#122">SourceStr</a>[0] == '#' && <a href="platform_unix_c.html#122">SourceStr</a>[1] == '!') </a>
+<a name="126">    { </a>
+<a name="127">        <a href="platform_unix_c.html#122">SourceStr</a>[0] = '/'; </a>
+<a name="128">        <a href="platform_unix_c.html#122">SourceStr</a>[1] = '/'; </a>
+<a name="129">    }</a>
+<a name="130"></a>
+<a name="131">    <a href="parse_c.html#936">PicocParse</a>(pc, <a href="platform_unix_c.html#120">FileName</a>, <a href="platform_unix_c.html#122">SourceStr</a>, strlen(SourceStr), TRUE, FALSE, TRUE, TRUE);</a>
+<a name="132">}</a>
+<a name="133"></a>
+<a name="134"><font color="gray">/*<searched> exit the program */</font></a>
+<a name="135"><font color="red">void</font> <a href="platform_unix_c.html#135">PlatformExit</a>(Picoc *<a name="searched">pc</a>, <font color="red">int</font> <a name="searched">RetVal</a>)</a>
+<a name="136">{</a>
+<a name="137">    <a href="platform_unix_c.html#135">pc</a>-&gtPicocExitValue = <a href="platform_unix_c.html#135">RetVal</a>;</a>
+<a name="138">    longjmp(pc-&gtPicocExitBuf, 1);</a>
+<a name="139">}</a>
+</pre></body></html>

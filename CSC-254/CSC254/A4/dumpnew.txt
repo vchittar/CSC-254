@@ -1,0 +1,994 @@
+
+.debug_info
+
+COMPILE_UNIT<header overall offset = 0x00000000>:
+< 0><0x0000000b>  DW_TAG_compile_unit
+                    DW_AT_producer              "GNU C 4.8.4 -mtune=generic -march=x86-64 -g3 -fstack-protector"
+                    DW_AT_language              DW_LANG_C89
+                    DW_AT_name                  "test.c"
+                    DW_AT_comp_dir              "/mnt/c/Users/edwar/OneDrive/CSC254/A4"
+                    DW_AT_low_pc                0x0040052d
+                    DW_AT_high_pc               <offset-from-lowpc>154
+                    DW_AT_stmt_list             0x00000000
+                    <Unknown AT value 0x2119>   0x00000000
+
+LOCAL_SYMBOLS:
+< 1><0x00000031>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000008
+                      DW_AT_encoding              DW_ATE_unsigned
+                      DW_AT_name                  "long unsigned int"
+< 1><0x00000038>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000001
+                      DW_AT_encoding              DW_ATE_unsigned_char
+                      DW_AT_name                  "unsigned char"
+< 1><0x0000003f>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000002
+                      DW_AT_encoding              DW_ATE_unsigned
+                      DW_AT_name                  "short unsigned int"
+< 1><0x00000046>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000004
+                      DW_AT_encoding              DW_ATE_unsigned
+                      DW_AT_name                  "unsigned int"
+< 1><0x0000004d>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000001
+                      DW_AT_encoding              DW_ATE_signed_char
+                      DW_AT_name                  "signed char"
+< 1><0x00000054>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000002
+                      DW_AT_encoding              DW_ATE_signed
+                      DW_AT_name                  "short int"
+< 1><0x0000005b>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000004
+                      DW_AT_encoding              DW_ATE_signed
+                      DW_AT_name                  "int"
+< 1><0x00000062>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000008
+                      DW_AT_encoding              DW_ATE_signed
+                      DW_AT_name                  "long int"
+< 1><0x00000069>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000008
+                      DW_AT_encoding              DW_ATE_unsigned
+                      DW_AT_name                  "sizetype"
+< 1><0x00000070>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000001
+                      DW_AT_encoding              DW_ATE_signed_char
+                      DW_AT_name                  "char"
+< 1><0x00000077>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000008
+                      DW_AT_encoding              DW_ATE_signed
+                      DW_AT_name                  "long long int"
+< 1><0x0000007e>    DW_TAG_base_type
+                      DW_AT_byte_size             0x00000008
+                      DW_AT_encoding              DW_ATE_unsigned
+                      DW_AT_name                  "long long unsigned int"
+< 1><0x00000085>    DW_TAG_subprogram
+                      DW_AT_external              yes(1)
+                      DW_AT_name                  "main"
+                      DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                      DW_AT_decl_line             0x00000007
+                      DW_AT_type                  <0x0000005b>
+                      DW_AT_low_pc                0x0040052d
+                      DW_AT_high_pc               <offset-from-lowpc>96
+                      DW_AT_frame_base            len 0x0001: 9c: DW_OP_call_frame_cfa
+                      DW_AT_GNU_all_tail_call_sitesyes(1)
+                      DW_AT_sibling               <0x00000102>
+< 2><0x000000a6>      DW_TAG_variable
+                        DW_AT_name                  "someotherconstant"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x0000000a
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_location              len 0x0002: 9164: DW_OP_fbreg -28
+< 2><0x000000b4>      DW_TAG_subprogram
+                        DW_AT_name                  "micro"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x00000010
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_declaration           yes(1)
+                        DW_AT_sibling               <0x000000c5>
+< 3><0x000000c3>        DW_TAG_unspecified_parameters
+< 2><0x000000c5>      DW_TAG_variable
+                        DW_AT_name                  "someconstant"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x00000009
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_location              len 0x0002: 9160: DW_OP_fbreg -32
+< 2><0x000000d3>      DW_TAG_lexical_block
+                        DW_AT_low_pc                0x00400546
+                        DW_AT_high_pc               <offset-from-lowpc>20
+< 3><0x000000e4>        DW_TAG_variable
+                          DW_AT_name                  "someconstant"
+                          DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                          DW_AT_decl_line             0x0000000c
+                          DW_AT_type                  <0x0000005b>
+                          DW_AT_location              len 0x0002: 9168: DW_OP_fbreg -24
+< 3><0x000000f2>        DW_TAG_variable
+                          DW_AT_name                  "specialconstant"
+                          DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                          DW_AT_decl_line             0x0000000d
+                          DW_AT_type                  <0x0000005b>
+                          DW_AT_location              len 0x0002: 916c: DW_OP_fbreg -20
+< 1><0x00000102>    DW_TAG_subprogram
+                      DW_AT_external              yes(1)
+                      DW_AT_name                  "wahoo"
+                      DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                      DW_AT_decl_line             0x00000016
+                      DW_AT_prototyped            yes(1)
+                      DW_AT_type                  <0x0000005b>
+                      DW_AT_low_pc                0x0040058d
+                      DW_AT_high_pc               <offset-from-lowpc>22
+                      DW_AT_frame_base            len 0x0001: 9c: DW_OP_call_frame_cfa
+                      DW_AT_GNU_all_call_sites    yes(1)
+                      DW_AT_sibling               <0x00000140>
+< 2><0x00000123>      DW_TAG_formal_parameter
+                        DW_AT_name                  "arc"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x00000016
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_location              len 0x0002: 916c: DW_OP_fbreg -20
+< 2><0x00000131>      DW_TAG_formal_parameter
+                        DW_AT_name                  "bag"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x00000016
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_location              len 0x0002: 9168: DW_OP_fbreg -24
+< 1><0x00000140>    DW_TAG_subprogram
+                      DW_AT_external              yes(1)
+                      DW_AT_name                  "cal"
+                      DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                      DW_AT_decl_line             0x0000001a
+                      DW_AT_prototyped            yes(1)
+                      DW_AT_type                  <0x0000005b>
+                      DW_AT_low_pc                0x004005a3
+                      DW_AT_high_pc               <offset-from-lowpc>36
+                      DW_AT_frame_base            len 0x0001: 9c: DW_OP_call_frame_cfa
+                      DW_AT_GNU_all_tail_call_sitesyes(1)
+                      DW_AT_sibling               <0x0000018c>
+< 2><0x00000161>      DW_TAG_formal_parameter
+                        DW_AT_name                  "avg"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x0000001a
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_location              len 0x0002: 916c: DW_OP_fbreg -20
+< 2><0x0000016f>      DW_TAG_formal_parameter
+                        DW_AT_name                  "bak"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x0000001a
+                        DW_AT_type                  <0x0000005b>
+                        DW_AT_location              len 0x0002: 9168: DW_OP_fbreg -24
+< 2><0x0000017d>      DW_TAG_formal_parameter
+                        DW_AT_name                  "lol"
+                        DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                        DW_AT_decl_line             0x0000001a
+                        DW_AT_type                  <0x000001a0>
+                        DW_AT_location              len 0x0002: 9160: DW_OP_fbreg -32
+< 1><0x0000018c>    DW_TAG_subroutine_type
+                      DW_AT_prototyped            yes(1)
+                      DW_AT_type                  <0x0000005b>
+                      DW_AT_sibling               <0x000001a0>
+< 2><0x00000195>      DW_TAG_formal_parameter
+                        DW_AT_type                  <0x0000005b>
+< 2><0x0000019a>      DW_TAG_formal_parameter
+                        DW_AT_type                  <0x0000005b>
+< 1><0x000001a0>    DW_TAG_pointer_type
+                      DW_AT_byte_size             0x00000008
+                      DW_AT_type                  <0x0000018c>
+< 1><0x000001a6>    DW_TAG_variable
+                      DW_AT_name                  "someconstant"
+                      DW_AT_decl_file             0x00000001 /mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c
+                      DW_AT_decl_line             0x00000005
+                      DW_AT_type                  <0x0000005b>
+                      DW_AT_external              yes(1)
+                      DW_AT_location              len 0x0009: 034410600000000000: DW_OP_addr 0x00601044
+
+.debug_line: line number info for a single cu
+Source lines (from CU-DIE at .debug_info offset 0x0000000b):
+
+<pc>        [row,col] NS BB ET PE EB IS= DI= uri: "filepath"
+NS new statement, BB new basic block, ET end of text sequence
+PE prologue end, EB epilogue begin
+IA=val ISA number, DI=val discriminator value
+0x0040052d  [   7, 0] NS uri: "/mnt/c/Users/edwar/OneDrive/CSC254/A4/test.c"
+0x00400535  [   9, 0] NS
+0x0040053d  [  10, 0] NS
+0x00400544  [  11, 0] NS
+0x00400546  [  12, 0] NS
+0x0040054d  [  13, 0] NS
+0x00400554  [  14, 0] NS
+0x0040055a  [  11, 0] NS DI=0x1
+0x00400560  [  19, 0] NS
+0x0040058b  [  20, 0] NS
+0x0040058d  [  22, 0] NS
+0x00400597  [  23, 0] NS
+0x004005a1  [  24, 0] NS
+0x004005a3  [  26, 0] NS
+0x004005b5  [  27, 0] NS
+0x004005c5  [  28, 0] NS
+0x004005c7  [  28, 0] NS ET
+
+.debug_pubnames
+
+.debug_macinfo
+
+.debug_string
+name at offset 0x00000000, length    8 is '_IOFBF 0'
+name at offset 0x00000009, length   11 is '__linux__ 1'
+name at offset 0x00000015, length   18 is '__STD_TYPE typedef'
+name at offset 0x00000028, length   21 is '__fsfilcnt_t_defined '
+name at offset 0x0000003e, length   17 is '_IOS_NOREPLACE 64'
+name at offset 0x00000050, length   26 is '__DEC128_EPSILON__ 1E-33DL'
+name at offset 0x0000006b, length   13 is '_IOS_TRUNC 16'
+name at offset 0x00000079, length   14 is '_G_BUFSIZ 8192'
+name at offset 0x00000088, length   28 is '__UINT32_TYPE__ unsigned int'
+name at offset 0x000000a5, length   32 is '__GCC_ATOMIC_WCHAR_T_LOCK_FREE 2'
+name at offset 0x000000c6, length   16 is '__ino_t_defined '
+name at offset 0x000000d7, length    8 is 'sizetype'
+name at offset 0x000000e0, length   39 is '__LONG_LONG_MAX__ 9223372036854775807LL'
+name at offset 0x00000108, length   24 is '__MODE_T_TYPE __U32_TYPE'
+name at offset 0x00000121, length   11 is 'L_tmpnam 20'
+name at offset 0x0000012d, length   24 is '__need_malloc_and_calloc'
+name at offset 0x00000146, length   57 is '__DEC128_MAX__ 9.999999999999999999999999999999999E6144DL'
+name at offset 0x00000180, length   10 is '__LP64__ 1'
+name at offset 0x0000018b, length   35 is '_IO_cleanup_region_start(_fct,_fp) '
+name at offset 0x000001af, length   17 is '__stub_sigreturn '
+name at offset 0x000001c1, length   17 is '__USE_XOPEN2K8XSI'
+name at offset 0x000001d3, length   10 is 'SEEK_SET 0'
+name at offset 0x000001de, length   18 is '__ATOMIC_CONSUME 1'
+name at offset 0x000001f1, length   21 is '__clockid_t_defined 1'
+name at offset 0x00000207, length   12 is '__flexarr []'
+name at offset 0x00000214, length   18 is '__DECIMAL_DIG__ 21'
+name at offset 0x00000227, length   15 is '__GNU_LIBRARY__'
+name at offset 0x00000237, length   22 is '__DBL_MAX_10_EXP__ 308'
+name at offset 0x0000024e, length   19 is '__sigset_t_defined '
+name at offset 0x00000262, length   26 is '_IO_va_list __gnuc_va_list'
+name at offset 0x0000027d, length   17 is '_IO_off_t __off_t'
+name at offset 0x0000028f, length   12 is '_IO_HEX 0100'
+name at offset 0x0000029c, length   21 is '__DEC32_MIN__ 1E-95DF'
+name at offset 0x000002b2, length   25 is '__ORDER_PDP_ENDIAN__ 3412'
+name at offset 0x000002cc, length   21 is '__DEC64_MAX_EXP__ 385'
+name at offset 0x000002e2, length   22 is '_IO_ftrylockfile(_fp) '
+name at offset 0x000002f9, length   25 is '__INT8_TYPE__ signed char'
+name at offset 0x00000313, length   10 is 'WSTOPPED 2'
+name at offset 0x0000031e, length   31 is '__SIZE_TYPE__ long unsigned int'
+name at offset 0x0000033e, length   14 is '__UINT8_C(c) c'
+name at offset 0x0000034d, length   24 is '__INT16_TYPE__ short int'
+name at offset 0x00000366, length   29 is '__INT_LEAST64_TYPE__ long int'
+name at offset 0x00000384, length   42 is '__LDBL_MAX__ 1.18973149535723176502e+4932L'
+name at offset 0x000003af, length   40 is '__WSTOPSIG(status) __WEXITSTATUS(status)'
+name at offset 0x000003d8, length   53 is '__attribute_noinline__ __attribute__ ((__noinline__))'
+name at offset 0x0000040e, length   36 is '__GCC_HAVE_SYNC_COMPARE_AND_SWAP_1 1'
+name at offset 0x00000433, length   29 is '__FD_ELT(d) ((d) / __NFDBITS)'
+name at offset 0x00000451, length   17 is '__STDC_HOSTED__ 1'
+name at offset 0x00000463, length   10 is '__STD_TYPE'
+name at offset 0x0000046e, length   22 is '__suseconds_t_defined '
+name at offset 0x00000485, length   39 is '__FLT_MIN__ 1.17549435082228750797e-38F'
+name at offset 0x000004ad, length   14 is '__P(args) args'
+name at offset 0x000004bc, length   23 is '__BIT_TYPES_DEFINED__ 1'
+name at offset 0x000004d4, length   11 is '_ALLOCA_H 1'
+name at offset 0x000004e0, length   11 is '__SIZE_T__ '
+name at offset 0x000004ec, length   35 is '__SIZE_MAX__ 18446744073709551615UL'
+name at offset 0x00000510, length   17 is '__need___va_list '
+name at offset 0x00000522, length   21 is '__GNUC_GNU_INLINE__ 1'
+name at offset 0x00000538, length   27 is '__OFF64_T_TYPE __SQUAD_TYPE'
+name at offset 0x00000554, length   18 is '__daddr_t_defined '
+name at offset 0x00000567, length   21 is '_IO_funlockfile(_fp) '
+name at offset 0x0000057d, length   14 is '__need_wchar_t'
+name at offset 0x0000058c, length   20 is '__LDBL_MANT_DIG__ 64'
+name at offset 0x000005a1, length   17 is '_WCHAR_T_DEFINED '
+name at offset 0x000005b3, length   23 is 'FD_SETSIZE __FD_SETSIZE'
+name at offset 0x000005cb, length   64 is '_IO_ferror_unlocked(__fp) (((__fp)->_flags & _IO_ERR_SEEN) != 0)'
+name at offset 0x0000060c, length   53 is 'WIFSTOPPED(status) __WIFSTOPPED (__WAIT_INT (status))'
+name at offset 0x00000642, length   13 is '_IOS_APPEND 8'
+name at offset 0x00000650, length   25 is '__SLONGWORD_TYPE long int'
+name at offset 0x0000066a, length    9 is '__size_t '
+name at offset 0x00000674, length   73 is '__FD_ISSET(d,set) ((__FDS_BITS (set)[__FD_ELT (d)] & __FD_MASK (d)) != 0)'
+name at offset 0x000006be, length   27 is '__ULONG32_TYPE unsigned int'
+name at offset 0x000006da, length   86 is '__GLIBC_PREREQ(maj,min) ((__GLIBC__ << 16) + __GLIBC_MINOR__ >= ((maj) << 16) + (min))'
+name at offset 0x00000731, length   23 is '__UID_T_TYPE __U32_TYPE'
+name at offset 0x00000749, length   20 is '__LITTLE_ENDIAN 1234'
+name at offset 0x0000075e, length   68 is '__REDIRECT(name,proto,alias) name proto __asm__ (__ASMNAME (#alias))'
+name at offset 0x000007a3, length    8 is '_T_SIZE '
+name at offset 0x000007ac, length   20 is '_IO_fpos_t _G_fpos_t'
+name at offset 0x000007c1, length   25 is '__ORDER_BIG_ENDIAN__ 4321'
+name at offset 0x000007db, length    5 is 'wahoo'
+name at offset 0x000007e1, length   24 is '__DEC128_MIN__ 1E-6143DL'
+name at offset 0x000007fa, length   19 is '_IO_flockfile(_fp) '
+name at offset 0x0000080e, length   23 is 'BIG_ENDIAN __BIG_ENDIAN'
+name at offset 0x00000826, length   42 is '__UINT_FAST32_MAX__ 18446744073709551615UL'
+name at offset 0x00000851, length   19 is '__USE_FILE_OFFSET64'
+name at offset 0x00000865, length    6 is 'test.c'
+name at offset 0x0000086c, length   11 is '__USE_POSIX'
+name at offset 0x00000878, length   17 is '__SCHAR_MAX__ 127'
+name at offset 0x0000088a, length   24 is '__DEC32_EPSILON__ 1E-6DF'
+name at offset 0x000008a3, length   17 is '_SIGSET_H_types 1'
+name at offset 0x000008b5, length   74 is '__FD_SET(d,set) ((void) (__FDS_BITS (set)[__FD_ELT (d)] |= __FD_MASK (d)))'
+name at offset 0x00000900, length   21 is '_IO_IS_FILEBUF 0x2000'
+name at offset 0x00000916, length   19 is '__INT16_MAX__ 32767'
+name at offset 0x0000092a, length   21 is '__INT_FAST8_MAX__ 127'
+name at offset 0x00000940, length   16 is '__stub_fchflags '
+name at offset 0x00000951, length   32 is '__GCC_ATOMIC_POINTER_LOCK_FREE 2'
+name at offset 0x00000972, length   24 is '__INTMAX_TYPE__ long int'
+name at offset 0x0000098b, length   32 is '__FSFILCNT64_T_TYPE __UQUAD_TYPE'
+name at offset 0x000009ac, length   42 is '__FLT_EPSILON__ 1.19209289550781250000e-7F'
+name at offset 0x000009d7, length   41 is 'w_coredump __wait_terminated.__w_coredump'
+name at offset 0x00000a01, length   14 is 'htole16(x) (x)'
+name at offset 0x00000a10, length   83 is '__GNUC_PREREQ(maj,min) ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))'
+name at offset 0x00000a64, length   11 is '__USE_XOPEN'
+name at offset 0x00000a70, length   17 is '__LEAF , __leaf__'
+name at offset 0x00000a82, length   14 is '__USE_XOPEN2K8'
+name at offset 0x00000a91, length   14 is '_SYS_SIZE_T_H '
+name at offset 0x00000aa0, length   34 is '__UINT_LEAST8_TYPE__ unsigned char'
+name at offset 0x00000ac3, length   26 is '__SIZEOF_PTHREAD_ATTR_T 56'
+name at offset 0x00000ade, length   26 is '__ATOMIC_HLE_ACQUIRE 65536'
+name at offset 0x00000af9, length   11 is '__GLIBC__ 2'
+name at offset 0x00000b05, length   14 is 'le16toh(x) (x)'
+name at offset 0x00000b14, length   43 is '__UINT_LEAST64_MAX__ 18446744073709551615UL'
+name at offset 0x00000b40, length   25 is 'htobe16(x) __bswap_16 (x)'
+name at offset 0x00000b5a, length   16 is '__USE_XOPEN2K8 1'
+name at offset 0x00000b6b, length   27 is '__CLOCKID_T_TYPE __S32_TYPE'
+name at offset 0x00000b87, length   14 is '_IO_USER_BUF 1'
+name at offset 0x00000b96, length   26 is '__DEC128_MIN_EXP__ (-6142)'
+name at offset 0x00000bb1, length   11 is '_IO_DEC 020'
+name at offset 0x00000bbd, length   11 is '__size_t__ '
+name at offset 0x00000bc9, length   38 is '__UINT_FAST64_TYPE__ long unsigned int'
+name at offset 0x00000bf0, length    8 is '__unix 1'
+name at offset 0x00000bf9, length   30 is '_IO_cleanup_region_end(_Doit) '
+name at offset 0x00000c18, length   31 is '__INT_LEAST8_TYPE__ signed char'
+name at offset 0x00000c38, length   20 is '__SIZEOF_POINTER__ 8'
+name at offset 0x00000c4d, length   29 is '__GCC_ATOMIC_BOOL_LOCK_FREE 2'
+name at offset 0x00000c6b, length   17 is '__int8_t_defined '
+name at offset 0x00000c7d, length   14 is 'le64toh(x) (x)'
+name at offset 0x00000c8c, length   17 is '__PDP_ENDIAN 3412'
+name at offset 0x00000c9e, length   39 is '__SUSECONDS_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x00000cc6, length    4 is 'main'
+name at offset 0x00000ccb, length   12 is 'FOPEN_MAX 16'
+name at offset 0x00000cd8, length   40 is '_IO_stdin ((_IO_FILE*)(&_IO_2_1_stdin_))'
+name at offset 0x00000d01, length   38 is '__UINT_FAST32_TYPE__ long unsigned int'
+name at offset 0x00000d28, length   16 is '__INT8_MAX__ 127'
+name at offset 0x00000d39, length   32 is '__FSBLKCNT64_T_TYPE __UQUAD_TYPE'
+name at offset 0x00000d5a, length   17 is '_SIZE_T_DECLARED '
+name at offset 0x00000d6c, length   20 is '__CONCAT(x,y) x ## y'
+name at offset 0x00000d81, length   48 is '__WIFSTOPPED(status) (((status) & 0xff) == 0x7f)'
+name at offset 0x00000db2, length   10 is '__FXSR__ 1'
+name at offset 0x00000dbd, length   23 is '_POSIX_C_SOURCE 200809L'
+name at offset 0x00000dd5, length   19 is '__FLT_MAX_EXP__ 128'
+name at offset 0x00000de9, length   26 is '__STDC_ISO_10646__ 201103L'
+name at offset 0x00000e04, length   17 is '__SIZEOF_LONG__ 8'
+name at offset 0x00000e16, length   10 is 'SEEK_CUR 1'
+name at offset 0x00000e21, length   19 is '__SIZEOF_DOUBLE__ 8'
+name at offset 0x00000e35, length   62 is '_IO_feof_unlocked(__fp) (((__fp)->_flags & _IO_EOF_SEEN) != 0)'
+name at offset 0x00000e74, length   16 is '_STDC_PREDEF_H 1'
+name at offset 0x00000e85, length   50 is '__DBL_MIN__ ((double)2.22507385850720138309e-308L)'
+name at offset 0x00000eb8, length   30 is '__BLKCNT64_T_TYPE __SQUAD_TYPE'
+name at offset 0x00000ed7, length   20 is '_IO_SCIENTIFIC 04000'
+name at offset 0x00000eec, length   37 is '__DEC64_MAX__ 9.999999999999999E384DD'
+name at offset 0x00000f12, length   80 is '__REDIRECT_NTH(name,proto,alias) name proto __asm__ (__ASMNAME (#alias)) __THROW'
+name at offset 0x00000f63, length   17 is '__need_mbstate_t '
+name at offset 0x00000f75, length   14 is 'EXIT_SUCCESS 0'
+name at offset 0x00000f84, length   33 is '__INO_T_TYPE __SYSCALL_ULONG_TYPE'
+name at offset 0x00000fa6, length   24 is '__FLT_MIN_10_EXP__ (-37)'
+name at offset 0x00000fbf, length   21 is '__FLT_DECIMAL_DIG__ 9'
+name at offset 0x00000fd5, length  224 is '__bswap_16(x) (__extension__ ({ unsigned short int __v, __x = (unsigned short int) (x); if (__builtin_constant_p (__x)) __v = __bswap_constant_16 (__x); else __asm__ ("rorw $8, %w0" : "=r" (__v) : "0" (__x) : "cc"); __v; }))'
+name at offset 0x000010b6, length   17 is '_IO_ERR_SEEN 0x20'
+name at offset 0x000010c8, length   57 is 'WIFCONTINUED(status) __WIFCONTINUED (__WAIT_INT (status))'
+name at offset 0x00001102, length   18 is '_BITS_BYTESWAP_H 1'
+name at offset 0x00001115, length   29 is '__U16_TYPE unsigned short int'
+name at offset 0x00001133, length   14 is '__ptr_t void *'
+name at offset 0x00001142, length   14 is 'TMP_MAX 238328'
+name at offset 0x00001151, length   23 is '__FLT_HAS_QUIET_NAN__ 1'
+name at offset 0x00001169, length   37 is '__SYSCALL_SLONG_TYPE __SLONGWORD_TYPE'
+name at offset 0x0000118f, length   14 is '__stub_revoke '
+name at offset 0x0000119e, length   21 is '__GNUC_PATCHLEVEL__ 4'
+name at offset 0x000011b4, length   75 is '__intN_t(N,MODE) typedef int int ##N ##_t __attribute__ ((__mode__ (MODE)))'
+name at offset 0x00001200, length   11 is 'stdin stdin'
+name at offset 0x0000120c, length   11 is '_IO_va_list'
+name at offset 0x00001218, length   12 is '_IO_STDIO_H '
+name at offset 0x00001225, length   22 is '_IO_DONT_CLOSE 0100000'
+name at offset 0x0000123c, length   37 is '/mnt/c/Users/edwar/OneDrive/CSC254/A4'
+name at offset 0x00001262, length   17 is '__u_char_defined '
+name at offset 0x00001274, length   21 is '_BSD_SIZE_T_DEFINED_ '
+name at offset 0x0000128a, length   16 is '___int_size_t_h '
+name at offset 0x0000129b, length   11 is '_IO_OCT 040'
+name at offset 0x000012a7, length   14 is '__USE_ISOC99 1'
+name at offset 0x000012b6, length   21 is '__FLT_MAX_10_EXP__ 38'
+name at offset 0x000012cc, length   16 is '__PMT(args) args'
+name at offset 0x000012dd, length   23 is '__DEC128_MAX_EXP__ 6145'
+name at offset 0x000012f5, length   19 is '_IO_IN_BACKUP 0x100'
+name at offset 0x00001309, length   18 is '__ATOMIC_SEQ_CST 5'
+name at offset 0x0000131c, length   13 is '__need_wint_t'
+name at offset 0x0000132a, length   20 is '__DBL_MAX_EXP__ 1024'
+name at offset 0x0000133f, length   20 is '__UINT32_C(c) c ## U'
+name at offset 0x00001354, length   16 is '__pid_t_defined '
+name at offset 0x00001365, length   15 is '__SSE2_MATH__ 1'
+name at offset 0x00001375, length   20 is '__INTMAX_C(c) c ## L'
+name at offset 0x0000138a, length   22 is '__LDBL_MAX_EXP__ 16384'
+name at offset 0x000013a1, length   18 is '__SIZEOF_SHORT__ 2'
+name at offset 0x000013b4, length   43 is 'FD_ISSET(fd,fdsetp) __FD_ISSET (fd, fdsetp)'
+name at offset 0x000013e0, length   16 is '__clockid_time_t'
+name at offset 0x000013f1, length   30 is '__INT_LEAST32_MAX__ 2147483647'
+name at offset 0x00001410, length   19 is '__INT64_C(c) c ## L'
+name at offset 0x00001424, length   25 is '__restrict_arr __restrict'
+name at offset 0x0000143e, length   18 is '__GLIBC_MINOR__ 19'
+name at offset 0x00001451, length   22 is '__UINTMAX_C(c) c ## UL'
+name at offset 0x00001468, length   17 is '__WALL 0x40000000'
+name at offset 0x0000147a, length    9 is '__USE_GNU'
+name at offset 0x00001484, length   27 is '__PRAGMA_REDEFINE_EXTNAME 1'
+name at offset 0x000014a0, length   36 is '__GCC_HAVE_SYNC_COMPARE_AND_SWAP_2 1'
+name at offset 0x000014c5, length   15 is '__need_wchar_t '
+name at offset 0x000014d5, length   28 is '__INT_FAST64_TYPE__ long int'
+name at offset 0x000014f2, length   22 is '__GXX_ABI_VERSION 1002'
+name at offset 0x00001509, length   14 is '__need_size_t '
+name at offset 0x00001518, length   33 is '__OFF_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x0000153a, length   21 is '__KERNEL_STRICT_NAMES'
+name at offset 0x00001550, length   24 is '__BIGGEST_ALIGNMENT__ 16'
+name at offset 0x00001569, length   42 is '__UINT_FAST64_MAX__ 18446744073709551615UL'
+name at offset 0x00001594, length   66 is '__fortify_function __extern_always_inline __attribute_artificial__'
+name at offset 0x000015d7, length   17 is '_IO_EOF_SEEN 0x10'
+name at offset 0x000015e9, length   39 is 'w_termsig __wait_terminated.__w_termsig'
+name at offset 0x00001611, length   53 is '__DBL_EPSILON__ ((double)2.22044604925031308085e-16L)'
+name at offset 0x00001647, length   13 is '__USE_XOPEN2K'
+name at offset 0x00001655, length   22 is '__WNOTHREAD 0x20000000'
+name at offset 0x0000166c, length   12 is '__need_NULL '
+name at offset 0x00001679, length   14 is '__stub_lchmod '
+name at offset 0x00001688, length   13 is '_IO_SKIPWS 01'
+name at offset 0x00001696, length   64 is '__extern_inline extern __inline __attribute__ ((__gnu_inline__))'
+name at offset 0x000016d7, length   25 is 'be64toh(x) __bswap_64 (x)'
+name at offset 0x000016f1, length   37 is '__W_STOPCODE(sig) ((sig) << 8 | 0x7f)'
+name at offset 0x00001717, length   17 is 'BUFSIZ _IO_BUFSIZ'
+name at offset 0x00001729, length   19 is '__USE_POSIX199309 1'
+name at offset 0x0000173d, length   22 is '_IO_FLAGS2_NOTCANCEL 2'
+name at offset 0x00001754, length   25 is '__INT_LEAST16_MAX__ 32767'
+name at offset 0x0000176e, length   17 is '__USE_POSIX199309'
+name at offset 0x00001780, length  221 is '__FD_ZERO(fdsp) do { int __d0, __d1; __asm__ __volatile__ ("cld; rep; " __FD_ZERO_STOS : "=c" (__d0), "=D" (__d1) : "a" (0), "0" (sizeof (fd_set) / sizeof (__fd_mask)), "1" (&__FDS_BITS (fdsp)[0]) : "memory"); } while (0)'
+name at offset 0x0000185e, length   20 is '__W_CONTINUED 0xffff'
+name at offset 0x00001873, length   39 is '__INT_FAST16_MAX__ 9223372036854775807L'
+name at offset 0x0000189b, length   14 is '__stub_getmsg '
+name at offset 0x000018aa, length   18 is '_WCHAR_T_DEFINED_ '
+name at offset 0x000018bd, length   12 is '__USE_UNIX98'
+name at offset 0x000018ca, length   30 is '__INT_FAST8_TYPE__ signed char'
+name at offset 0x000018e9, length   22 is '__KERNEL_STRICT_NAMES '
+name at offset 0x00001900, length   35 is '__FDS_BITS(set) ((set)->__fds_bits)'
+name at offset 0x00001924, length   23 is '__GID_T_TYPE __U32_TYPE'
+name at offset 0x0000193c, length   20 is '_IO_USER_LOCK 0x8000'
+name at offset 0x00001951, length   30 is '__GCC_ATOMIC_SHORT_LOCK_FREE 2'
+name at offset 0x00001970, length   23 is '__INT64_TYPE__ long int'
+name at offset 0x00001988, length   34 is '__ULONGWORD_TYPE unsigned long int'
+name at offset 0x000019ab, length   16 is '__need_timespec '
+name at offset 0x000019bc, length   35 is '__GCC_ATOMIC_TEST_AND_SET_TRUEVAL 1'
+name at offset 0x000019e0, length    9 is '__ELF__ 1'
+name at offset 0x000019ea, length   17 is '_VA_LIST_DEFINED '
+name at offset 0x000019fc, length   34 is '__WCHAR_MIN__ (-__WCHAR_MAX__ - 1)'
+name at offset 0x00001a1f, length   14 is '__need_time_t '
+name at offset 0x00001a2e, length   62 is 'GNU C 4.8.4 -mtune=generic -march=x86-64 -g3 -fstack-protector'
+name at offset 0x00001a6d, length   17 is 'FILENAME_MAX 4096'
+name at offset 0x00001a7f, length   29 is '__SIZEOF_PTHREAD_CONDATTR_T 4'
+name at offset 0x00001a9d, length   23 is '__LDBL_HAS_INFINITY__ 1'
+name at offset 0x00001ab5, length   16 is '__stub_setlogin '
+name at offset 0x00001ac6, length   17 is '_IO_SHOWBASE 0200'
+name at offset 0x00001ad8, length   25 is '__INO_T_MATCHES_INO64_T 1'
+name at offset 0x00001af2, length   19 is '__clock_t_defined 1'
+name at offset 0x00001b06, length   29 is '_G_IO_IO_FILE_VERSION 0x20001'
+name at offset 0x00001b24, length   15 is '__GNUC_VA_LIST '
+name at offset 0x00001b34, length   39 is 'w_retcode __wait_terminated.__w_retcode'
+name at offset 0x00001b5c, length   44 is '__SIG_ATOMIC_MIN__ (-__SIG_ATOMIC_MAX__ - 1)'
+name at offset 0x00001b89, length   14 is '_BSD_WCHAR_T_ '
+name at offset 0x00001b98, length   21 is '_IO_off64_t __off64_t'
+name at offset 0x00001bae, length   19 is 'RAND_MAX 2147483647'
+name at offset 0x00001bc2, length   21 is '_STDIO_USES_IOSTREAM '
+name at offset 0x00001bd8, length  136 is '__bswap_constant_32(x) ((((x) & 0xff000000) >> 24) | (((x) & 0x00ff0000) >> 8) | (((x) & 0x0000ff00) << 8) | (((x) & 0x000000ff) << 24))'
+name at offset 0x00001c61, length   28 is '__WORDSIZE_TIME64_COMPAT32 1'
+name at offset 0x00001c7e, length   14 is '__need___FILE '
+name at offset 0x00001c8d, length   20 is '__DBL_HAS_DENORM__ 1'
+name at offset 0x00001ca2, length   20 is '_IO_BUFSIZ _G_BUFSIZ'
+name at offset 0x00001cb7, length   23 is '____mbstate_t_defined 1'
+name at offset 0x00001ccf, length   30 is '__UWORD_TYPE unsigned long int'
+name at offset 0x00001cee, length   21 is '__DEC_EVAL_METHOD__ 2'
+name at offset 0x00001d04, length   22 is '__UINT_FAST8_MAX__ 255'
+name at offset 0x00001d1b, length   25 is 'htobe32(x) __bswap_32 (x)'
+name at offset 0x00001d35, length  356 is '__bswap_constant_64(x) (__extension__ ((((x) & 0xff00000000000000ull) >> 56) | (((x) & 0x00ff000000000000ull) >> 40) | (((x) & 0x0000ff0000000000ull) >> 24) | (((x) & 0x000000ff00000000ull) >> 8) | (((x) & 0x00000000ff000000ull) << 8) | (((x) & 0x0000000000ff0000ull) << 24) | (((x) & 0x000000000000ff00ull) << 40) | (((x) & 0x00000000000000ffull) << 56)))'
+name at offset 0x00001e9a, length   48 is '__DEC64_SUBNORMAL_MIN__ 0.000000000000001E-383DD'
+name at offset 0x00001ecb, length   16 is 'NULL ((void *)0)'
+name at offset 0x00001edc, length   30 is '__PTHREAD_MUTEX_HAVE_ELISION 1'
+name at offset 0x00001efb, length   40 is '__va_arg_pack() __builtin_va_arg_pack ()'
+name at offset 0x00001f24, length   21 is '__FLT_EVAL_METHOD__ 0'
+name at offset 0x00001f3a, length   19 is '__USE_POSIX199506 1'
+name at offset 0x00001f4e, length   24 is '__INT32_MAX__ 2147483647'
+name at offset 0x00001f67, length   12 is '__need_FILE '
+name at offset 0x00001f74, length   14 is '_ATFILE_SOURCE'
+name at offset 0x00001f83, length   13 is '_BSD_SOURCE 1'
+name at offset 0x00001f91, length   18 is '__SLONG32_TYPE int'
+name at offset 0x00001fa4, length   17 is '_IO_uid_t __uid_t'
+name at offset 0x00001fb6, length   11 is '_IO_LEFT 02'
+name at offset 0x00001fc2, length   36 is '__BLKCNT_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x00001fe7, length   18 is '__ATOMIC_ACQUIRE 2'
+name at offset 0x00001ffa, length   15 is '_IO_NO_WRITES 8'
+name at offset 0x0000200a, length   21 is '__SYSCALL_WORDSIZE 64'
+name at offset 0x00002020, length  155 is '_IO_peekc_unlocked(_fp) (_IO_BE ((_fp)->_IO_read_ptr >= (_fp)->_IO_read_end, 0) && __underflow (_fp) == EOF ? EOF : *(unsigned char *) (_fp)->_IO_read_ptr)'
+name at offset 0x000020bc, length   19 is '__lldiv_t_defined 1'
+name at offset 0x000020d0, length   17 is 'NFDBITS __NFDBITS'
+name at offset 0x000020e2, length   13 is '_G_config_h 1'
+name at offset 0x000020f0, length   12 is '_IO_RIGHT 04'
+name at offset 0x000020fd, length   22 is '__FLT_HAS_INFINITY__ 1'
+name at offset 0x00002114, length   26 is '__STDC_IEC_559_COMPLEX__ 1'
+name at offset 0x0000212f, length   12 is '_IOS_ATEND 4'
+name at offset 0x0000213c, length    9 is 'WEXITED 4'
+name at offset 0x00002146, length   38 is '__FSBLKCNT_T_TYPE __SYSCALL_ULONG_TYPE'
+name at offset 0x0000216d, length    9 is '__USE_BSD'
+name at offset 0x00002177, length   27 is '__GCC_HAVE_DWARF2_CFI_ASM 1'
+name at offset 0x00002193, length   15 is '_BITS_TYPES_H 1'
+name at offset 0x000021a3, length   30 is '__SIZEOF_PTHREAD_MUTEXATTR_T 4'
+name at offset 0x000021c2, length   10 is '__GNUC__ 4'
+name at offset 0x000021cd, length   49 is 'WTERMSIG(status) __WTERMSIG (__WAIT_INT (status))'
+name at offset 0x000021ff, length   22 is '_IO_FLAGS2_USER_WBUF 8'
+name at offset 0x00002216, length   25 is '__PTRDIFF_TYPE__ long int'
+name at offset 0x00002230, length   34 is '__UINT16_TYPE__ short unsigned int'
+name at offset 0x00002253, length   13 is '_POSIX_SOURCE'
+name at offset 0x00002261, length   14 is '__USE_ISOC95 1'
+name at offset 0x00002270, length   20 is '__DEC32_MAX_EXP__ 97'
+name at offset 0x00002285, length    9 is '_T_SIZE_ '
+name at offset 0x0000228f, length   22 is '_BITS_PTHREADTYPES_H 1'
+name at offset 0x000022a6, length   17 is '_IO_pid_t __pid_t'
+name at offset 0x000022b8, length   25 is '_G_va_list __gnuc_va_list'
+name at offset 0x000022d2, length   28 is '__USING_NAMESPACE_STD(name) '
+name at offset 0x000022ef, length    8 is '__k8__ 1'
+name at offset 0x000022f8, length    7 is '_LP64 1'
+name at offset 0x00002300, length   17 is '__UINT8_MAX__ 255'
+name at offset 0x00002312, length   44 is '__THROW __attribute__ ((__nothrow__ __LEAF))'
+name at offset 0x0000233f, length    6 is 'P_PGID'
+name at offset 0x00002346, length   13 is '_FEATURES_H 1'
+name at offset 0x00002354, length   17 is '_DEFAULT_SOURCE 1'
+name at offset 0x00002366, length   49 is 'WSTOPSIG(status) __WSTOPSIG (__WAIT_INT (status))'
+name at offset 0x00002398, length   16 is '__dev_t_defined '
+name at offset 0x000023a9, length   15 is '__need_timer_t '
+name at offset 0x000023b9, length   22 is '__INT_MAX__ 2147483647'
+name at offset 0x000023d0, length   42 is '__LDBL_REDIR1(name,proto,alias) name proto'
+name at offset 0x000023fb, length   45 is '__attribute_used__ __attribute__ ((__used__))'
+name at offset 0x00002429, length   14 is 'le32toh(x) (x)'
+name at offset 0x00002438, length   22 is '__ID_T_TYPE __U32_TYPE'
+name at offset 0x0000244f, length   33 is '__GCC_ATOMIC_CHAR16_T_LOCK_FREE 2'
+name at offset 0x00002471, length   19 is '_BITS_TYPESIZES_H 1'
+name at offset 0x00002485, length   18 is '__ATOMIC_RELEASE 3'
+name at offset 0x00002498, length   19 is '__FLT_MANT_DIG__ 24'
+name at offset 0x000024ac, length   15 is '_POSIX_SOURCE 1'
+name at offset 0x000024bc, length   25 is 'htobe64(x) __bswap_64 (x)'
+name at offset 0x000024d6, length   15 is '__need_clock_t '
+name at offset 0x000024e6, length   39 is '__INT_FAST64_MAX__ 9223372036854775807L'
+name at offset 0x0000250e, length   17 is '_IO_SHOWPOS 02000'
+name at offset 0x00002520, length   21 is '_IO_file_flags _flags'
+name at offset 0x00002536, length   16 is '_IO_STDIO 040000'
+name at offset 0x00002547, length   15 is '__stub_fdetach '
+name at offset 0x00002557, length   24 is '__USE_POSIX_IMPLICITLY 1'
+name at offset 0x00002570, length   24 is 'getc(_fp) _IO_getc (_fp)'
+name at offset 0x00002589, length    5 is 'micro'
+name at offset 0x0000258f, length    9 is '__SSE__ 1'
+name at offset 0x00002599, length   17 is '_IO_size_t size_t'
+name at offset 0x000025ab, length   36 is '__GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 1'
+name at offset 0x000025d0, length   37 is '__UINT64_MAX__ 18446744073709551615UL'
+name at offset 0x000025f6, length   25 is '__OFF_T_MATCHES_OFF64_T 1'
+name at offset 0x00002610, length   75 is '__FD_CLR(d,set) ((void) (__FDS_BITS (set)[__FD_ELT (d)] &= ~__FD_MASK (d)))'
+name at offset 0x0000265c, length   15 is '_SYS_SELECT_H 1'
+name at offset 0x0000266c, length   10 is '_T_WCHAR_ '
+name at offset 0x00002677, length   16 is '__need___va_list'
+name at offset 0x00002688, length   54 is '__LDBL_REDIR1_NTH(name,proto,alias) name proto __THROW'
+name at offset 0x000026bf, length   12 is '__USE_POSIX2'
+name at offset 0x000026cc, length   20 is '__FLT_HAS_DENORM__ 1'
+name at offset 0x000026e1, length   22 is '__DEC64_MIN__ 1E-383DD'
+name at offset 0x000026f8, length   29 is '__GCC_ATOMIC_LONG_LOCK_FREE 2'
+name at offset 0x00002716, length   13 is '__need_size_t'
+name at offset 0x00002724, length   36 is 'w_stopsig __wait_stopped.__w_stopsig'
+name at offset 0x00002749, length   39 is '__INT_FAST32_MAX__ 9223372036854775807L'
+name at offset 0x00002771, length   18 is '_IO_LINE_BUF 0x200'
+name at offset 0x00002784, length   16 is '__key_t_defined '
+name at offset 0x00002795, length   13 is 'long long int'
+name at offset 0x000027a3, length   28 is '__CHAR32_TYPE__ unsigned int'
+name at offset 0x000027c0, length   24 is '__WINT_MAX__ 4294967295U'
+name at offset 0x000027d9, length   11 is '__need_NULL'
+name at offset 0x000027e5, length   11 is '__amd64__ 1'
+name at offset 0x000027f1, length    9 is 'WNOHANG 1'
+name at offset 0x000027fb, length   30 is '__GCC_ATOMIC_LLONG_LOCK_FREE 2'
+name at offset 0x0000281a, length   54 is '__nonnull(params) __attribute__ ((__nonnull__ params))'
+name at offset 0x00002851, length   20 is '__timespec_defined 1'
+name at offset 0x00002866, length   12 is '__x86_64__ 1'
+name at offset 0x00002873, length   10 is '__WCHAR_T '
+name at offset 0x0000287e, length   38 is '__BYTE_ORDER__ __ORDER_LITTLE_ENDIAN__'
+name at offset 0x000028a5, length   17 is '_STRUCT_TIMEVAL 1'
+name at offset 0x000028b7, length   34 is '__UINTMAX_TYPE__ long unsigned int'
+name at offset 0x000028da, length   14 is '__need_timer_t'
+name at offset 0x000028e9, length   64 is '__attribute_format_arg__(x) __attribute__ ((__format_arg__ (x)))'
+name at offset 0x0000292a, length   20 is '__SIZEOF_WCHAR_T__ 4'
+name at offset 0x0000293f, length   29 is 'LITTLE_ENDIAN __LITTLE_ENDIAN'
+name at offset 0x0000295d, length    5 is '__PMT'
+name at offset 0x00002963, length   15 is '__FLT_RADIX__ 2'
+name at offset 0x00002973, length   23 is '_IO_IS_APPENDING 0x1000'
+name at offset 0x0000298b, length   36 is 'w_stopval __wait_stopped.__w_stopval'
+name at offset 0x000029b0, length   27 is '__PTHREAD_MUTEX_HAVE_PREV 1'
+name at offset 0x000029cc, length   50 is '__DBL_MAX__ ((double)1.79769313486231570815e+308L)'
+name at offset 0x000029ff, length   25 is 'be16toh(x) __bswap_16 (x)'
+name at offset 0x00002a19, length   72 is '__WIFSIGNALED(status) (((signed char) (((status) & 0x7f) + 1) >> 1) > 0)'
+name at offset 0x00002a62, length   16 is '_ATFILE_SOURCE 1'
+name at offset 0x00002a73, length   21 is '__SQUAD_TYPE long int'
+name at offset 0x00002a89, length   11 is 'L_ctermid 9'
+name at offset 0x00002a95, length   13 is '__need_time_t'
+name at offset 0x00002aa3, length   14 is '__INT32_C(c) c'
+name at offset 0x00002ab2, length   16 is '_IOS_NOCREATE 32'
+name at offset 0x00002ac3, length   18 is '__WCHAR_TYPE__ int'
+name at offset 0x00002ad6, length   16 is '__USE_XOPEN2KXSI'
+name at offset 0x00002ae7, length   34 is '__UINTPTR_TYPE__ long unsigned int'
+name at offset 0x00002b0a, length   19 is '__USE_FORTIFY_LEVEL'
+name at offset 0x00002b1e, length    8 is 'EOF (-1)'
+name at offset 0x00002b27, length   22 is '__USER_LABEL_PREFIX__ '
+name at offset 0x00002b3e, length   42 is '__UINT_FAST16_MAX__ 18446744073709551615UL'
+name at offset 0x00002b69, length   26 is '__WINT_TYPE__ unsigned int'
+name at offset 0x00002b84, length    6 is '__k8 1'
+name at offset 0x00002b8b, length   33 is '__LONG_MAX__ 9223372036854775807L'
+name at offset 0x00002bad, length   15 is '__need_timeval '
+name at offset 0x00002bbd, length   25 is '__DADDR_T_TYPE __S32_TYPE'
+name at offset 0x00002bd7, length   27 is '__DEC32_MAX__ 9.999999E96DF'
+name at offset 0x00002bf3, length   22 is '__SIZEOF_LONG_LONG__ 8'
+name at offset 0x00002c0a, length   44 is '__WCOREDUMP(status) ((status) & __WCOREFLAG)'
+name at offset 0x00002c37, length   34 is '__UINT_LEAST32_TYPE__ unsigned int'
+name at offset 0x00002c5a, length   23 is '__have_pthread_attr_t 1'
+name at offset 0x00002c72, length   28 is '__INT_FAST32_TYPE__ long int'
+name at offset 0x00002c8f, length   14 is '__stub_putmsg '
+name at offset 0x00002c9e, length   22 is '__FLT_MIN_EXP__ (-125)'
+name at offset 0x00002cb5, length   28 is '__USECONDS_T_TYPE __U32_TYPE'
+name at offset 0x00002cd2, length   10 is '__USE_MISC'
+name at offset 0x00002cdd, length   15 is '__USE_LARGEFILE'
+name at offset 0x00002ced, length   13 is '__FLT_DIG__ 6'
+name at offset 0x00002cfb, length   18 is '_WCHAR_T_DECLARED '
+name at offset 0x00002d0e, length   14 is '__CHAR_BIT__ 8'
+name at offset 0x00002d1d, length   15 is '__USE_XOPEN2K 1'
+name at offset 0x00002d2d, length   35 is '__INTPTR_MAX__ 9223372036854775807L'
+name at offset 0x00002d51, length   33 is 'putc(_ch,_fp) _IO_putc (_ch, _fp)'
+name at offset 0x00002d73, length   23 is '__KEY_T_TYPE __S32_TYPE'
+name at offset 0x00002d8b, length   38 is '__UINTMAX_MAX__ 18446744073709551615UL'
+name at offset 0x00002db2, length  179 is '_IO_putc_unlocked(_ch,_fp) (_IO_BE ((_fp)->_IO_write_ptr >= (_fp)->_IO_write_end, 0) ? __overflow (_fp, (unsigned char) (_ch)) : (unsigned char) (*(_fp)->_IO_write_ptr++ = (_ch)))'
+name at offset 0x00002e66, length   23 is '__U32_TYPE unsigned int'
+name at offset 0x00002e7e, length   72 is '__attribute_alloc_size__(params) __attribute__ ((__alloc_size__ params))'
+name at offset 0x00002ec7, length   24 is '__DEC64_MIN_EXP__ (-382)'
+name at offset 0x00002ee0, length   47 is '_IO_BE(expr,res) __builtin_expect ((expr), res)'
+name at offset 0x00002f10, length    6 is 'alloca'
+name at offset 0x00002f17, length   49 is '__glibc_likely(cond) __builtin_expect ((cond), 1)'
+name at offset 0x00002f49, length   12 is '__stub_gtty '
+name at offset 0x00002f56, length   12 is '__WCHAR_T__ '
+name at offset 0x00002f63, length   22 is '__SIZEOF_PTRDIFF_T__ 8'
+name at offset 0x00002f7a, length   44 is '__FLOAT_WORD_ORDER__ __ORDER_LITTLE_ENDIAN__'
+name at offset 0x00002fa7, length   13 is '_GCC_WCHAR_T '
+name at offset 0x00002fb5, length   37 is '__SYSCALL_ULONG_TYPE __ULONGWORD_TYPE'
+name at offset 0x00002fdb, length   18 is '__STDC_IEC_559__ 1'
+name at offset 0x00002fee, length    6 is '__wur '
+name at offset 0x00002ff5, length   23 is '__SIG_ATOMIC_TYPE__ int'
+name at offset 0x0000300d, length   19 is '_IO_UPPERCASE 01000'
+name at offset 0x00003021, length   15 is '__id_t_defined '
+name at offset 0x00003031, length   14 is '__need_timeval'
+name at offset 0x00003040, length   22 is '__DEC128_MANT_DIG__ 34'
+name at offset 0x00003057, length   29 is '__SIG_ATOMIC_MAX__ 2147483647'
+name at offset 0x00003075, length   18 is '__nlink_t_defined '
+name at offset 0x00003088, length   13 is 'stderr stderr'
+name at offset 0x00003096, length   17 is '__GNU_LIBRARY__ 6'
+name at offset 0x000030a8, length   19 is '__VERSION__ "4.8.4"'
+name at offset 0x000030bc, length   29 is '__GCC_ATOMIC_CHAR_LOCK_FREE 2'
+name at offset 0x000030da, length   23 is '__PID_T_TYPE __S32_TYPE'
+name at offset 0x000030f2, length   36 is '__WTERMSIG(status) ((status) & 0x7f)'
+name at offset 0x00003117, length   39 is '__THROWNL __attribute__ ((__nothrow__))'
+name at offset 0x0000313f, length   35 is '__LDBL_REDIR(name,proto) name proto'
+name at offset 0x00003163, length   48 is '__WEXITSTATUS(status) (((status) & 0xff00) >> 8)'
+name at offset 0x00003194, length   14 is '__STRING(x) #x'
+name at offset 0x000031a3, length   22 is '__INT_LEAST8_MAX__ 127'
+name at offset 0x000031ba, length   21 is '__UINT64_C(c) c ## UL'
+name at offset 0x000031d0, length   20 is '__DEC32_MANT_DIG__ 7'
+name at offset 0x000031e5, length   43 is 'makedev(maj,min) gnu_dev_makedev (maj, min)'
+name at offset 0x00003211, length   22 is '__BEGIN_NAMESPACE_STD '
+name at offset 0x00003228, length   24 is '__LDBL_REDIR_DECL(name) '
+name at offset 0x00003241, length   29 is '__SIZEOF_PTHREAD_BARRIER_T 32'
+name at offset 0x0000325f, length   51 is '__NTH(fct) __attribute__ ((__nothrow__ __LEAF)) fct'
+name at offset 0x00003293, length   73 is '__REDIRECT_NTH_LDBL(name,proto,alias) __REDIRECT_NTH (name, proto, alias)'
+name at offset 0x000032dd, length   14 is '_IO_NO_READS 4'
+name at offset 0x000032ec, length   24 is '__WAIT_STATUS_DEFN int *'
+name at offset 0x00003305, length   35 is '__PTHREAD_RWLOCK_INT_FLAGS_SHARED 1'
+name at offset 0x00003329, length   18 is '____FILE_defined 1'
+name at offset 0x0000333c, length   58 is '__ASMNAME(cname) __ASMNAME2 (__USER_LABEL_PREFIX__, cname)'
+name at offset 0x00003377, length   14 is 'htole64(x) (x)'
+name at offset 0x00003386, length   16 is '_IO_UNBUFFERED 2'
+name at offset 0x00003397, length   22 is '_IO_iconv_t _G_iconv_t'
+name at offset 0x000033ae, length   38 is '_IO_HAVE_ST_BLKSIZE _G_HAVE_ST_BLKSIZE'
+name at offset 0x000033d5, length   24 is '__LDBL_MAX_10_EXP__ 4932'
+name at offset 0x000033ee, length   13 is '__INT8_C(c) c'
+name at offset 0x000033fc, length   24 is '_IO_UNIFIED_JUMPTABLES 1'
+name at offset 0x00003415, length   23 is '__DBL_MIN_EXP__ (-1021)'
+name at offset 0x0000342d, length    9 is '__SIZE_T '
+name at offset 0x00003437, length   11 is '_ENDIAN_H 1'
+name at offset 0x00003443, length   18 is '__INT32_TYPE__ int'
+name at offset 0x00003456, length   21 is '__DEC64_MANT_DIG__ 16'
+name at offset 0x0000346c, length   33 is '__GCC_ATOMIC_CHAR32_T_LOCK_FREE 2'
+name at offset 0x0000348e, length   38 is '__FSID_T_TYPE struct { int __val[2]; }'
+name at offset 0x000034b5, length   12 is '__USE_ISOC95'
+name at offset 0x000034c2, length   16 is '_IO_INTERNAL 010'
+name at offset 0x000034d3, length   46 is '__FLT_DENORM_MIN__ 1.40129846432481707092e-45F'
+name at offset 0x00003502, length   12 is '__USE_ISOC99'
+name at offset 0x0000350f, length   28 is '__USING_NAMESPACE_C99(name) '
+name at offset 0x0000352c, length   20 is '__USE_XOPEN_EXTENDED'
+name at offset 0x00003541, length   21 is '__LDBL_HAS_DENORM__ 1'
+name at offset 0x00003557, length   60 is '__always_inline __inline __attribute__ ((__always_inline__))'
+name at offset 0x00003594, length   36 is '__GCC_HAVE_SYNC_COMPARE_AND_SWAP_4 1'
+name at offset 0x000035b9, length   12 is '__USE_SVID 1'
+name at offset 0x000035c6, length   14 is '__BEGIN_DECLS '
+name at offset 0x000035d5, length   10 is '_STDIO_H 1'
+name at offset 0x000035e0, length   12 is 'WCONTINUED 8'
+name at offset 0x000035ed, length   56 is '_SIGSET_NWORDS (1024 / (8 * sizeof (unsigned long int)))'
+name at offset 0x00003626, length   17 is '__FD_SETSIZE 1024'
+name at offset 0x00003638, length   11 is 'WUNTRACED 2'
+name at offset 0x00003644, length   38 is '__FSFILCNT_T_TYPE __SYSCALL_ULONG_TYPE'
+name at offset 0x0000366b, length   28 is '__ORDER_LITTLE_ENDIAN__ 1234'
+name at offset 0x00003688, length   37 is '__BLKSIZE_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x000036ae, length   22 is 'long long unsigned int'
+name at offset 0x000036c5, length   21 is '_IO_ssize_t __ssize_t'
+name at offset 0x000036db, length   16 is '__WCOREFLAG 0x80'
+name at offset 0x000036ec, length   14 is '__USE_ISOCXX11'
+name at offset 0x000036fb, length   16 is '_SIZE_T_DEFINED '
+name at offset 0x0000370c, length   18 is '__ssize_t_defined '
+name at offset 0x0000371f, length   18 is '_SYS_SYSMACROS_H 1'
+name at offset 0x00003732, length   68 is '__DEC128_SUBNORMAL_MIN__ 0.000000000000000000000000000000001E-6143DL'
+name at offset 0x00003777, length   19 is '__WCLONE 0x80000000'
+name at offset 0x0000378b, length   24 is '__INTPTR_TYPE__ long int'
+name at offset 0x000037a4, length   30 is 'minor(dev) gnu_dev_minor (dev)'
+name at offset 0x000037c3, length   19 is '__timer_t_defined 1'
+name at offset 0x000037d7, length   16 is '__need_mbstate_t'
+name at offset 0x000037e8, length   12 is 'someconstant'
+name at offset 0x000037f5, length   40 is '__UINT_LEAST16_TYPE__ short unsigned int'
+name at offset 0x0000381e, length   50 is '__WIFCONTINUED(status) ((status) == __W_CONTINUED)'
+name at offset 0x00003851, length   34 is '__CHAR16_TYPE__ short unsigned int'
+name at offset 0x00003874, length   39 is '_IO_peekc(_fp) _IO_peekc_unlocked (_fp)'
+name at offset 0x0000389c, length   14 is 'htole32(x) (x)'
+name at offset 0x000038ab, length    5 is 'P_PID'
+name at offset 0x000038b1, length   26 is '__UINT_LEAST16_MAX__ 65535'
+name at offset 0x000038cc, length   17 is '__USE_POSIX199506'
+name at offset 0x000038de, length   17 is '__BIG_ENDIAN 4321'
+name at offset 0x000038f0, length   22 is '__FINITE_MATH_ONLY__ 0'
+name at offset 0x00003907, length   11 is '_BSD_SOURCE'
+name at offset 0x00003913, length   10 is 'SEEK_END 2'
+name at offset 0x0000391e, length   11 is '_STDLIB_H 1'
+name at offset 0x0000392a, length   24 is '_IO_fpos64_t _G_fpos64_t'
+name at offset 0x00003943, length   26 is '_IO_DELETE_DONT_CLOSE 0x40'
+name at offset 0x0000395e, length   13 is '__WORDSIZE 64'
+name at offset 0x0000396c, length   50 is '__warnattr(msg) __attribute__((__warning__ (msg)))'
+name at offset 0x0000399f, length   39 is 'FD_CLR(fd,fdsetp) __FD_CLR (fd, fdsetp)'
+name at offset 0x000039c7, length   27 is '__SIZEOF_PTHREAD_MUTEX_T 40'
+name at offset 0x000039e3, length   31 is '__FLOAT_WORD_ORDER __BYTE_ORDER'
+name at offset 0x00003a03, length   20 is '__SIZEOF_INT128__ 16'
+name at offset 0x00003a18, length   12 is '__stub_stty '
+name at offset 0x00003a25, length   22 is '__code_model_small__ 1'
+name at offset 0x00003a3c, length   38 is '__DEC32_SUBNORMAL_MIN__ 0.000001E-95DF'
+name at offset 0x00003a63, length   15 is '__gnu_linux__ 1'
+name at offset 0x00003a73, length   14 is '_SVID_SOURCE 1'
+name at offset 0x00003a82, length   32 is '__SIZEOF_PTHREAD_BARRIERATTR_T 4'
+name at offset 0x00003aa3, length   19 is '__S64_TYPE long int'
+name at offset 0x00003ab7, length   18 is '_IO_UNITBUF 020000'
+name at offset 0x00003aca, length   13 is '_BSD_SIZE_T_ '
+name at offset 0x00003ad8, length   42 is '__bos0(ptr) __builtin_object_size (ptr, 0)'
+name at offset 0x00003b03, length   13 is '_IOS_OUTPUT 2'
+name at offset 0x00003b11, length   17 is '_IO_FLAGS2_MMAP 1'
+name at offset 0x00003b23, length   21 is '_IO_BOOLALPHA 0200000'
+name at offset 0x00003b39, length    9 is '_T_WCHAR '
+name at offset 0x00003b43, length   22 is '__BEGIN_NAMESPACE_C99 '
+name at offset 0x00003b5a, length   40 is '__INT_LEAST64_MAX__ 9223372036854775807L'
+name at offset 0x00003b83, length   14 is '__S32_TYPE int'
+name at offset 0x00003b92, length   55 is 'WIFSIGNALED(status) __WIFSIGNALED (__WAIT_INT (status))'
+name at offset 0x00003bca, length   32 is '__UINT_LEAST32_MAX__ 4294967295U'
+name at offset 0x00003beb, length   16 is '_IO_FIXED 010000'
+name at offset 0x00003bfc, length   16 is '__INT_WCHAR_T_H '
+name at offset 0x00003c0d, length   34 is 'FD_ZERO(fdsetp) __FD_ZERO (fdsetp)'
+name at offset 0x00003c30, length   39 is '__UINT_LEAST64_TYPE__ long unsigned int'
+name at offset 0x00003c58, length   12 is '__USE_ISOC11'
+name at offset 0x00003c65, length   27 is '_IO_CURRENTLY_PUTTING 0x800'
+name at offset 0x00003c81, length   22 is '__FD_ZERO_STOS "stosq"'
+name at offset 0x00003c98, length    8 is '_IONBF 2'
+name at offset 0x00003ca1, length   16 is '__off_t_defined '
+name at offset 0x00003cb2, length   19 is '_IO_BAD_SEEN 0x4000'
+name at offset 0x00003cc6, length   27 is '_OLD_STDIO_MAGIC 0xFABC0000'
+name at offset 0x00003ce2, length   42 is '__LDBL_MIN__ 3.36210314311209350626e-4932L'
+name at offset 0x00003d0d, length   24 is '__INT_LEAST32_TYPE__ int'
+name at offset 0x00003d26, length    9 is '__SSP__ 1'
+name at offset 0x00003d30, length   27 is '__LDBL_MIN_10_EXP__ (-4931)'
+name at offset 0x00003d4c, length   16 is '__GNUC_MINOR__ 8'
+name at offset 0x00003d5d, length   24 is '__LDBL_HAS_QUIET_NAN__ 1'
+name at offset 0x00003d76, length   28 is '__GCC_ATOMIC_INT_LOCK_FREE 2'
+name at offset 0x00003d93, length   49 is '__LDBL_DENORM_MIN__ 3.64519953188247460253e-4951L'
+name at offset 0x00003dc5, length   34 is '__INT64_MAX__ 9223372036854775807L'
+name at offset 0x00003de8, length   15 is '__stub_chflags '
+name at offset 0x00003df8, length   40 is '__NFDBITS (8 * (int) sizeof (__fd_mask))'
+name at offset 0x00003e21, length   15 is '__stub_bdflush '
+name at offset 0x00003e31, length    8 is '_SIZET_ '
+name at offset 0x00003e3a, length   21 is '__TIMER_T_TYPE void *'
+name at offset 0x00003e50, length   23 is '__DBL_HAS_QUIET_NAN__ 1'
+name at offset 0x00003e68, length   16 is '__uid_t_defined '
+name at offset 0x00003e79, length   30 is 'major(dev) gnu_dev_major (dev)'
+name at offset 0x00003e98, length   23 is 'BYTE_ORDER __BYTE_ORDER'
+name at offset 0x00003eb0, length   10 is '__SSE2__ 1'
+name at offset 0x00003ebb, length   14 is '__need_clock_t'
+name at offset 0x00003eca, length    5 is 'P_ALL'
+name at offset 0x00003ed0, length   34 is '__TIME_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x00003ef3, length   65 is '__REDIRECT_LDBL(name,proto,alias) __REDIRECT (name, proto, alias)'
+name at offset 0x00003f35, length   78 is '__extern_always_inline extern __always_inline __attribute__ ((__gnu_inline__))'
+name at offset 0x00003f84, length   20 is '__REGISTER_PREFIX__ '
+name at offset 0x00003f99, length   15 is '_IO_LINKED 0x80'
+name at offset 0x00003fa9, length   14 is '__DBL_DIG__ 15'
+name at offset 0x00003fb8, length   82 is '__attribute_format_strfmon__(a,b) __attribute__ ((__format__ (__strfmon__, a, b)))'
+name at offset 0x0000400b, length   19 is '__SIZEOF_SIZE_T__ 8'
+name at offset 0x0000401f, length   16 is '_G_HAVE_MREMAP 1'
+name at offset 0x00004030, length   28 is '__RLIM64_T_TYPE __UQUAD_TYPE'
+name at offset 0x0000404d, length   12 is '__END_DECLS '
+name at offset 0x0000405a, length   17 is 'someotherconstant'
+name at offset 0x0000406c, length   18 is 'WNOWAIT 0x01000000'
+name at offset 0x0000407f, length   24 is '__DECIMAL_BID_FORMAT__ 1'
+name at offset 0x00004098, length    9 is 'FOPEN_MAX'
+name at offset 0x000040a2, length   27 is '__ATOMIC_HLE_RELEASE 131072'
+name at offset 0x000040be, length   33 is '__UINT_FAST8_TYPE__ unsigned char'
+name at offset 0x000040e0, length   20 is '__UINT16_MAX__ 65535'
+name at offset 0x000040f5, length  107 is '__WAIT_INT(status) (__extension__ (((union { __typeof(status) __in; int __i; }) { .__in = (status) }).__i))'
+name at offset 0x00004161, length   26 is '__UINT32_MAX__ 4294967295U'
+name at offset 0x0000417c, length   20 is '__END_NAMESPACE_C99 '
+name at offset 0x00004191, length   14 is '__SSE_MATH__ 1'
+name at offset 0x000041a0, length   14 is '_SYS_CDEFS_H 1'
+name at offset 0x000041af, length   55 is 'WEXITSTATUS(status) __WEXITSTATUS (__WAIT_INT (status))'
+name at offset 0x000041e7, length   15 is '__UINT16_C(c) c'
+name at offset 0x000041f7, length   48 is '__va_arg_pack_len() __builtin_va_arg_pack_len ()'
+name at offset 0x00004228, length   15 is '__NO_INLINE__ 1'
+name at offset 0x00004238, length   19 is '__blkcnt_t_defined '
+name at offset 0x0000424c, length   17 is '__need_clockid_t '
+name at offset 0x0000425e, length   18 is '__ATOMIC_RELAXED 0'
+name at offset 0x00004271, length   48 is '__ASMNAME2(prefix,cname) __STRING (prefix) cname'
+name at offset 0x000042a2, length   20 is '__blksize_t_defined '
+name at offset 0x000042b7, length   38 is '__UINTPTR_MAX__ 18446744073709551615UL'
+name at offset 0x000042de, length   22 is '__DBL_HAS_INFINITY__ 1'
+name at offset 0x000042f5, length   38 is '__UINT_FAST16_TYPE__ long unsigned int'
+name at offset 0x0000431c, length   28 is '__INT_FAST16_TYPE__ long int'
+name at offset 0x00004339, length   26 is '__SIZEOF_PTHREAD_COND_T 48'
+name at offset 0x00004354, length   17 is '_IO_wint_t wint_t'
+name at offset 0x00004366, length   30 is '__UQUAD_TYPE unsigned long int'
+name at offset 0x00004385, length   18 is '__SIZEOF_FLOAT__ 4'
+name at offset 0x00004398, length   18 is '__SHRT_MAX__ 32767'
+name at offset 0x000043ab, length   22 is '__DBL_DECIMAL_DIG__ 17'
+name at offset 0x000043c2, length   14 is '_SYS_TYPES_H 1'
+name at offset 0x000043d1, length   84 is '__REDIRECT_NTHNL(name,proto,alias) name proto __asm__ (__ASMNAME (#alias)) __THROWNL'
+name at offset 0x00004426, length   12 is '_IOS_INPUT 1'
+name at offset 0x00004433, length   35 is '__NLINK_T_TYPE __SYSCALL_ULONG_TYPE'
+name at offset 0x00004457, length   15 is '__stub_fattach '
+name at offset 0x00004467, length   12 is '_IOS_BIN 128'
+name at offset 0x00004474, length   49 is '__attribute_malloc__ __attribute__ ((__malloc__))'
+name at offset 0x000044a6, length   21 is '__SWORD_TYPE long int'
+name at offset 0x000044bc, length   47 is '__attribute_const__ __attribute__ ((__const__))'
+name at offset 0x000044ec, length   13 is 'stdout stdout'
+name at offset 0x000044fa, length   57 is '__attribute_deprecated__ __attribute__ ((__deprecated__))'
+name at offset 0x00004534, length    8 is '_IOLBF 1'
+name at offset 0x0000453d, length   13 is '__USE_POSIX 1'
+name at offset 0x0000454b, length   28 is '__U64_TYPE unsigned long int'
+name at offset 0x00004568, length   17 is '__ENUM_IDTYPE_T 1'
+name at offset 0x0000457a, length   38 is 'MB_CUR_MAX (__ctype_get_mb_cur_max ())'
+name at offset 0x000045a1, length   48 is '_G_HAVE_ST_BLKSIZE defined (_STATBUF_ST_BLKSIZE)'
+name at offset 0x000045d2, length   20 is '__S16_TYPE short int'
+name at offset 0x000045e7, length   19 is '__SIZEOF_WINT_T__ 4'
+name at offset 0x000045fb, length   18 is '__time_t_defined 1'
+name at offset 0x0000460e, length   10 is '__STDC__ 1'
+name at offset 0x00004619, length   10 is '__x86_64 1'
+name at offset 0x00004624, length   31 is '__SIZEOF_PTHREAD_RWLOCKATTR_T 8'
+name at offset 0x00004644, length   73 is '__attribute_warn_unused_result__ __attribute__ ((__warn_unused_result__))'
+name at offset 0x0000468e, length   14 is '__USE_ATFILE 1'
+name at offset 0x0000469d, length   57 is '__attribute_artificial__ __attribute__ ((__artificial__))'
+name at offset 0x000046d7, length   25 is '_IO_MAGIC_MASK 0xFFFF0000'
+name at offset 0x000046f1, length   23 is '__DEC32_MIN_EXP__ (-94)'
+name at offset 0x00004709, length   33 is '__UINT64_TYPE__ long unsigned int'
+name at offset 0x0000472b, length  138 is '_IO_getc_unlocked(_fp) (_IO_BE ((_fp)->_IO_read_ptr >= (_fp)->_IO_read_end, 0) ? __uflow (_fp) : *(unsigned char *) (_fp)->_IO_read_ptr++)'
+name at offset 0x000047b6, length   36 is '__PTRDIFF_MAX__ 9223372036854775807L'
+name at offset 0x000047db, length   17 is '___int_wchar_t_h '
+name at offset 0x000047ed, length   57 is '__DBL_DENORM_MIN__ ((double)4.94065645841246544177e-324L)'
+name at offset 0x00004827, length   23 is 'PDP_ENDIAN __PDP_ENDIAN'
+name at offset 0x0000483f, length   25 is '__SIZEOF_LONG_DOUBLE__ 16'
+name at offset 0x00004859, length   42 is '_IO_stdout ((_IO_FILE*)(&_IO_2_1_stdout_))'
+name at offset 0x00004884, length   47 is '__LDBL_REDIR_NTH(name,proto) name proto __THROW'
+name at offset 0x000048b4, length   35 is '__CLOCK_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x000048d8, length   34 is '__RLIM_T_TYPE __SYSCALL_ULONG_TYPE'
+name at offset 0x000048fb, length    9 is '__MMX__ 1'
+name at offset 0x00004905, length   42 is '_IO_stderr ((_IO_FILE*)(&_IO_2_1_stderr_))'
+name at offset 0x00004930, length   14 is '_G_HAVE_MMAP 1'
+name at offset 0x0000493f, length   18 is '__ldiv_t_defined 1'
+name at offset 0x00004952, length   10 is '__USE_SVID'
+name at offset 0x0000495d, length   15 is '_DEFAULT_SOURCE'
+name at offset 0x0000496d, length   18 is '_IO_SHOWPOINT 0400'
+name at offset 0x00004980, length   12 is '_GCC_SIZE_T '
+name at offset 0x0000498d, length   15 is 'specialconstant'
+name at offset 0x0000499d, length   12 is '_SVID_SOURCE'
+name at offset 0x000049aa, length   45 is '__attribute_pure__ __attribute__ ((__pure__))'
+name at offset 0x000049d8, length   88 is '__u_intN_t(N,MODE) typedef unsigned int u_int ##N ##_t __attribute__ ((__mode__ (MODE)))'
+name at offset 0x00004a31, length   16 is '__SIZEOF_INT__ 4'
+name at offset 0x00004a42, length   13 is '_BSD_WCHAR_T_'
+name at offset 0x00004a50, length   49 is '__FD_MASK(d) ((__fd_mask) 1 << ((d) % __NFDBITS))'
+name at offset 0x00004a82, length   28 is '__BYTE_ORDER __LITTLE_ENDIAN'
+name at offset 0x00004a9f, length   13 is '__need___FILE'
+name at offset 0x00004aad, length   24 is '__WCHAR_MAX__ 2147483647'
+name at offset 0x00004ac6, length   25 is '__DEV_T_TYPE __UQUAD_TYPE'
+name at offset 0x00004ae0, length   12 is '__USE_ATFILE'
+name at offset 0x00004aed, length   63 is '__bos(ptr) __builtin_object_size (ptr, __USE_FORTIFY_LEVEL > 1)'
+name at offset 0x00004b2d, length   30 is '__LONG_LONG_PAIR(HI,LO) LO, HI'
+name at offset 0x00004b4c, length    9 is '__amd64 1'
+name at offset 0x00004b56, length   25 is 'be32toh(x) __bswap_32 (x)'
+name at offset 0x00004b70, length   14 is '__USE_POSIX2 1'
+name at offset 0x00004b7f, length   10 is '__unix__ 1'
+name at offset 0x00004b8a, length   20 is '_IO_MAGIC 0xFBAD0000'
+name at offset 0x00004b9f, length   42 is '__W_EXITCODE(ret,sig) ((ret) << 8 | (sig))'
+name at offset 0x00004bca, length   79 is '__warndecl(name,msg) extern void name (void) __attribute__((__warning__ (msg)))'
+name at offset 0x00004c1a, length   15 is '__need_timespec'
+name at offset 0x00004c2a, length   15 is '__LDBL_DIG__ 18'
+name at offset 0x00004c3a, length   11 is '__USE_BSD 1'
+name at offset 0x00004c46, length   27 is '__INO64_T_TYPE __UQUAD_TYPE'
+name at offset 0x00004c62, length   11 is '__need_FILE'
+name at offset 0x00004c6e, length   17 is '__mode_t_defined '
+name at offset 0x00004c80, length   15 is '__WINT_MIN__ 0U'
+name at offset 0x00004c90, length   39 is 'FD_SET(fd,fdsetp) __FD_SET (fd, fdsetp)'
+name at offset 0x00004cb8, length   22 is '_IO_TIED_PUT_GET 0x400'
+name at offset 0x00004ccf, length   25 is '__DEC64_EPSILON__ 1E-15DD'
+name at offset 0x00004ce9, length   15 is 'P_tmpdir "/tmp"'
+name at offset 0x00004cf9, length   27 is '__long_double_t long double'
+name at offset 0x00004d15, length   30 is '__INT_LEAST16_TYPE__ short int'
+name at offset 0x00004d34, length   44 is '__LDBL_EPSILON__ 1.08420217248550443401e-19L'
+name at offset 0x00004d61, length   14 is '__COMPAR_FN_T '
+name at offset 0x00004d70, length   12 is '__wchar_t__ '
+name at offset 0x00004d7d, length   76 is '_IO_PENDING_OUTPUT_COUNT(_fp) ((_fp)->_IO_write_ptr - (_fp)->_IO_write_base)'
+name at offset 0x00004dca, length   21 is '__USE_FORTIFY_LEVEL 0'
+name at offset 0x00004de0, length   25 is '__LDBL_MIN_EXP__ (-16381)'
+name at offset 0x00004dfa, length   12 is '__USE_MISC 1'
+name at offset 0x00004e07, length   27 is '__SSIZE_T_TYPE __SWORD_TYPE'
+name at offset 0x00004e23, length   20 is '__END_NAMESPACE_STD '
+name at offset 0x00004e38, length   45 is '__WIFEXITED(status) (__WTERMSIG(status) == 0)'
+name at offset 0x00004e66, length   12 is '__stub_sstk '
+name at offset 0x00004e73, length   15 is '__USE_REENTRANT'
+name at offset 0x00004e83, length   16 is '__gid_t_defined '
+name at offset 0x00004e94, length   78 is '__errordecl(name,msg) extern void name (void) __attribute__((__error__ (msg)))'
+name at offset 0x00004ee3, length   14 is 'EXIT_FAILURE 1'
+name at offset 0x00004ef2, length   38 is '__LEAF_ATTR __attribute__ ((__leaf__))'
+name at offset 0x00004f19, length   39 is '__FLT_MAX__ 3.40282346638528859812e+38F'
+name at offset 0x00004f41, length   36 is '__FSWORD_T_TYPE __SYSCALL_SLONG_TYPE'
+name at offset 0x00004f66, length   28 is '__malloc_and_calloc_defined '
+name at offset 0x00004f83, length   28 is '__UINT8_TYPE__ unsigned char'
+name at offset 0x00004fa0, length   17 is '__USE_LARGEFILE64'
+name at offset 0x00004fb2, length   14 is '__INT16_C(c) c'
+name at offset 0x00004fc1, length   21 is '__STDC_NO_THREADS__ 1'
+name at offset 0x00004fd7, length   51 is 'WIFEXITED(status) __WIFEXITED (__WAIT_INT (status))'
+name at offset 0x0000500b, length   18 is '__ATOMIC_ACQ_REL 4'
+name at offset 0x0000501e, length   89 is '__bswap_constant_16(x) ((unsigned short int) ((((x) >> 8) & 0xff) | (((x) & 0xff) << 8)))'
+name at offset 0x00005078, length    9 is '__linux 1'
+name at offset 0x00005082, length   25 is '__DBL_MIN_10_EXP__ (-307)'
+name at offset 0x0000509c, length   36 is 'alloca(size) __builtin_alloca (size)'
+name at offset 0x000050c1, length   23 is '__UINT_LEAST8_MAX__ 255'
+name at offset 0x000050d9, length   28 is '__SIZEOF_PTHREAD_RWLOCK_T 56'
+name at offset 0x000050f6, length   15 is '_POSIX_C_SOURCE'
+name at offset 0x00005106, length   19 is '__DBL_MANT_DIG__ 53'
+name at offset 0x0000511a, length   51 is '__glibc_unlikely(cond) __builtin_expect ((cond), 0)'
+name at offset 0x0000514e, length   35 is '__INTMAX_MAX__ 9223372036854775807L'
+name at offset 0x00005172, length   14 is '__HAVE_COLUMN '
+name at offset 0x00005181, length   21 is '__fsblkcnt_t_defined '
+name at offset 0x00005197, length   22 is '_IO_va_list _G_va_list'
+
+.debug_aranges
+
+COMPILE_UNIT<header overall offset = 0x00000000>:
+< 0><0x0000000b>  DW_TAG_compile_unit
+                    DW_AT_producer              "GNU C 4.8.4 -mtune=generic -march=x86-64 -g3 -fstack-protector"
+                    DW_AT_language              DW_LANG_C89
+                    DW_AT_name                  "test.c"
+                    DW_AT_comp_dir              "/mnt/c/Users/edwar/OneDrive/CSC254/A4"
+                    DW_AT_low_pc                0x0040052d
+                    DW_AT_high_pc               <offset-from-lowpc>154
+                    DW_AT_stmt_list             0x00000000
+                    <Unknown AT value 0x2119>   0x00000000
+
+
+arange starts at 0x0040052d, length of 0x0000009a, cu_die_offset = 0x0000000b
+arange end
+.debug_frame
+
+.debug_static_func
+
+.debug_static_vars
+
+.debug_weaknames
+

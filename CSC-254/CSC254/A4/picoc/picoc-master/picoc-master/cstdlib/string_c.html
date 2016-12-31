@@ -1,0 +1,188 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* string.h library for large systems - small embedded systems use clibrary.c instead */</a>
+<a name="2">#include "../interpreter.h"</a>
+<a name="3"></a>
+<a name="4">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="5"></a>
+<a name="6">static int <a href="string_c.html#6">String_ZeroValue</a> = 0;</a>
+<a name="7"></a>
+<a name="8">void <a href="string_c.html#8">StringStrcpy</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="9">{</a>
+<a name="10">    <a href="string_c.html#8">ReturnValue</a>-&gtVal-&gtPointer = strcpy(<a href="string_c.html#8">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#8">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="11">}</a>
+<a name="12"></a>
+<a name="13">void <a href="string_c.html#13">StringStrncpy</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="14">{</a>
+<a name="15">    <a href="string_c.html#13">ReturnValue</a>-&gtVal-&gtPointer = strncpy(<a href="string_c.html#13">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#13">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#13">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="16">}</a>
+<a name="17"></a>
+<a name="18">void <a href="string_c.html#18">StringStrcmp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="19">{</a>
+<a name="20">    <a href="string_c.html#18">ReturnValue</a>-&gtVal-&gtInteger = strcmp(<a href="string_c.html#18">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#18">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="21">}</a>
+<a name="22"></a>
+<a name="23">void <a href="string_c.html#23">StringStrncmp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="24">{</a>
+<a name="25">    <a href="string_c.html#23">ReturnValue</a>-&gtVal-&gtInteger = strncmp(<a href="string_c.html#23">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#23">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#23">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="26">}</a>
+<a name="27"></a>
+<a name="28">void <a href="string_c.html#28">StringStrcat</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="29">{</a>
+<a name="30">    <a href="string_c.html#28">ReturnValue</a>-&gtVal-&gtPointer = strcat(<a href="string_c.html#28">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#28">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="31">}</a>
+<a name="32"></a>
+<a name="33">void <a href="string_c.html#33">StringStrncat</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="34">{</a>
+<a name="35">    <a href="string_c.html#33">ReturnValue</a>-&gtVal-&gtPointer = strncat(<a href="string_c.html#33">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#33">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#33">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="36">}</a>
+<a name="37"></a>
+<a name="38">#ifndef WIN32</a>
+<a name="39">void <a href="string_c.html#39">StringIndex</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="40">{</a>
+<a name="41">    <a href="string_c.html#39">ReturnValue</a>-&gtVal-&gtPointer = index(<a href="string_c.html#39">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#39">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="42">}</a>
+<a name="43"></a>
+<a name="44">void <a href="string_c.html#44">StringRindex</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="45">{</a>
+<a name="46">    <a href="string_c.html#44">ReturnValue</a>-&gtVal-&gtPointer = rindex(<a href="string_c.html#44">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#44">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="47">}</a>
+<a name="48">#endif</a>
+<a name="49"></a>
+<a name="50">void <a href="string_c.html#50">StringStrlen</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="51">{</a>
+<a name="52">    <a href="string_c.html#50">ReturnValue</a>-&gtVal-&gtInteger = strlen(<a href="string_c.html#50">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="53">}</a>
+<a name="54"></a>
+<a name="55">void <a href="string_c.html#55">StringMemset</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="56">{</a>
+<a name="57">    <a href="string_c.html#55">ReturnValue</a>-&gtVal-&gtPointer = memset(<a href="string_c.html#55">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#55">Param</a>[1]-&gtVal-&gtInteger, <a href="string_c.html#55">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="58">}</a>
+<a name="59"></a>
+<a name="60">void <a href="string_c.html#60">StringMemcpy</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="61">{</a>
+<a name="62">    <a href="string_c.html#60">ReturnValue</a>-&gtVal-&gtPointer = memcpy(<a href="string_c.html#60">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#60">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#60">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="63">}</a>
+<a name="64"></a>
+<a name="65">void <a href="string_c.html#65">StringMemcmp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="66">{</a>
+<a name="67">    <a href="string_c.html#65">ReturnValue</a>-&gtVal-&gtInteger = memcmp(<a href="string_c.html#65">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#65">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#65">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="68">}</a>
+<a name="69"></a>
+<a name="70">void <a href="string_c.html#70">StringMemmove</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="71">{</a>
+<a name="72">    <a href="string_c.html#70">ReturnValue</a>-&gtVal-&gtPointer = memmove(<a href="string_c.html#70">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#70">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#70">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="73">}</a>
+<a name="74"></a>
+<a name="75">void <a href="string_c.html#75">StringMemchr</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="76">{</a>
+<a name="77">    <a href="string_c.html#75">ReturnValue</a>-&gtVal-&gtPointer = memchr(<a href="string_c.html#75">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#75">Param</a>[1]-&gtVal-&gtInteger, <a href="string_c.html#75">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="78">}</a>
+<a name="79"></a>
+<a name="80">void <a href="string_c.html#80">StringStrchr</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="81">{</a>
+<a name="82">    <a href="string_c.html#80">ReturnValue</a>-&gtVal-&gtPointer = strchr(<a href="string_c.html#80">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#80">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="83">}</a>
+<a name="84"></a>
+<a name="85">void <a href="string_c.html#85">StringStrrchr</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="86">{</a>
+<a name="87">    <a href="string_c.html#85">ReturnValue</a>-&gtVal-&gtPointer = strrchr(<a href="string_c.html#85">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#85">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="88">}</a>
+<a name="89"></a>
+<a name="90">void <a href="string_c.html#90">StringStrcoll</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="91">{</a>
+<a name="92">    <a href="string_c.html#90">ReturnValue</a>-&gtVal-&gtInteger = strcoll(<a href="string_c.html#90">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#90">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="93">}</a>
+<a name="94"></a>
+<a name="95">void <a href="string_c.html#95">StringStrerror</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="96">{</a>
+<a name="97">    <a href="string_c.html#95">ReturnValue</a>-&gtVal-&gtPointer = strerror(<a href="string_c.html#95">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="98">}</a>
+<a name="99"></a>
+<a name="100">void <a href="string_c.html#100">StringStrspn</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="101">{</a>
+<a name="102">    <a href="string_c.html#100">ReturnValue</a>-&gtVal-&gtInteger = strspn(<a href="string_c.html#100">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#100">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="103">}</a>
+<a name="104"></a>
+<a name="105">void <a href="string_c.html#105">StringStrcspn</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="106">{</a>
+<a name="107">    <a href="string_c.html#105">ReturnValue</a>-&gtVal-&gtInteger = strcspn(<a href="string_c.html#105">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#105">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="108">}</a>
+<a name="109"></a>
+<a name="110">void <a href="string_c.html#110">StringStrpbrk</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="111">{</a>
+<a name="112">    <a href="string_c.html#110">ReturnValue</a>-&gtVal-&gtPointer = strpbrk(<a href="string_c.html#110">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#110">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="113">}</a>
+<a name="114"></a>
+<a name="115">void <a href="string_c.html#115">StringStrstr</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="116">{</a>
+<a name="117">    <a href="string_c.html#115">ReturnValue</a>-&gtVal-&gtPointer = strstr(<a href="string_c.html#115">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#115">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="118">}</a>
+<a name="119"></a>
+<a name="120">void <a href="string_c.html#120">StringStrtok</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="121">{</a>
+<a name="122">    <a href="string_c.html#120">ReturnValue</a>-&gtVal-&gtPointer = strtok(<a href="string_c.html#120">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#120">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="123">}</a>
+<a name="124"></a>
+<a name="125">void <a href="string_c.html#125">StringStrxfrm</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="126">{</a>
+<a name="127">    <a href="string_c.html#125">ReturnValue</a>-&gtVal-&gtInteger = strxfrm(<a href="string_c.html#125">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#125">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#125">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="128">}</a>
+<a name="129"></a>
+<a name="130">#ifndef WIN32</a>
+<a name="131">void <a href="string_c.html#131">StringStrdup</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="132">{</a>
+<a name="133">    <a href="string_c.html#131">ReturnValue</a>-&gtVal-&gtPointer = strdup(<a href="string_c.html#131">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="134">}</a>
+<a name="135"></a>
+<a name="136">void <a href="string_c.html#136">StringStrtok_r</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="137">{</a>
+<a name="138">    <a href="string_c.html#136">ReturnValue</a>-&gtVal-&gtPointer = strtok_r(<a href="string_c.html#136">Param</a>[0]-&gtVal-&gtPointer, <a href="string_c.html#136">Param</a>[1]-&gtVal-&gtPointer, <a href="string_c.html#136">Param</a>[2]-&gtVal-&gtPointer);</a>
+<a name="139">}</a>
+<a name="140">#endif</a>
+<a name="141"></a>
+<a name="142">/* all string.h functions */</a>
+<a name="143">struct LibraryFunction <a href="interpreter_h.html#628">StringFunctions</a>[] =</a>
+<a name="144">{</a>
+<a name="145">#ifndef WIN32</a>
+<a name="146">	{ <a href="string_c.html#39">StringIndex</a>,         "char *index(char *,int);" },</a>
+<a name="147">    { <a href="string_c.html#44">StringRindex</a>,        "char *rindex(char *,int);" },</a>
+<a name="148">#endif</a>
+<a name="149">    { <a href="string_c.html#60">StringMemcpy</a>,        "void *memcpy(void *,void *,int);" },</a>
+<a name="150">    { <a href="string_c.html#70">StringMemmove</a>,       "void *memmove(void *,void *,int);" },</a>
+<a name="151">    { <a href="string_c.html#75">StringMemchr</a>,        "void *memchr(char *,int,int);" },</a>
+<a name="152">    { <a href="string_c.html#65">StringMemcmp</a>,        "int memcmp(void *,void *,int);" },</a>
+<a name="153">    { <a href="string_c.html#55">StringMemset</a>,        "void *memset(void *,int,int);" },</a>
+<a name="154">    { <a href="string_c.html#28">StringStrcat</a>,        "char *strcat(char *,char *);" },</a>
+<a name="155">    { <a href="string_c.html#33">StringStrncat</a>,       "char *strncat(char *,char *,int);" },</a>
+<a name="156">    { <a href="string_c.html#80">StringStrchr</a>,        "char *strchr(char *,int);" },</a>
+<a name="157">    { <a href="string_c.html#85">StringStrrchr</a>,       "char *strrchr(char *,int);" },</a>
+<a name="158">    { <a href="string_c.html#18">StringStrcmp</a>,        "int strcmp(char *,char *);" },</a>
+<a name="159">    { <a href="string_c.html#23">StringStrncmp</a>,       "int strncmp(char *,char *,int);" },</a>
+<a name="160">    { <a href="string_c.html#90">StringStrcoll</a>,       "int strcoll(char *,char *);" },</a>
+<a name="161">    { <a href="string_c.html#8">StringStrcpy</a>,        "char *strcpy(char *,char *);" },</a>
+<a name="162">    { <a href="string_c.html#13">StringStrncpy</a>,       "char *strncpy(char *,char *,int);" },</a>
+<a name="163">    { <a href="string_c.html#95">StringStrerror</a>,      "char *strerror(int);" },</a>
+<a name="164">    { <a href="string_c.html#50">StringStrlen</a>,        "int strlen(char *);" },</a>
+<a name="165">    { <a href="string_c.html#100">StringStrspn</a>,        "int strspn(char *,char *);" },</a>
+<a name="166">    { <a href="string_c.html#105">StringStrcspn</a>,       "int strcspn(char *,char *);" },</a>
+<a name="167">    { <a href="string_c.html#110">StringStrpbrk</a>,       "char *strpbrk(char *,char *);" },</a>
+<a name="168">    { <a href="string_c.html#115">StringStrstr</a>,        "char *strstr(char *,char *);" },</a>
+<a name="169">    { <a href="string_c.html#120">StringStrtok</a>,        "char *strtok(char *,char *);" },</a>
+<a name="170">    { <a href="string_c.html#125">StringStrxfrm</a>,       "int strxfrm(char *,char *,int);" },</a>
+<a name="171">#ifndef WIN32</a>
+<a name="172">	{ <a href="string_c.html#131">StringStrdup</a>,        "char *strdup(char *);" },</a>
+<a name="173">    { <a href="string_c.html#136">StringStrtok_r</a>,      "char *strtok_r(char *,char *,char **);" },</a>
+<a name="174">#endif</a>
+<a name="175">    { NULL,             NULL }</a>
+<a name="176">};</a>
+<a name="177"></a>
+<a name="178">/* creates various system-dependent definitions */</a>
+<a name="179">void <a href="string_c.html#179">StringSetupFunc</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="180">{</a>
+<a name="181">    /* define NULL */</a>
+<a name="182">    if (!<a href="variable_c.html#346">VariableDefined</a>(<a href="string_c.html#179">pc</a>, <a href="table_c.html#166">TableStrRegister</a>(<a href="string_c.html#179">pc</a>, "NULL")))</a>
+<a name="183">        <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="string_c.html#179">pc</a>, NULL, "NULL", &<a href="string_c.html#179">pc</a>-&gtIntType, (union AnyValue *)&<a href="string_c.html#6">String_ZeroValue</a>, FALSE);</a>
+<a name="184">}</a>
+<a name="185"></a>
+<a name="186">#endif /* !BUILTIN_MINI_STDLIB */</a>
+</pre></body></html>

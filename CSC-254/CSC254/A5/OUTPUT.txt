@@ -1,0 +1,41 @@
+Vishnu Chittari
+Yufei (Edward) Du
+
+Sample Output from the test cases in sets.cc
+
+3 is in R
+5 is in R
+pi is in S
+e is not in S
+"hello" is in U
+"foo" is not in U
+"b" is in r1
+"aaa" is in r1
+"faa" is not in r1
+"b" is in r2
+"aaa" is in r2
+"faa" is not in r2
+7 is in X
+8 is in X
+7 is now in X
+12 is now in X
+13 is now in X
+14 is now in X
+14.45 is now in Y
+Battleship is in X2
+CA is in X2
+"4.7" is in V
+"20" is in H
+"15" is in H
+"12" is not in H
+"20" is not in H
+"3" is in W
+"22" is in W
+"12" is not in W
+start inserting B
+finished inserting B
+"Kuma" is in B
+"Tama" is in B
+"Wo" is not in B
+"Ooi" is not in B
+"yo" is in J

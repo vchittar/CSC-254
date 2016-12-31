@@ -1,0 +1,657 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc <a href="picoc_c.html#16">main</a> header file - this has all the <a href="picoc_c.html#16">main</a> data structures and </a>
+<a name="2"> * function prototypes. If you're just calling picoc you should look at the</a>
+<a name="3"> * external interface instead, in picoc.h */</a>
+<a name="4"> </a>
+<a name="5">#ifndef INTERPRETER_H</a>
+<a name="6">#define INTERPRETER_H</a>
+<a name="7"></a>
+<a name="8">#include "platform.h"</a>
+<a name="9"></a>
+<a name="10"></a>
+<a name="11">/* handy definitions */</a>
+<a name="12">#ifndef TRUE</a>
+<a name="13">#define TRUE 1</a>
+<a name="14">#define FALSE 0</a>
+<a name="15">#endif</a>
+<a name="16"></a>
+<a name="17">#ifndef NULL</a>
+<a name="18">#define NULL 0</a>
+<a name="19">#endif</a>
+<a name="20"></a>
+<a name="21">#ifndef min</a>
+<a name="22">#define min(x,y) (((x)&lt(y))?(x):(y))</a>
+<a name="23">#endif</a>
+<a name="24"></a>
+<a name="25">#define MEM_ALIGN(x) (((x) + sizeof(ALIGN_TYPE) - 1) & ~(sizeof(ALIGN_TYPE)-1))</a>
+<a name="26"></a>
+<a name="27">#define GETS_BUF_MAX 256</a>
+<a name="28"></a>
+<a name="29">/* for debugging */</a>
+<a name="30">#define PRINT_SOURCE_POS ({ <a href="platform_c.html#93">PrintSourceTextErrorLine</a>(Parser-&gtpc-&gtCStdOut, Parser-&gtFileName, Parser-&gtSourceText, Parser-&gtLine, Parser-&gtCharacterPos); <a href="platform_c.html#192">PlatformPrintf</a>(Parser-&gtpc-&gtCStdOut, "\n"); })</a>
+<a name="31">#define PRINT_TYPE(typ) <a href="platform_c.html#192">PlatformPrintf</a>(Parser-&gtpc-&gtCStdOut, "%t\n", typ);</a>
+<a name="32"></a>
+<a name="33">/* small processors use a simplified FILE * for stdio, otherwise use the system FILE * */</a>
+<a name="34">#ifdef BUILTIN_MINI_STDLIB</a>
+<a name="35">typedef struct OutputStream IOFILE;</a>
+<a name="36">#else</a>
+<a name="37">typedef FILE IOFILE;</a>
+<a name="38">#endif</a>
+<a name="39"></a>
+<a name="40">/* coercion of numeric types to other numeric types */</a>
+<a name="41">#ifndef NO_FP</a>
+<a name="42">#define IS_FP(v) ((v)-&gtTyp-&gtBase == TypeFP)</a>
+<a name="43">#define FP_VAL(v) ((v)-&gtVal-&gtFP)</a>
+<a name="44">#else</a>
+<a name="45">#define IS_FP(v) 0</a>
+<a name="46">#define FP_VAL(v) 0</a>
+<a name="47">#endif</a>
+<a name="48"></a>
+<a name="49">#define IS_POINTER_COERCIBLE(v, ap) ((ap) ? ((v)-&gtTyp-&gtBase == TypePointer) : 0)</a>
+<a name="50">#define POINTER_COERCE(v) ((int)(v)-&gtVal-&gtPointer)</a>
+<a name="51"></a>
+<a name="52">#define IS_INTEGER_NUMERIC_TYPE(t) ((t)-&gtBase &gt= TypeInt && (t)-&gtBase &lt= TypeUnsignedLong)</a>
+<a name="53">#define IS_INTEGER_NUMERIC(v) IS_INTEGER_NUMERIC_TYPE((v)-&gtTyp)</a>
+<a name="54">#define IS_NUMERIC_COERCIBLE(v) (IS_INTEGER_NUMERIC(v) || IS_FP(v))</a>
+<a name="55">#define IS_NUMERIC_COERCIBLE_PLUS_POINTERS(v,ap) (IS_NUMERIC_COERCIBLE(v) || IS_POINTER_COERCIBLE(v,ap))</a>
+<a name="56"></a>
+<a name="57"></a>
+<a name="58">struct Table;</a>
+<a name="59">struct Picoc_Struct;</a>
+<a name="60"></a>
+<a name="61">typedef struct Picoc_Struct Picoc;</a>
+<a name="62"></a>
+<a name="63">/* lexical tokens */</a>
+<a name="64">enum LexToken</a>
+<a name="65">{</a>
+<a name="66">    /* 0x00 */ TokenNone, </a>
+<a name="67">    /* 0x01 */ TokenComma,</a>
+<a name="68">    /* 0x02 */ TokenAssign, TokenAddAssign, TokenSubtractAssign, TokenMultiplyAssign, TokenDivideAssign, TokenModulusAssign,</a>
+<a name="69">    /* 0x08 */ TokenShiftLeftAssign, TokenShiftRightAssign, TokenArithmeticAndAssign, TokenArithmeticOrAssign, TokenArithmeticExorAssign,</a>
+<a name="70">    /* 0x0d */ TokenQuestionMark, TokenColon, </a>
+<a name="71">    /* 0x0f */ TokenLogicalOr, </a>
+<a name="72">    /* 0x10 */ TokenLogicalAnd, </a>
+<a name="73">    /* 0x11 */ TokenArithmeticOr, </a>
+<a name="74">    /* 0x12 */ TokenArithmeticExor, </a>
+<a name="75">    /* 0x13 */ TokenAmpersand, </a>
+<a name="76">    /* 0x14 */ TokenEqual, TokenNotEqual, </a>
+<a name="77">    /* 0x16 */ TokenLessThan, TokenGreaterThan, TokenLessEqual, TokenGreaterEqual,</a>
+<a name="78">    /* 0x1a */ TokenShiftLeft, TokenShiftRight, </a>
+<a name="79">    /* 0x1c */ TokenPlus, TokenMinus, </a>
+<a name="80">    /* 0x1e */ TokenAsterisk, TokenSlash, TokenModulus,</a>
+<a name="81">    /* 0x21 */ TokenIncrement, TokenDecrement, TokenUnaryNot, TokenUnaryExor, TokenSizeof, TokenCast,</a>
+<a name="82">    /* 0x27 */ TokenLeftSquareBracket, TokenRightSquareBracket, TokenDot, TokenArrow, </a>
+<a name="83">    /* 0x2b */ TokenOpenBracket, TokenCloseBracket,</a>
+<a name="84">    /* 0x2d */ TokenIdentifier, TokenIntegerConstant, TokenFPConstant, TokenStringConstant, TokenCharacterConstant,</a>
+<a name="85">    /* 0x32 */ TokenSemicolon, TokenEllipsis,</a>
+<a name="86">    /* 0x34 */ TokenLeftBrace, TokenRightBrace,</a>
+<a name="87">    /* 0x36 */ TokenIntType, TokenCharType, TokenFloatType, TokenDoubleType, TokenVoidType, TokenEnumType,</a>
+<a name="88">    /* 0x3c */ TokenLongType, TokenSignedType, TokenShortType, TokenStaticType, TokenAutoType, TokenRegisterType, TokenExternType, TokenStructType, TokenUnionType, TokenUnsignedType, TokenTypedef,</a>
+<a name="89">    /* 0x46 */ TokenContinue, TokenDo, TokenElse, TokenFor, TokenGoto, TokenIf, TokenWhile, TokenBreak, TokenSwitch, TokenCase, TokenDefault, TokenReturn,</a>
+<a name="90">    /* 0x52 */ TokenHashDefine, TokenHashInclude, TokenHashIf, TokenHashIfdef, TokenHashIfndef, TokenHashElse, TokenHashEndif,</a>
+<a name="91">    /* 0x59 */ TokenNew, TokenDelete,</a>
+<a name="92">    /* 0x5b */ TokenOpenMacroBracket,</a>
+<a name="93">    /* 0x5c */ TokenEOF, TokenEndOfLine, TokenEndOfFunction</a>
+<a name="94">};</a>
+<a name="95"></a>
+<a name="96">/* used in dynamic memory allocation */</a>
+<a name="97">struct AllocNode</a>
+<a name="98">{</a>
+<a name="99">    unsigned int Size;</a>
+<a name="100">    struct AllocNode *NextFree;</a>
+<a name="101">};</a>
+<a name="102"></a>
+<a name="103">/* whether we're running or skipping code */</a>
+<a name="104">enum RunMode</a>
+<a name="105">{</a>
+<a name="106">    RunModeRun,                 /* we're running code as we parse it */</a>
+<a name="107">    RunModeSkip,                /* skipping code, not running */</a>
+<a name="108">    RunModeReturn,              /* returning from a function */</a>
+<a name="109">    RunModeCaseSearch,          /* searching for a case label */</a>
+<a name="110">    RunModeBreak,               /* breaking out of a switch/while/do */</a>
+<a name="111">    RunModeContinue,            /* as above but repeat the loop */</a>
+<a name="112">    RunModeGoto                 /* searching for a goto label */</a>
+<a name="113">};</a>
+<a name="114"></a>
+<a name="115">/* parser state - has all this detail so we can parse nested files */</a>
+<a name="116">struct ParseState</a>
+<a name="117">{</a>
+<a name="118">    Picoc *pc;                  /* the picoc instance this parser is a part of */</a>
+<a name="119">    const unsigned char *Pos;   /* the character position in the source text */</a>
+<a name="120">    char *FileName;             /* what file we're executing (registered string) */</a>
+<a name="121">    short int Line;             /* line number we're executing */</a>
+<a name="122">    short int CharacterPos;     /* character/column in the line we're executing */</a>
+<a name="123">    enum RunMode Mode;          /* whether to skip or run code */</a>
+<a name="124">    int SearchLabel;            /* what case label we're searching for */</a>
+<a name="125">    const char *SearchGotoLabel;/* what goto label we're searching for */</a>
+<a name="126">    const char *SourceText;     /* the entire source text */</a>
+<a name="127">    short int HashIfLevel;      /* how many "if"s we're nested down */</a>
+<a name="128">    short int HashIfEvaluateToLevel;    /* if we're not evaluating an if branch, what the last evaluated level was */</a>
+<a name="129">    char DebugMode;             /* debugging mode */</a>
+<a name="130">    int ScopeID;                /* for keeping track of local variables (free them after they go out of scope) */</a>
+<a name="131">};</a>
+<a name="132"></a>
+<a name="133">/* values */</a>
+<a name="134">enum BaseType</a>
+<a name="135">{</a>
+<a name="136">    TypeVoid,                   /* no type */</a>
+<a name="137">    TypeInt,                    /* integer */</a>
+<a name="138">    TypeShort,                  /* short integer */</a>
+<a name="139">    TypeChar,                   /* a single character (signed) */</a>
+<a name="140">    TypeLong,                   /* long integer */</a>
+<a name="141">    TypeUnsignedInt,            /* unsigned integer */</a>
+<a name="142">    TypeUnsignedShort,          /* unsigned short integer */</a>
+<a name="143">    TypeUnsignedChar,           /* unsigned 8-bit number */ /* must be before unsigned long */</a>
+<a name="144">    TypeUnsignedLong,           /* unsigned long integer */</a>
+<a name="145">#ifndef NO_FP</a>
+<a name="146">    TypeFP,                     /* floating point */</a>
+<a name="147">#endif</a>
+<a name="148">    TypeFunction,               /* a function */</a>
+<a name="149">    TypeMacro,                  /* a macro */</a>
+<a name="150">    TypePointer,                /* a pointer */</a>
+<a name="151">    TypeArray,                  /* an array of a sub-type */</a>
+<a name="152">    TypeStruct,                 /* aggregate type */</a>
+<a name="153">    TypeUnion,                  /* merged type */</a>
+<a name="154">    TypeEnum,                   /* enumerated integer type */</a>
+<a name="155">    TypeGotoLabel,              /* a label we can "goto" */</a>
+<a name="156">    Type_Type                   /* a type for storing types */</a>
+<a name="157">};</a>
+<a name="158"></a>
+<a name="159">/* data type */</a>
+<a name="160">struct ValueType</a>
+<a name="161">{</a>
+<a name="162">    enum BaseType Base;             /* what kind of type this is */</a>
+<a name="163">    int ArraySize;                  /* the size of an array type */</a>
+<a name="164">    int Sizeof;                     /* the storage required */</a>
+<a name="165">    int AlignBytes;                 /* the alignment boundary of this type */</a>
+<a name="166">    const char *Identifier;         /* the name of a struct or union */</a>
+<a name="167">    struct ValueType *FromType;     /* the type we're derived from (or NULL) */</a>
+<a name="168">    struct ValueType *DerivedTypeList;  /* first in a list of types derived from this one */</a>
+<a name="169">    struct ValueType *Next;         /* next item in the derived type list */</a>
+<a name="170">    struct Table *Members;          /* members of a struct or union */</a>
+<a name="171">    int OnHeap;                     /* true if allocated on the heap */</a>
+<a name="172">    int StaticQualifier;            /* true if it's a static */</a>
+<a name="173">};</a>
+<a name="174"></a>
+<a name="175">/* function definition */</a>
+<a name="176">struct FuncDef</a>
+<a name="177">{</a>
+<a name="178">    struct ValueType *ReturnType;   /* the return value type */</a>
+<a name="179">    int NumParams;                  /* the number of parameters */</a>
+<a name="180">    int VarArgs;                    /* has a variable number of arguments after the explicitly specified ones */</a>
+<a name="181">    struct ValueType **ParamType;   /* array of parameter types */</a>
+<a name="182">    char **ParamName;               /* array of parameter names */</a>
+<a name="183">    void (*Intrinsic)();            /* intrinsic call address or NULL */</a>
+<a name="184">    struct ParseState Body;         /* lexical tokens of the function body if not intrinsic */</a>
+<a name="185">};</a>
+<a name="186"></a>
+<a name="187">/* macro definition */</a>
+<a name="188">struct MacroDef</a>
+<a name="189">{</a>
+<a name="190">    int NumParams;                  /* the number of parameters */</a>
+<a name="191">    char **ParamName;               /* array of parameter names */</a>
+<a name="192">    struct ParseState Body;         /* lexical tokens of the function body if not intrinsic */</a>
+<a name="193">};</a>
+<a name="194"></a>
+<a name="195">/* values */</a>
+<a name="196">union AnyValue</a>
+<a name="197">{</a>
+<a name="198">    char Character;</a>
+<a name="199">    short ShortInteger;</a>
+<a name="200">    int Integer;</a>
+<a name="201">    long LongInteger;</a>
+<a name="202">    unsigned short UnsignedShortInteger;</a>
+<a name="203">    unsigned int UnsignedInteger;</a>
+<a name="204">    unsigned long UnsignedLongInteger;</a>
+<a name="205">    unsigned char UnsignedCharacter;</a>
+<a name="206">    char *Identifier;</a>
+<a name="207">    char ArrayMem[2];               /* placeholder for where the data starts, doesn't point to it */</a>
+<a name="208">    struct ValueType *Typ;</a>
+<a name="209">    struct FuncDef FuncDef;</a>
+<a name="210">    struct MacroDef MacroDef;</a>
+<a name="211">#ifndef NO_FP</a>
+<a name="212">    double FP;</a>
+<a name="213">#endif</a>
+<a name="214">    void *Pointer;                  /* unsafe native pointers */</a>
+<a name="215">};</a>
+<a name="216"></a>
+<a name="217">struct Value</a>
+<a name="218">{</a>
+<a name="219">    struct ValueType *Typ;          /* the type of this value */</a>
+<a name="220">    union AnyValue *Val;            /* pointer to the AnyValue which holds the actual content */</a>
+<a name="221">    struct Value *LValueFrom;       /* if an LValue, this is a Value our LValue is contained within (or NULL) */</a>
+<a name="222">    char ValOnHeap;                 /* this Value is on the heap */</a>
+<a name="223">    char ValOnStack;                /* the AnyValue is on the stack along with this Value */</a>
+<a name="224">    char AnyValOnHeap;              /* the AnyValue is separately allocated from the Value on the heap */</a>
+<a name="225">    char IsLValue;                  /* is modifiable and is allocated somewhere we can usefully modify it */</a>
+<a name="226">    int ScopeID;                    /* to know when it goes out of scope */</a>
+<a name="227">    char OutOfScope;</a>
+<a name="228">};</a>
+<a name="229"></a>
+<a name="230">/* hash table data structure */</a>
+<a name="231">struct TableEntry</a>
+<a name="232">{</a>
+<a name="233">    struct TableEntry *Next;        /* next item in this hash chain */</a>
+<a name="234">    const char *DeclFileName;       /* where the variable was declared */</a>
+<a name="235">    unsigned short DeclLine;</a>
+<a name="236">    unsigned short DeclColumn;</a>
+<a name="237"></a>
+<a name="238">    union TableEntryPayload</a>
+<a name="239">    {</a>
+<a name="240">        struct ValueEntry</a>
+<a name="241">        {</a>
+<a name="242">            char *Key;              /* points to the shared string table */</a>
+<a name="243">            struct Value *Val;      /* the value we're storing */</a>
+<a name="244">        } v;                        /* used for tables of values */</a>
+<a name="245">        </a>
+<a name="246">        char Key[1];                /* dummy size - used for the shared string table */</a>
+<a name="247">        </a>
+<a name="248">        struct BreakpointEntry      /* defines a breakpoint */</a>
+<a name="249">        {</a>
+<a name="250">            const char *FileName;</a>
+<a name="251">            short int Line;</a>
+<a name="252">            short int CharacterPos;</a>
+<a name="253">        } b;</a>
+<a name="254">        </a>
+<a name="255">    } p;</a>
+<a name="256">};</a>
+<a name="257">    </a>
+<a name="258">struct Table</a>
+<a name="259">{</a>
+<a name="260">    short Size;</a>
+<a name="261">    short OnHeap;</a>
+<a name="262">    struct TableEntry **HashTable;</a>
+<a name="263">};</a>
+<a name="264"></a>
+<a name="265">/* stack frame for function calls */</a>
+<a name="266">struct StackFrame</a>
+<a name="267">{</a>
+<a name="268">    struct ParseState ReturnParser;         /* how we got here */</a>
+<a name="269">    const char *FuncName;                   /* the name of the function we're in */</a>
+<a name="270">    struct Value *ReturnValue;              /* copy the return value here */</a>
+<a name="271">    struct Value **Parameter;               /* array of parameter values */</a>
+<a name="272">    int NumParams;                          /* the number of parameters */</a>
+<a name="273">    struct Table LocalTable;                /* the local variables and parameters */</a>
+<a name="274">    struct TableEntry *LocalHashTable[LOCAL_TABLE_SIZE];</a>
+<a name="275">    struct StackFrame *PreviousStackFrame;  /* the next lower stack frame */</a>
+<a name="276">};</a>
+<a name="277"></a>
+<a name="278">/* lexer state */</a>
+<a name="279">enum LexMode</a>
+<a name="280">{</a>
+<a name="281">    LexModeNormal,</a>
+<a name="282">    LexModeHashInclude,</a>
+<a name="283">    LexModeHashDefine,</a>
+<a name="284">    LexModeHashDefineSpace,</a>
+<a name="285">    LexModeHashDefineSpaceIdent</a>
+<a name="286">};</a>
+<a name="287"></a>
+<a name="288">struct LexState</a>
+<a name="289">{</a>
+<a name="290">    const char *Pos;</a>
+<a name="291">    const char *End;</a>
+<a name="292">    const char *FileName;</a>
+<a name="293">    int Line;</a>
+<a name="294">    int CharacterPos;</a>
+<a name="295">    const char *SourceText;</a>
+<a name="296">    enum LexMode Mode;</a>
+<a name="297">    int EmitExtraNewlines;</a>
+<a name="298">};</a>
+<a name="299"></a>
+<a name="300">/* library function definition */</a>
+<a name="301">struct LibraryFunction</a>
+<a name="302">{</a>
+<a name="303">    void (*Func)(struct ParseState *Parser, struct Value *, struct Value **, int);</a>
+<a name="304">    const char *Prototype;</a>
+<a name="305">};</a>
+<a name="306"></a>
+<a name="307">/* output stream-type specific state information */</a>
+<a name="308">union OutputStreamInfo</a>
+<a name="309">{</a>
+<a name="310">    struct StringOutputStream</a>
+<a name="311">    {</a>
+<a name="312">        struct ParseState *Parser;</a>
+<a name="313">        char *WritePos;</a>
+<a name="314">    } Str;</a>
+<a name="315">};</a>
+<a name="316"></a>
+<a name="317">/* stream-specific method for writing characters to the console */</a>
+<a name="318">typedef void CharWriter(unsigned char, union OutputStreamInfo *);</a>
+<a name="319"></a>
+<a name="320">/* used when writing output to a string - eg. sprintf() */</a>
+<a name="321">struct OutputStream</a>
+<a name="322">{</a>
+<a name="323">    CharWriter *Putch;</a>
+<a name="324">    union OutputStreamInfo i;</a>
+<a name="325">};</a>
+<a name="326"></a>
+<a name="327">/* possible results of parsing a statement */</a>
+<a name="328">enum ParseResult { ParseResultEOF, ParseResultError, ParseResultOk };</a>
+<a name="329"></a>
+<a name="330">/* a chunk of heap-allocated tokens we'll cleanup when we're done */</a>
+<a name="331">struct CleanupTokenNode</a>
+<a name="332">{</a>
+<a name="333">    void *Tokens;</a>
+<a name="334">    const char *SourceText;</a>
+<a name="335">    struct CleanupTokenNode *Next;</a>
+<a name="336">};</a>
+<a name="337"></a>
+<a name="338">/* linked list of lexical tokens used in interactive mode */</a>
+<a name="339">struct TokenLine</a>
+<a name="340">{</a>
+<a name="341">    struct TokenLine *Next;</a>
+<a name="342">    unsigned char *Tokens;</a>
+<a name="343">    int NumBytes;</a>
+<a name="344">};</a>
+<a name="345"></a>
+<a name="346"></a>
+<a name="347">/* a list of libraries we can include */</a>
+<a name="348">struct IncludeLibrary</a>
+<a name="349">{</a>
+<a name="350">    char *IncludeName;</a>
+<a name="351">    void (*SetupFunction)(Picoc *pc);</a>
+<a name="352">    struct LibraryFunction *FuncList;</a>
+<a name="353">    const char *SetupCSource;</a>
+<a name="354">    struct IncludeLibrary *NextLib;</a>
+<a name="355">};</a>
+<a name="356"></a>
+<a name="357">#define FREELIST_BUCKETS 8                          /* freelists for 4, 8, 12 ... 32 byte allocs */</a>
+<a name="358">#define SPLIT_MEM_THRESHOLD 16                      /* don't split memory which is close in size */</a>
+<a name="359">#define BREAKPOINT_TABLE_SIZE 21</a>
+<a name="360"></a>
+<a name="361"></a>
+<a name="362">/* the entire state of the picoc system */</a>
+<a name="363">struct Picoc_Struct</a>
+<a name="364">{</a>
+<a name="365">    /* parser global data */</a>
+<a name="366">    struct Table GlobalTable;</a>
+<a name="367">    struct CleanupTokenNode *CleanupTokenList;</a>
+<a name="368">    struct TableEntry *GlobalHashTable[GLOBAL_TABLE_SIZE];</a>
+<a name="369">    </a>
+<a name="370">    /* lexer global data */</a>
+<a name="371">    struct TokenLine *InteractiveHead;</a>
+<a name="372">    struct TokenLine *InteractiveTail;</a>
+<a name="373">    struct TokenLine *InteractiveCurrentLine;</a>
+<a name="374">    int LexUseStatementPrompt;</a>
+<a name="375">    union AnyValue LexAnyValue;</a>
+<a name="376">    struct Value LexValue;</a>
+<a name="377">    struct Table ReservedWordTable;</a>
+<a name="378">    struct TableEntry *ReservedWordHashTable[RESERVED_WORD_TABLE_SIZE];</a>
+<a name="379"></a>
+<a name="380">    /* the table of string literal values */</a>
+<a name="381">    struct Table StringLiteralTable;</a>
+<a name="382">    struct TableEntry *StringLiteralHashTable[STRING_LITERAL_TABLE_SIZE];</a>
+<a name="383">    </a>
+<a name="384">    /* the stack */</a>
+<a name="385">    struct StackFrame *TopStackFrame;</a>
+<a name="386"></a>
+<a name="387">    /* the value passed to exit() */</a>
+<a name="388">    int PicocExitValue;</a>
+<a name="389"></a>
+<a name="390">    /* a list of libraries we can include */</a>
+<a name="391">    struct IncludeLibrary *IncludeLibList;</a>
+<a name="392"></a>
+<a name="393">    /* heap memory */</a>
+<a name="394">#ifdef USE_MALLOC_STACK</a>
+<a name="395">    unsigned char *HeapMemory;          /* stack memory since our heap is malloc()ed */</a>
+<a name="396">    void *HeapBottom;                   /* the bottom of the (downward-growing) heap */</a>
+<a name="397">    void *StackFrame;                   /* the current stack frame */</a>
+<a name="398">    void *HeapStackTop;                 /* the top of the stack */</a>
+<a name="399">#else</a>
+<a name="400"># ifdef SURVEYOR_HOST</a>
+<a name="401">    unsigned char *HeapMemory;          /* all memory - stack and heap */</a>
+<a name="402">    void *HeapBottom;                   /* the bottom of the (downward-growing) heap */</a>
+<a name="403">    void *StackFrame;                   /* the current stack frame */</a>
+<a name="404">    void *HeapStackTop;                 /* the top of the stack */</a>
+<a name="405">    void *HeapMemStart;</a>
+<a name="406"># else</a>
+<a name="407">    unsigned char HeapMemory[HEAP_SIZE];  /* all memory - stack and heap */</a>
+<a name="408">    void *HeapBottom;                   /* the bottom of the (downward-growing) heap */</a>
+<a name="409">    void *StackFrame;                   /* the current stack frame */</a>
+<a name="410">    void *HeapStackTop;                 /* the top of the stack */</a>
+<a name="411"># endif</a>
+<a name="412">#endif</a>
+<a name="413"></a>
+<a name="414">    struct AllocNode *FreeListBucket[FREELIST_BUCKETS];      /* we keep a pool of freelist buckets to reduce fragmentation */</a>
+<a name="415">    struct AllocNode *FreeListBig;                           /* free memory which doesn't fit in a bucket */</a>
+<a name="416"></a>
+<a name="417">    /* types */    </a>
+<a name="418">    struct ValueType UberType;</a>
+<a name="419">    struct ValueType IntType;</a>
+<a name="420">    struct ValueType ShortType;</a>
+<a name="421">    struct ValueType CharType;</a>
+<a name="422">    struct ValueType LongType;</a>
+<a name="423">    struct ValueType UnsignedIntType;</a>
+<a name="424">    struct ValueType UnsignedShortType;</a>
+<a name="425">    struct ValueType UnsignedLongType;</a>
+<a name="426">    struct ValueType UnsignedCharType;</a>
+<a name="427">    #ifndef NO_FP</a>
+<a name="428">    struct ValueType FPType;</a>
+<a name="429">    #endif</a>
+<a name="430">    struct ValueType VoidType;</a>
+<a name="431">    struct ValueType TypeType;</a>
+<a name="432">    struct ValueType FunctionType;</a>
+<a name="433">    struct ValueType MacroType;</a>
+<a name="434">    struct ValueType EnumType;</a>
+<a name="435">    struct ValueType GotoLabelType;</a>
+<a name="436">    struct ValueType *CharPtrType;</a>
+<a name="437">    struct ValueType *CharPtrPtrType;</a>
+<a name="438">    struct ValueType *CharArrayType;</a>
+<a name="439">    struct ValueType *VoidPtrType;</a>
+<a name="440"></a>
+<a name="441">    /* debugger */</a>
+<a name="442">    struct Table BreakpointTable;</a>
+<a name="443">    struct TableEntry *BreakpointHashTable[BREAKPOINT_TABLE_SIZE];</a>
+<a name="444">    int BreakpointCount;</a>
+<a name="445">    int DebugManualBreak;</a>
+<a name="446">    </a>
+<a name="447">    /* C library */</a>
+<a name="448">    int BigEndian;</a>
+<a name="449">    int LittleEndian;</a>
+<a name="450"></a>
+<a name="451">    IOFILE *CStdOut;</a>
+<a name="452">    IOFILE CStdOutBase;</a>
+<a name="453"></a>
+<a name="454">    /* the picoc version string */</a>
+<a name="455">    const char *VersionString;</a>
+<a name="456">    </a>
+<a name="457">    /* exit longjump buffer */</a>
+<a name="458">#if defined(UNIX_HOST) || defined(WIN32)</a>
+<a name="459">    jmp_buf PicocExitBuf;</a>
+<a name="460">#endif</a>
+<a name="461">#ifdef SURVEYOR_HOST</a>
+<a name="462">    int PicocExitBuf[41];</a>
+<a name="463">#endif</a>
+<a name="464">    </a>
+<a name="465">    /* string table */</a>
+<a name="466">    struct Table StringTable;</a>
+<a name="467">    struct TableEntry *StringHashTable[STRING_TABLE_SIZE];</a>
+<a name="468">    char *StrEmpty;</a>
+<a name="469">};</a>
+<a name="470"></a>
+<a name="471">/* table.c */</a>
+<a name="472">void <a name="searched">TableInit</a>(Picoc *pc);</a>
+<a name="473">char *<a name="searched">TableStrRegister</a>(Picoc *pc, const char *Str);</a>
+<a name="474">char *<a name="searched">TableStrRegister2</a>(Picoc *pc, const char *Str, int Len);</a>
+<a name="475">void <a href="table_c.html#7">TableInit</a>Table(struct Table *Tbl, struct TableEntry **HashTable, int Size, int OnHeap);</a>
+<a name="476">int <a name="searched">TableSet</a>(Picoc *pc, struct Table *Tbl, char *Key, struct Value *Val, const char *DeclFileName, int DeclLine, int DeclColumn);</a>
+<a name="477">int <a name="searched">TableGet</a>(struct Table *Tbl, const char *Key, struct Value **Val, const char **DeclFileName, int *DeclLine, int *DeclColumn);</a>
+<a name="478">struct Value *<a name="searched">TableDelete</a>(Picoc *pc, struct Table *Tbl, const char *Key);</a>
+<a name="479">char *<a name="searched">TableSetIdentifier</a>(Picoc *pc, struct Table *Tbl, const char *Ident, int IdentLen);</a>
+<a name="480">void <a name="searched">TableStrFree</a>(Picoc *pc);</a>
+<a name="481"></a>
+<a name="482">/* lex.c */</a>
+<a name="483">void <a name="searched">LexInit</a>(Picoc *pc);</a>
+<a name="484">void <a name="searched">LexCleanup</a>(Picoc *pc);</a>
+<a name="485">void *<a href="lex_c.html#593">LexAnalyse</a>(Picoc *pc, const char *FileName, const char *Source, int SourceLen, int *TokenLen);</a>
+<a name="486">void <a href="lex_c.html#87">LexInit</a>Parser(struct ParseState *Parser, Picoc *pc, const char *SourceText, void *TokenSource, char *FileName, int RunIt, int SetDebugMode);</a>
+<a name="487">enum LexToken <a href="lex_c.html#883">LexGetToken</a>(struct ParseState *Parser, struct Value **Value, int IncPos);</a>
+<a name="488">enum LexToken <a href="lex_c.html#915">LexRawPeekToken</a>(struct ParseState *Parser);</a>
+<a name="489">void <a href="lex_c.html#921">LexToEndOfLine</a>(struct ParseState *Parser);</a>
+<a name="490">void *<a href="lex_c.html#934">LexCopyTokens</a>(struct ParseState *StartParser, struct ParseState *EndParser);</a>
+<a name="491">void <a href="lex_c.html#995">LexInteractiveClear</a>(Picoc *pc, struct ParseState *Parser);</a>
+<a name="492">void <a href="lex_c.html#1013">LexInteractiveCompleted</a>(Picoc *pc, struct ParseState *Parser);</a>
+<a name="493">void <a href="lex_c.html#1034">LexInteractiveStatementPrompt</a>(Picoc *pc);</a>
+<a name="494"></a>
+<a name="495">/* parse.c */</a>
+<a name="496">/* the following are defined in picoc.h:</a>
+<a name="497"> * void <a href="parse_c.html#936">PicocParse</a>(const char *FileName, const char *Source, int SourceLen, int RunIt, int CleanupNow, int CleanupSource);</a>
+<a name="498"> * void <a href="parse_c.html#936">PicocParse</a>Interactive(); */</a>
+<a name="499">void <a href="parse_c.html#936">PicocParse</a>InteractiveNoStartPrompt(Picoc *pc, int EnableDebugger);</a>
+<a name="500">enum ParseResult <a href="parse_c.html#568">ParseStatement</a>(struct ParseState *Parser, int CheckTrailingSemicolon);</a>
+<a name="501">struct Value *<a name="searched">ParseFunctionDefinition</a>(struct ParseState *Parser, struct ValueType *ReturnType, char *Identifier);</a>
+<a name="502">void <a name="searched">ParseCleanup</a>(Picoc *pc);</a>
+<a name="503">void <a name="searched">ParserCopyPos</a>(struct ParseState *To, struct ParseState *From);</a>
+<a name="504">void <a href="parse_c.html#429">ParserCopy</a>(struct ParseState *To, struct ParseState *From);</a>
+<a name="505"></a>
+<a name="506">/* expression.c */</a>
+<a name="507">int <a href="expression_c.html#1077">ExpressionParse</a>(struct ParseState *Parser, struct Value **Result);</a>
+<a name="508">long <a href="expression_c.html#1569">ExpressionParseInt</a>(struct ParseState *Parser);</a>
+<a name="509">void <a name="searched">ExpressionAssign</a>(struct ParseState *Parser, struct Value *DestValue, struct Value *SourceValue, int Force, const char *FuncName, int ParamNo, int AllowPointerCoercion);</a>
+<a name="510">long <a name="searched">ExpressionCoerceInteger</a>(struct Value *Val);</a>
+<a name="511">unsigned long <a name="searched">ExpressionCoerceUnsignedInteger</a>(struct Value *Val);</a>
+<a name="512">#ifndef NO_FP</a>
+<a name="513">double <a name="searched">ExpressionCoerceFP</a>(struct Value *Val);</a>
+<a name="514">#endif</a>
+<a name="515"></a>
+<a name="516">/* type.c */</a>
+<a name="517">void <a name="searched">TypeInit</a>(Picoc *pc);</a>
+<a name="518">void <a name="searched">TypeCleanup</a>(Picoc *pc);</a>
+<a name="519">int <a name="searched">TypeSize</a>(struct ValueType *Typ, int ArraySize, int Compact);</a>
+<a name="520">int <a href="type_c.html#80">TypeSize</a>Value(struct Value *Val, int Compact);</a>
+<a name="521">int <a name="searched">TypeStackSizeValue</a>(struct Value *Val);</a>
+<a name="522">int TypeLastAccessibleOffset(Picoc *pc, struct Value *Val);</a>
+<a name="523">int <a href="type_c.html#526">TypeParse</a>Front(struct ParseState *Parser, struct ValueType **Typ, int *IsStatic);</a>
+<a name="524">void <a href="type_c.html#526">TypeParse</a>IdentPart(struct ParseState *Parser, struct ValueType *BasicTyp, struct ValueType **Typ, char **Identifier);</a>
+<a name="525">void <a href="type_c.html#526">TypeParse</a>(struct ParseState *Parser, struct ValueType **Typ, char **Identifier, int *IsStatic);</a>
+<a name="526">struct ValueType *<a name="searched">TypeGetMatching</a>(Picoc *pc, struct ParseState *Parser, struct ValueType *ParentType, enum BaseType Base, int ArraySize, const char *Identifier, int AllowDuplicates);</a>
+<a name="527">struct ValueType *<a name="searched">TypeCreateOpaqueStruct</a>(Picoc *pc, struct ParseState *Parser, const char *StructName, int Size);</a>
+<a name="528">int <a href="type_c.html#535">TypeIsForwardDeclared</a>(struct ParseState *Parser, struct ValueType *Typ);</a>
+<a name="529"></a>
+<a name="530">/* heap.c */</a>
+<a name="531">void <a name="searched">HeapInit</a>(Picoc *pc, int StackSize);</a>
+<a name="532">void <a name="searched">HeapCleanup</a>(Picoc *pc);</a>
+<a name="533">void *<a name="searched">HeapAllocStack</a>(Picoc *pc, int Size);</a>
+<a name="534">int <a name="searched">HeapPopStack</a>(Picoc *pc, void *Addr, int Size);</a>
+<a name="535">void <a name="searched">HeapUnpopStack</a>(Picoc *pc, int Size);</a>
+<a name="536">void <a name="searched">HeapPushStackFrame</a>(Picoc *pc);</a>
+<a name="537">int <a href="heap_c.html#92">HeapPopStack</a>Frame(Picoc *pc);</a>
+<a name="538">void *<a name="searched">HeapAllocMem</a>(Picoc *pc, int Size);</a>
+<a name="539">void <a name="searched">HeapFreeMem</a>(Picoc *pc, void *Mem);</a>
+<a name="540"></a>
+<a name="541">/* variable.c */</a>
+<a name="542">void <a name="searched">VariableInit</a>(Picoc *pc);</a>
+<a name="543">void <a name="searched">VariableCleanup</a>(Picoc *pc);</a>
+<a name="544">void <a name="searched">VariableFree</a>(Picoc *pc, struct Value *Val);</a>
+<a name="545">void <a name="searched">VariableTableCleanup</a>(Picoc *pc, struct Table *HashTable);</a>
+<a name="546">void *<a name="searched">VariableAlloc</a>(Picoc *pc, struct ParseState *Parser, int Size, int OnHeap);</a>
+<a name="547">void <a name="searched">VariableStackPop</a>(struct ParseState *Parser, struct Value *Var);</a>
+<a name="548">struct Value *<a href="variable_c.html#68">VariableAlloc</a>ValueAndData(Picoc *pc, struct ParseState *Parser, int DataSize, int IsLValue, struct Value *LValueFrom, int OnHeap);</a>
+<a name="549">struct Value *<a name="searched">VariableAllocValueAndCopy</a>(Picoc *pc, struct ParseState *Parser, struct Value *FromValue, int OnHeap);</a>
+<a name="550">struct Value *<a href="variable_c.html#68">VariableAlloc</a>ValueFromType(Picoc *pc, struct ParseState *Parser, struct ValueType *Typ, int IsLValue, struct Value *LValueFrom, int OnHeap);</a>
+<a name="551">struct Value *<a name="searched">VariableAllocValueFromExistingData</a>(struct ParseState *Parser, struct ValueType *Typ, union AnyValue *FromValue, int IsLValue, struct Value *LValueFrom);</a>
+<a name="552">struct Value *<a name="searched">VariableAllocValueShared</a>(struct ParseState *Parser, struct Value *FromValue);</a>
+<a name="553">struct Value *<a name="searched">VariableDefine</a>(Picoc *pc, struct ParseState *Parser, char *Ident, struct Value *InitValue, struct ValueType *Typ, int MakeWritable);</a>
+<a name="554">struct Value *<a href="variable_c.html#259">VariableDefine</a>ButIgnoreIdentical(struct ParseState *Parser, char *Ident, struct ValueType *Typ, int IsStatic, int *FirstVisit);</a>
+<a name="555">int <a href="variable_c.html#259">VariableDefine</a>d(Picoc *pc, const char *Ident);</a>
+<a name="556">int <a name="searched">VariableDefinedAndOutOfScope</a>(Picoc *pc, const char *Ident);</a>
+<a name="557">void <a name="searched">VariableRealloc</a>(struct ParseState *Parser, struct Value *FromValue, int NewSize);</a>
+<a name="558">void <a name="searched">VariableGet</a>(Picoc *pc, struct ParseState *Parser, const char *Ident, struct Value **LVal);</a>
+<a name="559">void <a href="variable_c.html#259">VariableDefine</a>PlatformVar(Picoc *pc, struct ParseState *Parser, char *Ident, struct ValueType *Typ, union AnyValue *FromValue, int IsWritable);</a>
+<a name="560">void <a name="searched">VariableStackFrameAdd</a>(struct ParseState *Parser, const char *FuncName, int NumParams);</a>
+<a name="561">void <a name="searched">VariableStackFramePop</a>(struct ParseState *Parser);</a>
+<a name="562">struct Value *<a name="searched">VariableStringLiteralGet</a>(Picoc *pc, char *Ident);</a>
+<a name="563">void <a name="searched">VariableStringLiteralDefine</a>(Picoc *pc, char *Ident, struct Value *Val);</a>
+<a name="564">void *<a name="searched">VariableDereferencePointer</a>(struct ParseState *Parser, struct Value *PointerValue, struct Value **DerefVal, int *DerefOffset, struct ValueType **DerefType, int *DerefIsLValue);</a>
+<a name="565">int <a name="searched">VariableScopeBegin</a>(struct ParseState * Parser, int* PrevScopeID);</a>
+<a name="566">void <a name="searched">VariableScopeEnd</a>(struct ParseState * Parser, int ScopeID, int PrevScopeID);</a>
+<a name="567"></a>
+<a name="568">/* clibrary.c */</a>
+<a name="569">void <a name="searched">BasicIOInit</a>(Picoc *pc);</a>
+<a name="570">void <a name="searched">LibraryInit</a>(Picoc *pc);</a>
+<a name="571">void <a name="searched">LibraryAdd</a>(Picoc *pc, struct Table *GlobalTable, const char *LibraryName, struct LibraryFunction *FuncList);</a>
+<a name="572">void C<a href="clibrary_c.html#15">LibraryInit</a>(Picoc *pc);</a>
+<a name="573">void <a href="stdio_c.html#719">PrintCh</a>(char OutCh, IOFILE *Stream);</a>
+<a name="574">void <a href="stdio_c.html#724">PrintSimpleInt</a>(long Num, IOFILE *Stream);</a>
+<a name="575">void PrintInt(long Num, int FieldWidth, int ZeroPad, int LeftJustify, IOFILE *Stream);</a>
+<a name="576">void <a href="stdio_c.html#729">PrintStr</a>(const char *Str, IOFILE *Stream);</a>
+<a name="577">void <a href="stdio_c.html#734">PrintFP</a>(double Num, IOFILE *Stream);</a>
+<a name="578">void <a name="searched">PrintType</a>(struct ValueType *Typ, IOFILE *Stream);</a>
+<a name="579">void LibPrintf(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs);</a>
+<a name="580"></a>
+<a name="581">/* platform.c */</a>
+<a name="582">/* the following are defined in picoc.h:</a>
+<a name="583"> * void <a name="searched">PicocCallMain</a>(int argc, char **argv);</a>
+<a name="584"> * int PicocPlatformSetExitPoint();</a>
+<a name="585"> * void <a name="searched">PicocInitialise</a>(int StackSize);</a>
+<a name="586"> * void <a name="searched">PicocCleanup</a>();</a>
+<a name="587"> * void <a name="searched">PicocPlatformScanFile</a>(const char *FileName);</a>
+<a name="588"> * extern int PicocExitValue; */</a>
+<a name="589">void <a name="searched">ProgramFail</a>(struct ParseState *Parser, const char *Message, ...);</a>
+<a name="590">void <a name="searched">ProgramFailNoParser</a>(Picoc *pc, const char *Message, ...);</a>
+<a name="591">void <a name="searched">AssignFail</a>(struct ParseState *Parser, const char *Format, struct ValueType *Type1, struct ValueType *Type2, int Num1, int Num2, const char *FuncName, int ParamNo);</a>
+<a name="592">void <a name="searched">LexFail</a>(Picoc *pc, struct LexState *Lexer, const char *Message, ...);</a>
+<a name="593">void <a name="searched">PlatformInit</a>(Picoc *pc);</a>
+<a name="594">void <a name="searched">PlatformCleanup</a>(Picoc *pc);</a>
+<a name="595">char *<a name="searched">PlatformGetLine</a>(char *Buf, int MaxLen, const char *Prompt);</a>
+<a name="596">int <a name="searched">PlatformGetCharacter</a>();</a>
+<a name="597">void <a name="searched">PlatformPutc</a>(unsigned char OutCh, union OutputStreamInfo *);</a>
+<a name="598">void <a name="searched">PlatformPrintf</a>(IOFILE *Stream, const char *Format, ...);</a>
+<a name="599">void <a name="searched">PlatformVPrintf</a>(IOFILE *Stream, const char *Format, va_list Args);</a>
+<a name="600">void <a name="searched">PlatformExit</a>(Picoc *pc, int ExitVal);</a>
+<a name="601">char *<a name="searched">PlatformMakeTempName</a>(Picoc *pc, char *TempNameBuffer);</a>
+<a name="602">void <a name="searched">Platform<a href="clibrary_c.html#15">LibraryInit</a></a>(Picoc *pc);</a>
+<a name="603"></a>
+<a name="604">/* include.c */</a>
+<a name="605">void <a name="searched">IncludeInit</a>(Picoc *pc);</a>
+<a name="606">void <a name="searched">IncludeCleanup</a>(Picoc *pc);</a>
+<a name="607">void <a name="searched">IncludeRegister</a>(Picoc *pc, const char *IncludeName, void (*SetupFunction)(Picoc *pc), struct LibraryFunction *FuncList, const char *SetupCSource);</a>
+<a name="608">void <a name="searched">IncludeFile</a>(Picoc *pc, char *Filename);</a>
+<a name="609">/* the following is defined in picoc.h:</a>
+<a name="610"> * void <a name="searched">PicocIncludeAllSystemHeaders</a>(); */</a>
+<a name="611"> </a>
+<a name="612">/* debug.c */</a>
+<a name="613">void <a name="searched">DebugInit</a>();</a>
+<a name="614">void <a name="searched">DebugCleanup</a>();</a>
+<a name="615">void <a name="searched">DebugCheckStatement</a>(struct ParseState *Parser);</a>
+<a name="616"></a>
+<a name="617"></a>
+<a name="618">/* stdio.c */</a>
+<a name="619">extern const char StdioDefs[];</a>
+<a name="620">extern struct LibraryFunction StdioFunctions[];</a>
+<a name="621">void <a href="stdio_c.html#681">StdioSetupFunc</a>(Picoc *pc);</a>
+<a name="622"></a>
+<a name="623">/* math.c */</a>
+<a name="624">extern struct LibraryFunction MathFunctions[];</a>
+<a name="625">void <a name="searched">MathSetupFunc</a>(Picoc *pc);</a>
+<a name="626"></a>
+<a name="627">/* string.c */</a>
+<a name="628">extern struct LibraryFunction StringFunctions[];</a>
+<a name="629">void <a name="searched">StringSetupFunc</a>(Picoc *pc);</a>
+<a name="630"></a>
+<a name="631">/* stdlib.c */</a>
+<a name="632">extern struct LibraryFunction StdlibFunctions[];</a>
+<a name="633">void <a name="searched">StdlibSetupFunc</a>(Picoc *pc);</a>
+<a name="634"></a>
+<a name="635">/* time.c */</a>
+<a name="636">extern const char <a name="searched">StdTime</a>Defs[];</a>
+<a name="637">extern struct LibraryFunction <a href="time_c.html#54">StdTime</a>Functions[];</a>
+<a name="638">void <a name="searched">StdTimeSetupFunc</a>(Picoc *pc);</a>
+<a name="639"></a>
+<a name="640">/* errno.c */</a>
+<a name="641">void <a name="searched">StdErrnoSetupFunc</a>(Picoc *pc);</a>
+<a name="642"></a>
+<a name="643">/* ctype.c */</a>
+<a name="644">extern struct LibraryFunction StdCtypeFunctions[];</a>
+<a name="645"></a>
+<a name="646">/* stdbool.c */</a>
+<a name="647">extern const char StdboolDefs[];</a>
+<a name="648">void <a name="searched">StdboolSetupFunc</a>(Picoc *pc);</a>
+<a name="649"></a>
+<a name="650">/* unistd.c */</a>
+<a name="651">extern const char UnistdDefs[];</a>
+<a name="652">extern struct LibraryFunction UnistdFunctions[];</a>
+<a name="653">void <a name="searched">UnistdSetupFunc</a>(Picoc *pc);</a>
+<a name="654"></a>
+<a name="655">#endif /* INTERPRETER_H */</a>
+</pre></body></html>

@@ -1,0 +1,657 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* string.h library for large systems - small embedded systems use clibrary.c instead */</a>
+<a name="2">#include &lterrno.h&gt</a>
+<a name="3">#include "../interpreter.h"</a>
+<a name="4"></a>
+<a name="5">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="6"></a>
+<a name="7">#ifdef EACCES</a>
+<a name="8">static int <a href="errno_c.html#8">EACCESValue</a> = EACCES;</a>
+<a name="9">#endif</a>
+<a name="10"></a>
+<a name="11">#ifdef EADDRINUSE</a>
+<a name="12">static int <a href="errno_c.html#12">EADDRINUSEValue</a> = EADDRINUSE;</a>
+<a name="13">#endif</a>
+<a name="14"></a>
+<a name="15">#ifdef EADDRNOTAVAIL</a>
+<a name="16">static int <a href="errno_c.html#16">EADDRNOTAVAILValue</a> = EADDRNOTAVAIL;</a>
+<a name="17">#endif</a>
+<a name="18"></a>
+<a name="19">#ifdef EAFNOSUPPORT</a>
+<a name="20">static int <a href="errno_c.html#20">EAFNOSUPPORTValue</a> = EAFNOSUPPORT;</a>
+<a name="21">#endif</a>
+<a name="22"></a>
+<a name="23">#ifdef EAGAIN</a>
+<a name="24">static int <a href="errno_c.html#24">EAGAINValue</a> = EAGAIN;</a>
+<a name="25">#endif</a>
+<a name="26"></a>
+<a name="27">#ifdef EALREADY</a>
+<a name="28">static int <a href="errno_c.html#28">EALREADYValue</a> = EALREADY;</a>
+<a name="29">#endif</a>
+<a name="30"></a>
+<a name="31">#ifdef EBADF</a>
+<a name="32">static int <a href="errno_c.html#32">EBADFValue</a> = EBADF;</a>
+<a name="33">#endif</a>
+<a name="34"></a>
+<a name="35">#ifdef EBADMSG</a>
+<a name="36">static int <a href="errno_c.html#36">EBADMSGValue</a> = EBADMSG;</a>
+<a name="37">#endif</a>
+<a name="38"></a>
+<a name="39">#ifdef EBUSY</a>
+<a name="40">static int <a href="errno_c.html#40">EBUSYValue</a> = EBUSY;</a>
+<a name="41">#endif</a>
+<a name="42"></a>
+<a name="43">#ifdef ECANCELED</a>
+<a name="44">static int <a href="errno_c.html#44">ECANCELEDValue</a> = ECANCELED;</a>
+<a name="45">#endif</a>
+<a name="46"></a>
+<a name="47">#ifdef ECHILD</a>
+<a name="48">static int <a href="errno_c.html#48">ECHILDValue</a> = ECHILD;</a>
+<a name="49">#endif</a>
+<a name="50"></a>
+<a name="51">#ifdef ECONNABORTED</a>
+<a name="52">static int <a href="errno_c.html#52">ECONNABORTEDValue</a> = ECONNABORTED;</a>
+<a name="53">#endif</a>
+<a name="54"></a>
+<a name="55">#ifdef ECONNREFUSED</a>
+<a name="56">static int <a href="errno_c.html#56">ECONNREFUSEDValue</a> = ECONNREFUSED;</a>
+<a name="57">#endif</a>
+<a name="58"></a>
+<a name="59">#ifdef ECONNRESET</a>
+<a name="60">static int <a href="errno_c.html#60">ECONNRESETValue</a> = ECONNRESET;</a>
+<a name="61">#endif</a>
+<a name="62"></a>
+<a name="63">#ifdef EDEADLK</a>
+<a name="64">static int <a href="errno_c.html#64">EDEADLKValue</a> = EDEADLK;</a>
+<a name="65">#endif</a>
+<a name="66"></a>
+<a name="67">#ifdef EDESTADDRREQ</a>
+<a name="68">static int <a href="errno_c.html#68">EDESTADDRREQValue</a> = EDESTADDRREQ;</a>
+<a name="69">#endif</a>
+<a name="70"></a>
+<a name="71">#ifdef EDOM</a>
+<a name="72">static int <a href="errno_c.html#72">EDOMValue</a> = EDOM;</a>
+<a name="73">#endif</a>
+<a name="74"></a>
+<a name="75">#ifdef EDQUOT</a>
+<a name="76">static int <a href="errno_c.html#76">EDQUOTValue</a> = EDQUOT;</a>
+<a name="77">#endif</a>
+<a name="78"></a>
+<a name="79">#ifdef EEXIST</a>
+<a name="80">static int <a href="errno_c.html#80">EEXISTValue</a> = EEXIST;</a>
+<a name="81">#endif</a>
+<a name="82"></a>
+<a name="83">#ifdef EFAULT</a>
+<a name="84">static int <a href="errno_c.html#84">EFAULTValue</a> = EFAULT;</a>
+<a name="85">#endif</a>
+<a name="86"></a>
+<a name="87">#ifdef EFBIG</a>
+<a name="88">static int <a href="errno_c.html#88">EFBIGValue</a> = EFBIG;</a>
+<a name="89">#endif</a>
+<a name="90"></a>
+<a name="91">#ifdef EHOSTUNREACH</a>
+<a name="92">static int <a href="errno_c.html#92">EHOSTUNREACHValue</a> = EHOSTUNREACH;</a>
+<a name="93">#endif</a>
+<a name="94"></a>
+<a name="95">#ifdef EIDRM</a>
+<a name="96">static int <a href="errno_c.html#96">EIDRMValue</a> = EIDRM;</a>
+<a name="97">#endif</a>
+<a name="98"></a>
+<a name="99">#ifdef EILSEQ</a>
+<a name="100">static int <a href="errno_c.html#100">EILSEQValue</a> = EILSEQ;</a>
+<a name="101">#endif</a>
+<a name="102"></a>
+<a name="103">#ifdef EINPROGRESS</a>
+<a name="104">static int <a href="errno_c.html#104">EINPROGRESSValue</a> = EINPROGRESS;</a>
+<a name="105">#endif</a>
+<a name="106"></a>
+<a name="107">#ifdef EINTR</a>
+<a name="108">static int <a href="errno_c.html#108">EINTRValue</a> = EINTR;</a>
+<a name="109">#endif</a>
+<a name="110"></a>
+<a name="111">#ifdef EINVAL</a>
+<a name="112">static int <a href="errno_c.html#112">EINVALValue</a> = EINVAL;</a>
+<a name="113">#endif</a>
+<a name="114"></a>
+<a name="115">#ifdef EIO</a>
+<a name="116">static int <a href="errno_c.html#116">EIOValue</a> = EIO;</a>
+<a name="117">#endif</a>
+<a name="118"></a>
+<a name="119">#ifdef EISCONN</a>
+<a name="120">static int <a href="errno_c.html#120">EISCONNValue</a> = EISCONN;</a>
+<a name="121">#endif</a>
+<a name="122"></a>
+<a name="123">#ifdef EISDIR</a>
+<a name="124">static int <a href="errno_c.html#124">EISDIRValue</a> = EISDIR;</a>
+<a name="125">#endif</a>
+<a name="126"></a>
+<a name="127">#ifdef ELOOP</a>
+<a name="128">static int <a href="errno_c.html#128">ELOOPValue</a> = ELOOP;</a>
+<a name="129">#endif</a>
+<a name="130"></a>
+<a name="131">#ifdef EMFILE</a>
+<a name="132">static int <a href="errno_c.html#132">EMFILEValue</a> = EMFILE;</a>
+<a name="133">#endif</a>
+<a name="134"></a>
+<a name="135">#ifdef EMLINK</a>
+<a name="136">static int <a href="errno_c.html#136">EMLINKValue</a> = EMLINK;</a>
+<a name="137">#endif</a>
+<a name="138"></a>
+<a name="139">#ifdef EMSGSIZE</a>
+<a name="140">static int <a href="errno_c.html#140">EMSGSIZEValue</a> = EMSGSIZE;</a>
+<a name="141">#endif</a>
+<a name="142"></a>
+<a name="143">#ifdef EMULTIHOP</a>
+<a name="144">static int <a href="errno_c.html#144">EMULTIHOPValue</a> = EMULTIHOP;</a>
+<a name="145">#endif</a>
+<a name="146"></a>
+<a name="147">#ifdef ENAMETOOLONG</a>
+<a name="148">static int <a href="errno_c.html#148">ENAMETOOLONGValue</a> = ENAMETOOLONG;</a>
+<a name="149">#endif</a>
+<a name="150"></a>
+<a name="151">#ifdef ENETDOWN</a>
+<a name="152">static int <a href="errno_c.html#152">ENETDOWNValue</a> = ENETDOWN;</a>
+<a name="153">#endif</a>
+<a name="154"></a>
+<a name="155">#ifdef ENETRESET</a>
+<a name="156">static int <a href="errno_c.html#156">ENETRESETValue</a> = ENETRESET;</a>
+<a name="157">#endif</a>
+<a name="158"></a>
+<a name="159">#ifdef ENETUNREACH</a>
+<a name="160">static int <a href="errno_c.html#160">ENETUNREACHValue</a> = ENETUNREACH;</a>
+<a name="161">#endif</a>
+<a name="162"></a>
+<a name="163">#ifdef ENFILE</a>
+<a name="164">static int <a href="errno_c.html#164">ENFILEValue</a> = ENFILE;</a>
+<a name="165">#endif</a>
+<a name="166"></a>
+<a name="167">#ifdef ENOBUFS</a>
+<a name="168">static int <a href="errno_c.html#168">ENOBUFSValue</a> = ENOBUFS;</a>
+<a name="169">#endif</a>
+<a name="170"></a>
+<a name="171">#ifdef ENODATA</a>
+<a name="172">static int <a href="errno_c.html#172">ENODATAValue</a> = ENODATA;</a>
+<a name="173">#endif</a>
+<a name="174"></a>
+<a name="175">#ifdef ENODEV</a>
+<a name="176">static int <a href="errno_c.html#176">ENODEVValue</a> = ENODEV;</a>
+<a name="177">#endif</a>
+<a name="178"></a>
+<a name="179">#ifdef ENOENT</a>
+<a name="180">static int <a href="errno_c.html#180">ENOENTValue</a> = ENOENT;</a>
+<a name="181">#endif</a>
+<a name="182"></a>
+<a name="183">#ifdef ENOEXEC</a>
+<a name="184">static int <a href="errno_c.html#184">ENOEXECValue</a> = ENOEXEC;</a>
+<a name="185">#endif</a>
+<a name="186"></a>
+<a name="187">#ifdef ENOLCK</a>
+<a name="188">static int <a href="errno_c.html#188">ENOLCKValue</a> = ENOLCK;</a>
+<a name="189">#endif</a>
+<a name="190"></a>
+<a name="191">#ifdef ENOLINK</a>
+<a name="192">static int <a href="errno_c.html#192">ENOLINKValue</a> = ENOLINK;</a>
+<a name="193">#endif</a>
+<a name="194"></a>
+<a name="195">#ifdef ENOMEM</a>
+<a name="196">static int <a href="errno_c.html#196">ENOMEMValue</a> = ENOMEM;</a>
+<a name="197">#endif</a>
+<a name="198"></a>
+<a name="199">#ifdef ENOMSG</a>
+<a name="200">static int <a href="errno_c.html#200">ENOMSGValue</a> = ENOMSG;</a>
+<a name="201">#endif</a>
+<a name="202"></a>
+<a name="203">#ifdef ENOPROTOOPT</a>
+<a name="204">static int <a href="errno_c.html#204">ENOPROTOOPTValue</a> = ENOPROTOOPT;</a>
+<a name="205">#endif</a>
+<a name="206"></a>
+<a name="207">#ifdef ENOSPC</a>
+<a name="208">static int <a href="errno_c.html#208">ENOSPCValue</a> = ENOSPC;</a>
+<a name="209">#endif</a>
+<a name="210"></a>
+<a name="211">#ifdef ENOSR</a>
+<a name="212">static int <a href="errno_c.html#212">ENOSRValue</a> = ENOSR;</a>
+<a name="213">#endif</a>
+<a name="214"></a>
+<a name="215">#ifdef ENOSTR</a>
+<a name="216">static int <a href="errno_c.html#216">ENOSTRValue</a> = ENOSTR;</a>
+<a name="217">#endif</a>
+<a name="218"></a>
+<a name="219">#ifdef ENOSYS</a>
+<a name="220">static int <a href="errno_c.html#220">ENOSYSValue</a> = ENOSYS;</a>
+<a name="221">#endif</a>
+<a name="222"></a>
+<a name="223">#ifdef ENOTCONN</a>
+<a name="224">static int <a href="errno_c.html#224">ENOTCONNValue</a> = ENOTCONN;</a>
+<a name="225">#endif</a>
+<a name="226"></a>
+<a name="227">#ifdef ENOTDIR</a>
+<a name="228">static int <a href="errno_c.html#228">ENOTDIRValue</a> = ENOTDIR;</a>
+<a name="229">#endif</a>
+<a name="230"></a>
+<a name="231">#ifdef ENOTEMPTY</a>
+<a name="232">static int <a href="errno_c.html#232">ENOTEMPTYValue</a> = ENOTEMPTY;</a>
+<a name="233">#endif</a>
+<a name="234"></a>
+<a name="235">#ifdef ENOTRECOVERABLE</a>
+<a name="236">static int <a href="errno_c.html#236">ENOTRECOVERABLEValue</a> = ENOTRECOVERABLE;</a>
+<a name="237">#endif</a>
+<a name="238"></a>
+<a name="239">#ifdef ENOTSOCK</a>
+<a name="240">static int <a href="errno_c.html#240">ENOTSOCKValue</a> = ENOTSOCK;</a>
+<a name="241">#endif</a>
+<a name="242"></a>
+<a name="243">#ifdef ENOTSUP</a>
+<a name="244">static int <a href="errno_c.html#244">ENOTSUPValue</a> = ENOTSUP;</a>
+<a name="245">#endif</a>
+<a name="246"></a>
+<a name="247">#ifdef ENOTTY</a>
+<a name="248">static int <a href="errno_c.html#248">ENOTTYValue</a> = ENOTTY;</a>
+<a name="249">#endif</a>
+<a name="250"></a>
+<a name="251">#ifdef ENXIO</a>
+<a name="252">static int <a href="errno_c.html#252">ENXIOValue</a> = ENXIO;</a>
+<a name="253">#endif</a>
+<a name="254"></a>
+<a name="255">#ifdef EOPNOTSUPP</a>
+<a name="256">static int <a href="errno_c.html#256">EOPNOTSUPPValue</a> = EOPNOTSUPP;</a>
+<a name="257">#endif</a>
+<a name="258"></a>
+<a name="259">#ifdef EOVERFLOW</a>
+<a name="260">static int <a href="errno_c.html#260">EOVERFLOWValue</a> = EOVERFLOW;</a>
+<a name="261">#endif</a>
+<a name="262"></a>
+<a name="263">#ifdef EOWNERDEAD</a>
+<a name="264">static int <a href="errno_c.html#264">EOWNERDEADValue</a> = EOWNERDEAD;</a>
+<a name="265">#endif</a>
+<a name="266"></a>
+<a name="267">#ifdef EPERM</a>
+<a name="268">static int <a href="errno_c.html#268">EPERMValue</a> = EPERM;</a>
+<a name="269">#endif</a>
+<a name="270"></a>
+<a name="271">#ifdef EPIPE</a>
+<a name="272">static int <a href="errno_c.html#272">EPIPEValue</a> = EPIPE;</a>
+<a name="273">#endif</a>
+<a name="274"></a>
+<a name="275">#ifdef EPROTO</a>
+<a name="276">static int <a href="errno_c.html#276">EPROTOValue</a> = EPROTO;</a>
+<a name="277">#endif</a>
+<a name="278"></a>
+<a name="279">#ifdef EPROTONOSUPPORT</a>
+<a name="280">static int <a href="errno_c.html#280">EPROTONOSUPPORTValue</a> = EPROTONOSUPPORT;</a>
+<a name="281">#endif</a>
+<a name="282"></a>
+<a name="283">#ifdef EPROTOTYPE</a>
+<a name="284">static int <a href="errno_c.html#284">EPROTOTYPEValue</a> = EPROTOTYPE;</a>
+<a name="285">#endif</a>
+<a name="286"></a>
+<a name="287">#ifdef ERANGE</a>
+<a name="288">static int <a href="errno_c.html#288">ERANGEValue</a> = ERANGE;</a>
+<a name="289">#endif</a>
+<a name="290"></a>
+<a name="291">#ifdef EROFS</a>
+<a name="292">static int <a href="errno_c.html#292">EROFSValue</a> = EROFS;</a>
+<a name="293">#endif</a>
+<a name="294"></a>
+<a name="295">#ifdef ESPIPE</a>
+<a name="296">static int <a href="errno_c.html#296">ESPIPEValue</a> = ESPIPE;</a>
+<a name="297">#endif</a>
+<a name="298"></a>
+<a name="299">#ifdef ESRCH</a>
+<a name="300">static int <a href="errno_c.html#300">ESRCHValue</a> = ESRCH;</a>
+<a name="301">#endif</a>
+<a name="302"></a>
+<a name="303">#ifdef ESTALE</a>
+<a name="304">static int <a href="errno_c.html#304">ESTALEValue</a> = ESTALE;</a>
+<a name="305">#endif</a>
+<a name="306"></a>
+<a name="307">#ifdef ETIME</a>
+<a name="308">static int <a href="errno_c.html#308">ETIMEValue</a> = ETIME;</a>
+<a name="309">#endif</a>
+<a name="310"></a>
+<a name="311">#ifdef ETIMEDOUT</a>
+<a name="312">static int <a href="errno_c.html#312">ETIMEDOUTValue</a> = ETIMEDOUT;</a>
+<a name="313">#endif</a>
+<a name="314"></a>
+<a name="315">#ifdef ETXTBSY</a>
+<a name="316">static int <a href="errno_c.html#316">ETXTBSYValue</a> = ETXTBSY;</a>
+<a name="317">#endif</a>
+<a name="318"></a>
+<a name="319">#ifdef EWOULDBLOCK</a>
+<a name="320">static int <a href="errno_c.html#320">EWOULDBLOCKValue</a> = EWOULDBLOCK;</a>
+<a name="321">#endif</a>
+<a name="322"></a>
+<a name="323">#ifdef EXDEV</a>
+<a name="324">static int <a href="errno_c.html#324">EXDEVValue</a> = EXDEV;</a>
+<a name="325">#endif</a>
+<a name="326"></a>
+<a name="327"></a>
+<a name="328">/* creates various system-dependent definitions */</a>
+<a name="329">void <a href="errno_c.html#329">StdErrnoSetupFunc</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="330">{</a>
+<a name="331">    /* defines */</a>
+<a name="332">#ifdef EACCES</a>
+<a name="333">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EACCES", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#8">EACCESValue</a>, FALSE);</a>
+<a name="334">#endif</a>
+<a name="335"></a>
+<a name="336">#ifdef EADDRINUSE</a>
+<a name="337">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EADDRINUSE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#12">EADDRINUSEValue</a>, FALSE);</a>
+<a name="338">#endif</a>
+<a name="339"></a>
+<a name="340">#ifdef EADDRNOTAVAIL</a>
+<a name="341">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EADDRNOTAVAIL", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#16">EADDRNOTAVAILValue</a>, FALSE);</a>
+<a name="342">#endif</a>
+<a name="343"></a>
+<a name="344">#ifdef EAFNOSUPPORT</a>
+<a name="345">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EAFNOSUPPORT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#20">EAFNOSUPPORTValue</a>, FALSE);</a>
+<a name="346">#endif</a>
+<a name="347"></a>
+<a name="348">#ifdef EAGAIN</a>
+<a name="349">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EAGAIN", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#24">EAGAINValue</a>, FALSE);</a>
+<a name="350">#endif</a>
+<a name="351"></a>
+<a name="352">#ifdef EALREADY</a>
+<a name="353">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EALREADY", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#28">EALREADYValue</a>, FALSE);</a>
+<a name="354">#endif</a>
+<a name="355"></a>
+<a name="356">#ifdef EBADF</a>
+<a name="357">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EBADF", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#32">EBADFValue</a>, FALSE);</a>
+<a name="358">#endif</a>
+<a name="359"></a>
+<a name="360">#ifdef EBADMSG</a>
+<a name="361">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EBADMSG", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#36">EBADMSGValue</a>, FALSE);</a>
+<a name="362">#endif</a>
+<a name="363"></a>
+<a name="364">#ifdef EBUSY</a>
+<a name="365">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EBUSY", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#40">EBUSYValue</a>, FALSE);</a>
+<a name="366">#endif</a>
+<a name="367"></a>
+<a name="368">#ifdef ECANCELED</a>
+<a name="369">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ECANCELED", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#44">ECANCELEDValue</a>, FALSE);</a>
+<a name="370">#endif</a>
+<a name="371"></a>
+<a name="372">#ifdef ECHILD</a>
+<a name="373">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ECHILD", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#48">ECHILDValue</a>, FALSE);</a>
+<a name="374">#endif</a>
+<a name="375"></a>
+<a name="376">#ifdef ECONNABORTED</a>
+<a name="377">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ECONNABORTED", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#52">ECONNABORTEDValue</a>, FALSE);</a>
+<a name="378">#endif</a>
+<a name="379"></a>
+<a name="380">#ifdef ECONNREFUSED</a>
+<a name="381">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ECONNREFUSED", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#56">ECONNREFUSEDValue</a>, FALSE);</a>
+<a name="382">#endif</a>
+<a name="383"></a>
+<a name="384">#ifdef ECONNRESET</a>
+<a name="385">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ECONNRESET", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#60">ECONNRESETValue</a>, FALSE);</a>
+<a name="386">#endif</a>
+<a name="387"></a>
+<a name="388">#ifdef EDEADLK</a>
+<a name="389">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EDEADLK", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#64">EDEADLKValue</a>, FALSE);</a>
+<a name="390">#endif</a>
+<a name="391"></a>
+<a name="392">#ifdef EDESTADDRREQ</a>
+<a name="393">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EDESTADDRREQ", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#68">EDESTADDRREQValue</a>, FALSE);</a>
+<a name="394">#endif</a>
+<a name="395"></a>
+<a name="396">#ifdef EDOM</a>
+<a name="397">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EDOM", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#72">EDOMValue</a>, FALSE);</a>
+<a name="398">#endif</a>
+<a name="399"></a>
+<a name="400">#ifdef EDQUOT</a>
+<a name="401">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EDQUOT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#76">EDQUOTValue</a>, FALSE);</a>
+<a name="402">#endif</a>
+<a name="403"></a>
+<a name="404">#ifdef EEXIST</a>
+<a name="405">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EEXIST", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#80">EEXISTValue</a>, FALSE);</a>
+<a name="406">#endif</a>
+<a name="407"></a>
+<a name="408">#ifdef EFAULT</a>
+<a name="409">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EFAULT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#84">EFAULTValue</a>, FALSE);</a>
+<a name="410">#endif</a>
+<a name="411"></a>
+<a name="412">#ifdef EFBIG</a>
+<a name="413">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EFBIG", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#88">EFBIGValue</a>, FALSE);</a>
+<a name="414">#endif</a>
+<a name="415"></a>
+<a name="416">#ifdef EHOSTUNREACH</a>
+<a name="417">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EHOSTUNREACH", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#92">EHOSTUNREACHValue</a>, FALSE);</a>
+<a name="418">#endif</a>
+<a name="419"></a>
+<a name="420">#ifdef EIDRM</a>
+<a name="421">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EIDRM", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#96">EIDRMValue</a>, FALSE);</a>
+<a name="422">#endif</a>
+<a name="423"></a>
+<a name="424">#ifdef EILSEQ</a>
+<a name="425">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EILSEQ", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#100">EILSEQValue</a>, FALSE);</a>
+<a name="426">#endif</a>
+<a name="427"></a>
+<a name="428">#ifdef EINPROGRESS</a>
+<a name="429">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EINPROGRESS", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#104">EINPROGRESSValue</a>, FALSE);</a>
+<a name="430">#endif</a>
+<a name="431"></a>
+<a name="432">#ifdef EINTR</a>
+<a name="433">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EINTR", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#108">EINTRValue</a>, FALSE);</a>
+<a name="434">#endif</a>
+<a name="435"></a>
+<a name="436">#ifdef EINVAL</a>
+<a name="437">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EINVAL", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#112">EINVALValue</a>, FALSE);</a>
+<a name="438">#endif</a>
+<a name="439"></a>
+<a name="440">#ifdef EIO</a>
+<a name="441">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EIO", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#116">EIOValue</a>, FALSE);</a>
+<a name="442">#endif</a>
+<a name="443"></a>
+<a name="444">#ifdef EISCONN</a>
+<a name="445">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EISCONN", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#120">EISCONNValue</a>, FALSE);</a>
+<a name="446">#endif</a>
+<a name="447"></a>
+<a name="448">#ifdef EISDIR</a>
+<a name="449">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EISDIR", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#124">EISDIRValue</a>, FALSE);</a>
+<a name="450">#endif</a>
+<a name="451"></a>
+<a name="452">#ifdef ELOOP</a>
+<a name="453">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ELOOP", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#128">ELOOPValue</a>, FALSE);</a>
+<a name="454">#endif</a>
+<a name="455"></a>
+<a name="456">#ifdef EMFILE</a>
+<a name="457">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EMFILE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#132">EMFILEValue</a>, FALSE);</a>
+<a name="458">#endif</a>
+<a name="459"></a>
+<a name="460">#ifdef EMLINK</a>
+<a name="461">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EMLINK", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#136">EMLINKValue</a>, FALSE);</a>
+<a name="462">#endif</a>
+<a name="463"></a>
+<a name="464">#ifdef EMSGSIZE</a>
+<a name="465">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EMSGSIZE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#140">EMSGSIZEValue</a>, FALSE);</a>
+<a name="466">#endif</a>
+<a name="467"></a>
+<a name="468">#ifdef EMULTIHOP</a>
+<a name="469">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EMULTIHOP", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#144">EMULTIHOPValue</a>, FALSE);</a>
+<a name="470">#endif</a>
+<a name="471"></a>
+<a name="472">#ifdef ENAMETOOLONG</a>
+<a name="473">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENAMETOOLONG", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#148">ENAMETOOLONGValue</a>, FALSE);</a>
+<a name="474">#endif</a>
+<a name="475"></a>
+<a name="476">#ifdef ENETDOWN</a>
+<a name="477">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENETDOWN", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#152">ENETDOWNValue</a>, FALSE);</a>
+<a name="478">#endif</a>
+<a name="479"></a>
+<a name="480">#ifdef ENETRESET</a>
+<a name="481">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENETRESET", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#156">ENETRESETValue</a>, FALSE);</a>
+<a name="482">#endif</a>
+<a name="483"></a>
+<a name="484">#ifdef ENETUNREACH</a>
+<a name="485">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENETUNREACH", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#160">ENETUNREACHValue</a>, FALSE);</a>
+<a name="486">#endif</a>
+<a name="487"></a>
+<a name="488">#ifdef ENFILE</a>
+<a name="489">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENFILE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#164">ENFILEValue</a>, FALSE);</a>
+<a name="490">#endif</a>
+<a name="491"></a>
+<a name="492">#ifdef ENOBUFS</a>
+<a name="493">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOBUFS", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#168">ENOBUFSValue</a>, FALSE);</a>
+<a name="494">#endif</a>
+<a name="495"></a>
+<a name="496">#ifdef ENODATA</a>
+<a name="497">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENODATA", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#172">ENODATAValue</a>, FALSE);</a>
+<a name="498">#endif</a>
+<a name="499"></a>
+<a name="500">#ifdef ENODEV</a>
+<a name="501">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENODEV", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#176">ENODEVValue</a>, FALSE);</a>
+<a name="502">#endif</a>
+<a name="503"></a>
+<a name="504">#ifdef ENOENT</a>
+<a name="505">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOENT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#180">ENOENTValue</a>, FALSE);</a>
+<a name="506">#endif</a>
+<a name="507"></a>
+<a name="508">#ifdef ENOEXEC</a>
+<a name="509">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOEXEC", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#184">ENOEXECValue</a>, FALSE);</a>
+<a name="510">#endif</a>
+<a name="511"></a>
+<a name="512">#ifdef ENOLCK</a>
+<a name="513">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOLCK", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#188">ENOLCKValue</a>, FALSE);</a>
+<a name="514">#endif</a>
+<a name="515"></a>
+<a name="516">#ifdef ENOLINK</a>
+<a name="517">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOLINK", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#192">ENOLINKValue</a>, FALSE);</a>
+<a name="518">#endif</a>
+<a name="519"></a>
+<a name="520">#ifdef ENOMEM</a>
+<a name="521">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOMEM", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#196">ENOMEMValue</a>, FALSE);</a>
+<a name="522">#endif</a>
+<a name="523"></a>
+<a name="524">#ifdef ENOMSG</a>
+<a name="525">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOMSG", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#200">ENOMSGValue</a>, FALSE);</a>
+<a name="526">#endif</a>
+<a name="527"></a>
+<a name="528">#ifdef ENOPROTOOPT</a>
+<a name="529">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOPROTOOPT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#204">ENOPROTOOPTValue</a>, FALSE);</a>
+<a name="530">#endif</a>
+<a name="531"></a>
+<a name="532">#ifdef ENOSPC</a>
+<a name="533">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOSPC", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#208">ENOSPCValue</a>, FALSE);</a>
+<a name="534">#endif</a>
+<a name="535"></a>
+<a name="536">#ifdef ENOSR</a>
+<a name="537">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOSR", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#212">ENOSRValue</a>, FALSE);</a>
+<a name="538">#endif</a>
+<a name="539"></a>
+<a name="540">#ifdef ENOSTR</a>
+<a name="541">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOSTR", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#216">ENOSTRValue</a>, FALSE);</a>
+<a name="542">#endif</a>
+<a name="543"></a>
+<a name="544">#ifdef ENOSYS</a>
+<a name="545">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOSYS", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#220">ENOSYSValue</a>, FALSE);</a>
+<a name="546">#endif</a>
+<a name="547"></a>
+<a name="548">#ifdef ENOTCONN</a>
+<a name="549">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTCONN", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#224">ENOTCONNValue</a>, FALSE);</a>
+<a name="550">#endif</a>
+<a name="551"></a>
+<a name="552">#ifdef ENOTDIR</a>
+<a name="553">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTDIR", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#228">ENOTDIRValue</a>, FALSE);</a>
+<a name="554">#endif</a>
+<a name="555"></a>
+<a name="556">#ifdef ENOTEMPTY</a>
+<a name="557">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTEMPTY", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#232">ENOTEMPTYValue</a>, FALSE);</a>
+<a name="558">#endif</a>
+<a name="559"></a>
+<a name="560">#ifdef ENOTRECOVERABLE</a>
+<a name="561">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTRECOVERABLE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#236">ENOTRECOVERABLEValue</a>, FALSE);</a>
+<a name="562">#endif</a>
+<a name="563"></a>
+<a name="564">#ifdef ENOTSOCK</a>
+<a name="565">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTSOCK", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#240">ENOTSOCKValue</a>, FALSE);</a>
+<a name="566">#endif</a>
+<a name="567"></a>
+<a name="568">#ifdef ENOTSUP</a>
+<a name="569">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTSUP", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#244">ENOTSUPValue</a>, FALSE);</a>
+<a name="570">#endif</a>
+<a name="571"></a>
+<a name="572">#ifdef ENOTTY</a>
+<a name="573">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENOTTY", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#248">ENOTTYValue</a>, FALSE);</a>
+<a name="574">#endif</a>
+<a name="575"></a>
+<a name="576">#ifdef ENXIO</a>
+<a name="577">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ENXIO", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#252">ENXIOValue</a>, FALSE);</a>
+<a name="578">#endif</a>
+<a name="579"></a>
+<a name="580">#ifdef EOPNOTSUPP</a>
+<a name="581">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EOPNOTSUPP", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#256">EOPNOTSUPPValue</a>, FALSE);</a>
+<a name="582">#endif</a>
+<a name="583"></a>
+<a name="584">#ifdef EOVERFLOW</a>
+<a name="585">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EOVERFLOW", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#260">EOVERFLOWValue</a>, FALSE);</a>
+<a name="586">#endif</a>
+<a name="587"></a>
+<a name="588">#ifdef EOWNERDEAD</a>
+<a name="589">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EOWNERDEAD", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#264">EOWNERDEADValue</a>, FALSE);</a>
+<a name="590">#endif</a>
+<a name="591"></a>
+<a name="592">#ifdef EPERM</a>
+<a name="593">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EPERM", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#268">EPERMValue</a>, FALSE);</a>
+<a name="594">#endif</a>
+<a name="595"></a>
+<a name="596">#ifdef EPIPE</a>
+<a name="597">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EPIPE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#272">EPIPEValue</a>, FALSE);</a>
+<a name="598">#endif</a>
+<a name="599"></a>
+<a name="600">#ifdef EPROTO</a>
+<a name="601">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EPROTO", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#276">EPROTOValue</a>, FALSE);</a>
+<a name="602">#endif</a>
+<a name="603"></a>
+<a name="604">#ifdef EPROTONOSUPPORT</a>
+<a name="605">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EPROTONOSUPPORT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#280">EPROTONOSUPPORTValue</a>, FALSE);</a>
+<a name="606">#endif</a>
+<a name="607"></a>
+<a name="608">#ifdef EPROTOTYPE</a>
+<a name="609">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EPROTOTYPE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#284">EPROTOTYPEValue</a>, FALSE);</a>
+<a name="610">#endif</a>
+<a name="611"></a>
+<a name="612">#ifdef ERANGE</a>
+<a name="613">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ERANGE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#288">ERANGEValue</a>, FALSE);</a>
+<a name="614">#endif</a>
+<a name="615"></a>
+<a name="616">#ifdef EROFS</a>
+<a name="617">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EROFS", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#292">EROFSValue</a>, FALSE);</a>
+<a name="618">#endif</a>
+<a name="619"></a>
+<a name="620">#ifdef ESPIPE</a>
+<a name="621">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ESPIPE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#296">ESPIPEValue</a>, FALSE);</a>
+<a name="622">#endif</a>
+<a name="623"></a>
+<a name="624">#ifdef ESRCH</a>
+<a name="625">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ESRCH", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#300">ESRCHValue</a>, FALSE);</a>
+<a name="626">#endif</a>
+<a name="627"></a>
+<a name="628">#ifdef ESTALE</a>
+<a name="629">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ESTALE", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#304">ESTALEValue</a>, FALSE);</a>
+<a name="630">#endif</a>
+<a name="631"></a>
+<a name="632">#ifdef ETIME</a>
+<a name="633">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ETIME", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#308">ETIMEValue</a>, FALSE);</a>
+<a name="634">#endif</a>
+<a name="635"></a>
+<a name="636">#ifdef ETIMEDOUT</a>
+<a name="637">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ETIMEDOUT", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#312">ETIMEDOUTValue</a>, FALSE);</a>
+<a name="638">#endif</a>
+<a name="639"></a>
+<a name="640">#ifdef ETXTBSY</a>
+<a name="641">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "ETXTBSY", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#316">ETXTBSYValue</a>, FALSE);</a>
+<a name="642">#endif</a>
+<a name="643"></a>
+<a name="644">#ifdef EWOULDBLOCK</a>
+<a name="645">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EWOULDBLOCK", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#320">EWOULDBLOCKValue</a>, FALSE);</a>
+<a name="646">#endif</a>
+<a name="647"></a>
+<a name="648">#ifdef EXDEV</a>
+<a name="649">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "EXDEV", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&<a href="errno_c.html#324">EXDEVValue</a>, FALSE);</a>
+<a name="650">#endif</a>
+<a name="651"></a>
+<a name="652">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="errno_c.html#329">pc</a>, NULL, "errno", &<a href="errno_c.html#329">pc</a>-&gtIntType, (union AnyValue *)&errno, TRUE);</a>
+<a name="653">}</a>
+<a name="654"></a>
+<a name="655">#endif /* !BUILTIN_MINI_STDLIB */</a>
+</pre></body></html>

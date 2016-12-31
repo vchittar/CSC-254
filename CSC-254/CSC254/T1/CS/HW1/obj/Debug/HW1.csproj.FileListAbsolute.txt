@@ -1,0 +1,6 @@
+C:\Users\Edward\OneDrive\CSC254\T1\CS\HW1\bin\Debug\HW1.exe.config
+C:\Users\Edward\OneDrive\CSC254\T1\CS\HW1\bin\Debug\HW1.exe
+C:\Users\Edward\OneDrive\CSC254\T1\CS\HW1\bin\Debug\HW1.pdb
+C:\Users\Edward\OneDrive\CSC254\T1\CS\HW1\obj\Debug\HW1.csprojResolveAssemblyReference.cache
+C:\Users\Edward\OneDrive\CSC254\T1\CS\HW1\obj\Debug\HW1.exe
+C:\Users\Edward\OneDrive\CSC254\T1\CS\HW1\obj\Debug\HW1.pdb

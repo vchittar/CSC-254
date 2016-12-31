@@ -1,0 +1,546 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc data type module. This manages a tree of data types and has facilities</a>
+<a name="2"> * for parsing data types. */</a>
+<a name="3"> </a>
+<a name="4">#include "interpreter.h"</a>
+<a name="5"></a>
+<a name="6">/* some basic types */</a>
+<a name="7">static int <a name="searched">PointerAlignBytes</a>;</a>
+<a name="8">static int <a name="searched">IntAlignBytes</a>;</a>
+<a name="9"></a>
+<a name="10"></a>
+<a name="11">/* add a new type to the set of types we know about */</a>
+<a name="12">struct ValueType *<a name="searched">TypeAdd</a>(Picoc *<a name="searched">pc</a>, struct ParseState *<a name="searched">Parser</a>, struct ValueType *<a name="searched">ParentType</a>, enum <a name="searched">Base</a>Type <a name="searched">Base</a>, int <a name="searched">ArraySize</a>, const char *<a name="searched">Identifier</a>, int <a name="searched">Sizeof</a>, int <a name="searched">AlignBytes</a>)</a>
+<a name="13">{</a>
+<a name="14">    struct ValueType *<a name="searched">NewType</a> = <a href="variable_c.html#68">VariableAlloc</a>(<a href="type_c.html#12">pc</a>, <a href="type_c.html#12">Parser</a>, sizeof(struct ValueType), TRUE);</a>
+<a name="15">    <a href="type_c.html#14">NewType</a>-&gtBase = <a href="type_c.html#12">Base</a>;</a>
+<a name="16">    <a href="type_c.html#14">NewType</a>-&gtArraySize = <a href="type_c.html#12">ArraySize</a>;</a>
+<a name="17">    <a href="type_c.html#14">NewType</a>-&gtSizeof = <a href="type_c.html#12">Sizeof</a>;</a>
+<a name="18">    <a href="type_c.html#14">NewType</a>-&gtAlignBytes = <a href="type_c.html#12">AlignBytes</a>;</a>
+<a name="19">    <a href="type_c.html#14">NewType</a>-&gtIdentifier = <a href="type_c.html#12">Identifier</a>;</a>
+<a name="20">    <a href="type_c.html#14">NewType</a>-&gtMembers = NULL;</a>
+<a name="21">    <a href="type_c.html#14">NewType</a>-&gtFromType = <a href="type_c.html#12">ParentType</a>;</a>
+<a name="22">    <a href="type_c.html#14">NewType</a>-&gtDerivedTypeList = NULL;</a>
+<a name="23">    <a href="type_c.html#14">NewType</a>-&gtOnHeap = TRUE;</a>
+<a name="24">    <a href="type_c.html#14">NewType</a>-&gtNext = <a href="type_c.html#12">ParentType</a>-&gtDerivedTypeList;</a>
+<a name="25">    <a href="type_c.html#12">ParentType</a>-&gtDerivedTypeList = <a href="type_c.html#14">NewType</a>;</a>
+<a name="26">    </a>
+<a name="27">    return <a href="type_c.html#14">NewType</a>;</a>
+<a name="28">}</a>
+<a name="29"></a>
+<a name="30">/* given a parent type, get a matching derived type and make one if necessary.</a>
+<a name="31"> * Identifier should be registered with the shared string table. */</a>
+<a name="32">struct ValueType *<a name="searched">TypeGetMatching</a>(Picoc *<a name="searched">pc</a>, struct ParseState *<a name="searched">Parser</a>, struct ValueType *<a name="searched">ParentType</a>, enum <a name="searched">Base</a>Type <a name="searched">Base</a>, int <a name="searched">ArraySize</a>, const char *<a name="searched">Identifier</a>, int <a name="searched">AllowDuplicates</a>)</a>
+<a name="33">{</a>
+<a name="34">    int <a name="searched">Sizeof</a>;</a>
+<a name="35">    int <a name="searched">AlignBytes</a>;</a>
+<a name="36">    struct ValueType *<a name="searched">ThisType</a> = <a href="type_c.html#32">ParentType</a>-&gtDerivedTypeList;</a>
+<a name="37">    while (<a href="type_c.html#36">ThisType</a> != NULL && (<a href="type_c.html#36">ThisType</a>-&gtBase != <a href="type_c.html#32">Base</a> || <a href="type_c.html#36">ThisType</a>-&gtArraySize != <a href="type_c.html#32">ArraySize</a> || <a href="type_c.html#36">ThisType</a>-&gtIdentifier != <a href="type_c.html#32">Identifier</a>))</a>
+<a name="38">        <a href="type_c.html#36">ThisType</a> = <a href="type_c.html#36">ThisType</a>-&gtNext;</a>
+<a name="39">    </a>
+<a name="40">    if (<a href="type_c.html#36">ThisType</a> != NULL)</a>
+<a name="41">    {</a>
+<a name="42">        if (<a href="type_c.html#32">AllowDuplicates</a>)</a>
+<a name="43">            return <a href="type_c.html#36">ThisType</a>;</a>
+<a name="44">        else</a>
+<a name="45">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#32">Parser</a>, "data type '%s' is already defined", <a href="type_c.html#32">Identifier</a>);</a>
+<a name="46">    }</a>
+<a name="47">        </a>
+<a name="48">    switch (<a href="type_c.html#32">Base</a>)</a>
+<a name="49">    {</a>
+<a name="50">        case TypePointer:   <a href="type_c.html#34">Sizeof</a> = sizeof(void *); <a href="type_c.html#35">AlignBytes</a> = <a href="type_c.html#7">PointerAlignBytes</a>; break;</a>
+<a name="51">        case TypeArray:     <a href="type_c.html#34">Sizeof</a> = <a href="type_c.html#32">ArraySize</a> * <a href="type_c.html#32">ParentType</a>-&gtSizeof; <a href="type_c.html#35">AlignBytes</a> = <a href="type_c.html#32">ParentType</a>-&gtAlignBytes; break;</a>
+<a name="52">        case TypeEnum:      <a href="type_c.html#34">Sizeof</a> = sizeof(int); <a href="type_c.html#35">AlignBytes</a> = <a href="type_c.html#8">IntAlignBytes</a>; break;</a>
+<a name="53">        default:            <a href="type_c.html#34">Sizeof</a> = 0; <a href="type_c.html#35">AlignBytes</a> = 0; break;      /* structs and unions will get bigger when we add members to them */</a>
+<a name="54">    }</a>
+<a name="55"></a>
+<a name="56">    return <a href="type_c.html#12">TypeAdd</a>(<a href="type_c.html#32">pc</a>, <a href="type_c.html#32">Parser</a>, <a href="type_c.html#32">ParentType</a>, <a href="type_c.html#32">Base</a>, <a href="type_c.html#32">ArraySize</a>, <a href="type_c.html#32">Identifier</a>, <a href="type_c.html#34">Sizeof</a>, <a href="type_c.html#35">AlignBytes</a>);</a>
+<a name="57">}</a>
+<a name="58"></a>
+<a name="59">/* stack space used by a value */</a>
+<a name="60">int TypeStackSize<a name="searched">Val</a>ue(struct <a name="searched">Val</a>ue *<a name="searched">Val</a>)</a>
+<a name="61">{</a>
+<a name="62">    if (<a href="type_c.html#60">Val</a> != NULL && <a href="type_c.html#60">Val</a>-&gtValOnStack)</a>
+<a name="63">        return <a href="type_c.html#69">TypeSizeValue</a>(<a href="type_c.html#60">Val</a>, FALSE);</a>
+<a name="64">    else</a>
+<a name="65">        return 0;</a>
+<a name="66">}</a>
+<a name="67"></a>
+<a name="68">/* memory used by a value */</a>
+<a name="69">int <a href="type_c.html#80">TypeSize</a><a name="searched">Val</a>ue(struct <a name="searched">Val</a>ue *<a name="searched">Val</a>, int <a name="searched">Compact</a>)</a>
+<a name="70">{</a>
+<a name="71">    if (IS_INTEGER_NUMERIC(<a href="type_c.html#69">Val</a>) && !<a href="type_c.html#69">Compact</a>)</a>
+<a name="72">        return sizeof(ALIGN_TYPE);     /* allow some extra room for type extension */</a>
+<a name="73">    else if (<a href="type_c.html#69">Val</a>-&gtTyp-&gtBase != TypeArray)</a>
+<a name="74">        return <a href="type_c.html#69">Val</a>-&gtTyp-&gtSizeof;</a>
+<a name="75">    else</a>
+<a name="76">        return <a href="type_c.html#69">Val</a>-&gtTyp-&gtFromType-&gtSizeof * <a href="type_c.html#69">Val</a>-&gtTyp-&gtArraySize;</a>
+<a name="77">}</a>
+<a name="78"></a>
+<a name="79">/* memory used by a variable given its type and array size */</a>
+<a name="80">int <a name="searched">Typ</a>eSize(struct Value<a name="searched">Typ</a>e *<a name="searched">Typ</a>, int <a name="searched">ArraySize</a>, int <a name="searched">Compact</a>)</a>
+<a name="81">{</a>
+<a name="82">    if (IS_INTEGER_NUMERIC_TYPE(<a href="type_c.html#80">Typ</a>) && !<a href="type_c.html#80">Compact</a>)</a>
+<a name="83">        return sizeof(ALIGN_TYPE);     /* allow some extra room for type extension */</a>
+<a name="84">    else if (<a href="type_c.html#80">Typ</a>-&gtBase != TypeArray)</a>
+<a name="85">        return <a href="type_c.html#80">Typ</a>-&gtSizeof;</a>
+<a name="86">    else</a>
+<a name="87">        return <a href="type_c.html#80">Typ</a>-&gtFromType-&gtSizeof * <a href="type_c.html#80">ArraySize</a>;</a>
+<a name="88">}</a>
+<a name="89"></a>
+<a name="90">/* add a base type */</a>
+<a name="91">void <a href="type_c.html#12">TypeAdd</a><a name="searched">Base</a>Type(Picoc *<a name="searched">pc</a>, struct ValueType *<a name="searched">TypeNode</a>, enum <a name="searched">Base</a>Type <a name="searched">Base</a>, int <a name="searched">Sizeof</a>, int <a name="searched">AlignBytes</a>)</a>
+<a name="92">{</a>
+<a name="93">    <a href="type_c.html#91">TypeNode</a>-&gtBase = <a href="type_c.html#91">Base</a>;</a>
+<a name="94">    <a href="type_c.html#91">TypeNode</a>-&gtArraySize = 0;</a>
+<a name="95">    <a href="type_c.html#91">TypeNode</a>-&gtSizeof = <a href="type_c.html#91">Sizeof</a>;</a>
+<a name="96">    <a href="type_c.html#91">TypeNode</a>-&gtAlignBytes = <a href="type_c.html#91">AlignBytes</a>;</a>
+<a name="97">    <a href="type_c.html#91">TypeNode</a>-&gtIdentifier = <a href="type_c.html#91">pc</a>-&gtStrEmpty;</a>
+<a name="98">    <a href="type_c.html#91">TypeNode</a>-&gtMembers = NULL;</a>
+<a name="99">    <a href="type_c.html#91">TypeNode</a>-&gtFromType = NULL;</a>
+<a name="100">    <a href="type_c.html#91">TypeNode</a>-&gtDerivedTypeList = NULL;</a>
+<a name="101">    <a href="type_c.html#91">TypeNode</a>-&gtOnHeap = FALSE;</a>
+<a name="102">    <a href="type_c.html#91">TypeNode</a>-&gtNext = <a href="type_c.html#91">pc</a>-&gtUberType.DerivedTypeList;</a>
+<a name="103">    <a href="type_c.html#91">pc</a>-&gtUberType.DerivedTypeList = <a href="type_c.html#91">TypeNode</a>;</a>
+<a name="104">}</a>
+<a name="105"></a>
+<a name="106">/* initialise the type system */</a>
+<a name="107">void <a name="searched">TypeInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="108">{</a>
+<a name="109">    struct IntAlign { char x; int y; } <a name="searched">ia</a>;</a>
+<a name="110">    struct ShortAlign { char x; short y; } <a name="searched">sa</a>;</a>
+<a name="111">    struct CharAlign { char x; char y; } <a name="searched">ca</a>;</a>
+<a name="112">    struct LongAlign { char x; long y; } <a name="searched">la</a>;</a>
+<a name="113">#ifndef NO_FP</a>
+<a name="114">    struct DoubleAlign { char x; double y; } <a name="searched">da</a>;</a>
+<a name="115">#endif</a>
+<a name="116">    struct PointerAlign { char x; void *y; } <a name="searched">pa</a>;</a>
+<a name="117">    </a>
+<a name="118">    <a href="type_c.html#8">IntAlignBytes</a> = (char *)&<a href="type_c.html#109">ia</a>.y - &<a href="type_c.html#109">ia</a>.x;</a>
+<a name="119">    <a href="type_c.html#7">PointerAlignBytes</a> = (char *)&<a href="type_c.html#116">pa</a>.y - &<a href="type_c.html#116">pa</a>.x;</a>
+<a name="120">    </a>
+<a name="121">    <a href="type_c.html#107">pc</a>-&gtUberType.DerivedTypeList = NULL;</a>
+<a name="122">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtIntType, TypeInt, sizeof(int), <a href="type_c.html#8">IntAlignBytes</a>);</a>
+<a name="123">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtShortType, TypeShort, sizeof(short), (char *)&<a href="type_c.html#110">sa</a>.y - &<a href="type_c.html#110">sa</a>.x);</a>
+<a name="124">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtCharType, TypeChar, sizeof(char), (char *)&<a href="type_c.html#111">ca</a>.y - &<a href="type_c.html#111">ca</a>.x);</a>
+<a name="125">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtLongType, TypeLong, sizeof(long), (char *)&<a href="type_c.html#112">la</a>.y - &<a href="type_c.html#112">la</a>.x);</a>
+<a name="126">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtUnsignedIntType, TypeUnsignedInt, sizeof(unsigned int), <a href="type_c.html#8">IntAlignBytes</a>);</a>
+<a name="127">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtUnsignedShortType, TypeUnsignedShort, sizeof(unsigned short), (char *)&<a href="type_c.html#110">sa</a>.y - &<a href="type_c.html#110">sa</a>.x);</a>
+<a name="128">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtUnsignedLongType, TypeUnsignedLong, sizeof(unsigned long), (char *)&<a href="type_c.html#112">la</a>.y - &<a href="type_c.html#112">la</a>.x);</a>
+<a name="129">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtUnsignedCharType, TypeUnsignedChar, sizeof(unsigned char), (char *)&<a href="type_c.html#111">ca</a>.y - &<a href="type_c.html#111">ca</a>.x);</a>
+<a name="130">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtVoidType, TypeVoid, 0, 1);</a>
+<a name="131">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtFunctionType, TypeFunction, sizeof(int), <a href="type_c.html#8">IntAlignBytes</a>);</a>
+<a name="132">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtMacroType, TypeMacro, sizeof(int), <a href="type_c.html#8">IntAlignBytes</a>);</a>
+<a name="133">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtGotoLabelType, TypeGotoLabel, 0, 1);</a>
+<a name="134">#ifndef NO_FP</a>
+<a name="135">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtFPType, TypeFP, sizeof(double), (char *)&<a href="type_c.html#114">da</a>.y - &<a href="type_c.html#114">da</a>.x);</a>
+<a name="136">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtTypeType, Type_Type, sizeof(double), (char *)&<a href="type_c.html#114">da</a>.y - &<a href="type_c.html#114">da</a>.x);  /* must be large enough to cast to a double */</a>
+<a name="137">#else</a>
+<a name="138">    <a href="type_c.html#91">TypeAddBaseType</a>(<a href="type_c.html#107">pc</a>, &<a href="type_c.html#107">pc</a>-&gtTypeType, Type_Type, sizeof(struct ValueType *), <a href="type_c.html#7">PointerAlignBytes</a>);</a>
+<a name="139">#endif</a>
+<a name="140">    <a href="type_c.html#107">pc</a>-&gtCharArrayType = <a href="type_c.html#12">TypeAdd</a>(<a href="type_c.html#107">pc</a>, NULL, &<a href="type_c.html#107">pc</a>-&gtCharType, TypeArray, 0, <a href="type_c.html#107">pc</a>-&gtStrEmpty, sizeof(char), (char *)&<a href="type_c.html#111">ca</a>.y - &<a href="type_c.html#111">ca</a>.x);</a>
+<a name="141">    <a href="type_c.html#107">pc</a>-&gtCharPtrType = <a href="type_c.html#12">TypeAdd</a>(<a href="type_c.html#107">pc</a>, NULL, &<a href="type_c.html#107">pc</a>-&gtCharType, TypePointer, 0, <a href="type_c.html#107">pc</a>-&gtStrEmpty, sizeof(void *), <a href="type_c.html#7">PointerAlignBytes</a>);</a>
+<a name="142">    <a href="type_c.html#107">pc</a>-&gtCharPtrPtrType = <a href="type_c.html#12">TypeAdd</a>(<a href="type_c.html#107">pc</a>, NULL, <a href="type_c.html#107">pc</a>-&gtCharPtrType, TypePointer, 0, <a href="type_c.html#107">pc</a>-&gtStrEmpty, sizeof(void *), <a href="type_c.html#7">PointerAlignBytes</a>);</a>
+<a name="143">    <a href="type_c.html#107">pc</a>-&gtVoidPtrType = <a href="type_c.html#12">TypeAdd</a>(<a href="type_c.html#107">pc</a>, NULL, &<a href="type_c.html#107">pc</a>-&gtVoidType, TypePointer, 0, <a href="type_c.html#107">pc</a>-&gtStrEmpty, sizeof(void *), <a href="type_c.html#7">PointerAlignBytes</a>);</a>
+<a name="144">}</a>
+<a name="145"></a>
+<a name="146">/* deallocate heap-allocated types */</a>
+<a name="147">void <a name="searched">Typ</a>eCleanupNode(Picoc *<a name="searched">pc</a>, struct Value<a name="searched">Typ</a>e *<a name="searched">Typ</a>)</a>
+<a name="148">{</a>
+<a name="149">    struct ValueType *<a name="searched">SubType</a>;</a>
+<a name="150">    struct ValueType *<a name="searched">NextSubType</a>;</a>
+<a name="151">    </a>
+<a name="152">    /* clean up and free all the sub-nodes */</a>
+<a name="153">    for (<a href="type_c.html#149">SubType</a> = <a href="type_c.html#147">Typ</a>-&gtDerivedTypeList; <a href="type_c.html#149">SubType</a> != NULL; <a href="type_c.html#149">SubType</a> = <a href="type_c.html#150">NextSubType</a>)</a>
+<a name="154">    {</a>
+<a name="155">        <a href="type_c.html#150">NextSubType</a> = <a href="type_c.html#149">SubType</a>-&gtNext;</a>
+<a name="156">        <a href="type_c.html#147">TypeCleanupNode</a>(<a href="type_c.html#147">pc</a>, <a href="type_c.html#149">SubType</a>);</a>
+<a name="157">        if (<a href="type_c.html#149">SubType</a>-&gtOnHeap)</a>
+<a name="158">        {</a>
+<a name="159">            /* if it's a struct or union deallocate all the member values */</a>
+<a name="160">            if (<a href="type_c.html#149">SubType</a>-&gtMembers != NULL)</a>
+<a name="161">            {</a>
+<a name="162">                <a href="variable_c.html#42">VariableTableCleanup</a>(<a href="type_c.html#147">pc</a>, <a href="type_c.html#149">SubType</a>-&gtMembers);</a>
+<a name="163">                <a href="heap_c.html#226">HeapFreeMem</a>(<a href="type_c.html#147">pc</a>, <a href="type_c.html#149">SubType</a>-&gtMembers);</a>
+<a name="164">            }</a>
+<a name="165"></a>
+<a name="166">            /* free this node */</a>
+<a name="167">            <a href="heap_c.html#226">HeapFreeMem</a>(<a href="type_c.html#147">pc</a>, <a href="type_c.html#149">SubType</a>);</a>
+<a name="168">        }</a>
+<a name="169">    }</a>
+<a name="170">}</a>
+<a name="171"></a>
+<a name="172">void <a name="searched">TypeCleanup</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="173">{</a>
+<a name="174">    <a href="type_c.html#147">TypeCleanupNode</a>(<a href="type_c.html#172">pc</a>, &<a href="type_c.html#172">pc</a>-&gtUberType);</a>
+<a name="175">}</a>
+<a name="176"></a>
+<a name="177">/* parse a struct or union declaration */</a>
+<a name="178">void <a name="searched">Typ</a>eParseStruct(struct ParseState *<a name="searched">Parser</a>, struct Value<a name="searched">Typ</a>e **<a name="searched">Typ</a>, int <a name="searched">IsStruct</a>)</a>
+<a name="179">{</a>
+<a name="180">    struct Value *<a name="searched">LexValue</a>;</a>
+<a name="181">    struct ValueType *<a name="searched">MemberType</a>;</a>
+<a name="182">    char *<a name="searched">MemberIdentifier</a>;</a>
+<a name="183">    char *<a name="searched">StructIdentifier</a>;</a>
+<a name="184">    struct Value *<a name="searched">MemberValue</a>;</a>
+<a name="185">    enum Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="186">    int <a name="searched">AlignBoundary</a>;</a>
+<a name="187">    Picoc *<a name="searched">pc</a> = <a href="type_c.html#178">Parser</a>-&gt<a name="searched">pc</a>;</a>
+<a name="188">    </a>
+<a name="189">    <a href="type_c.html#185">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, &<a href="type_c.html#180">LexValue</a>, FALSE);</a>
+<a name="190">    if (<a href="type_c.html#185">Token</a> == TokenIdentifier)</a>
+<a name="191">    {</a>
+<a name="192">        <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, &<a href="type_c.html#180">LexValue</a>, TRUE);</a>
+<a name="193">        <a href="type_c.html#183">StructIdentifier</a> = <a href="type_c.html#180">LexValue</a>-&gtVal-&gtIdentifier;</a>
+<a name="194">        <a href="type_c.html#185">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, NULL, FALSE);</a>
+<a name="195">    }</a>
+<a name="196">    else</a>
+<a name="197">    {</a>
+<a name="198">        static char <a name="searched">TempNameBuf</a>[7] = "^s0000";</a>
+<a name="199">        <a href="type_c.html#183">StructIdentifier</a> = <a href="platform_c.html#230">PlatformMakeTempName</a>(<a href="type_c.html#187">pc</a>, <a href="type_c.html#198">TempNameBuf</a>);</a>
+<a name="200">    }</a>
+<a name="201"></a>
+<a name="202">    *<a href="type_c.html#178">Typ</a> = <a href="type_c.html#32">TypeGetMatching</a>(<a href="type_c.html#187">pc</a>, <a href="type_c.html#178">Parser</a>, &<a href="type_c.html#178">Parser</a>-&gtpc-&gtUberType, <a href="type_c.html#178">IsStruct</a> ? TypeStruct : TypeUnion, 0, <a href="type_c.html#183">StructIdentifier</a>, TRUE);</a>
+<a name="203">    if (<a href="type_c.html#185">Token</a> == TokenLeftBrace && (*<a href="type_c.html#178">Typ</a>)-&gtMembers != NULL)</a>
+<a name="204">        <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#178">Parser</a>, "data type '%t' is already defined", *<a href="type_c.html#178">Typ</a>);</a>
+<a name="205"></a>
+<a name="206">    <a href="type_c.html#185">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, NULL, FALSE);</a>
+<a name="207">    if (<a href="type_c.html#185">Token</a> != TokenLeftBrace)</a>
+<a name="208">    { </a>
+<a name="209">        /* use the already defined structure */</a>
+<a name="210">#if 0</a>
+<a name="211">        if ((*<a href="type_c.html#178">Typ</a>)-&gtMembers == NULL)</a>
+<a name="212">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#178">Parser</a>, "structure '%s' isn't defined", <a href="type_c.html#180">LexValue</a>-&gtVal-&gtIdentifier);</a>
+<a name="213">#endif            </a>
+<a name="214">        return;</a>
+<a name="215">    }</a>
+<a name="216">    </a>
+<a name="217">    if (<a href="type_c.html#187">pc</a>-&gtTopStackFrame != NULL)</a>
+<a name="218">        <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#178">Parser</a>, "struct/union definitions can only be globals");</a>
+<a name="219">        </a>
+<a name="220">    <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, NULL, TRUE);    </a>
+<a name="221">    (*<a href="type_c.html#178">Typ</a>)-&gtMembers = <a href="variable_c.html#68">VariableAlloc</a>(<a href="type_c.html#187">pc</a>, <a href="type_c.html#178">Parser</a>, sizeof(struct Table) + STRUCT_TABLE_SIZE * sizeof(struct TableEntry), TRUE);</a>
+<a name="222">    (*<a href="type_c.html#178">Typ</a>)-&gtMembers-&gtHashTable = (struct TableEntry **)((char *)(*<a href="type_c.html#178">Typ</a>)-&gtMembers + sizeof(struct Table));</a>
+<a name="223">    <a href="table_c.html#32">TableInitTable</a>((*<a href="type_c.html#178">Typ</a>)-&gtMembers, (struct TableEntry **)((char *)(*<a href="type_c.html#178">Typ</a>)-&gtMembers + sizeof(struct Table)), STRUCT_TABLE_SIZE, TRUE);</a>
+<a name="224">    </a>
+<a name="225">    do {</a>
+<a name="226">        <a href="type_c.html#526">TypeParse</a>(<a href="type_c.html#178">Parser</a>, &<a href="type_c.html#181">MemberType</a>, &<a href="type_c.html#182">MemberIdentifier</a>, NULL);</a>
+<a name="227">        if (<a href="type_c.html#181">MemberType</a> == NULL || <a href="type_c.html#182">MemberIdentifier</a> == NULL)</a>
+<a name="228">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#178">Parser</a>, "invalid type in struct");</a>
+<a name="229">        </a>
+<a name="230">        <a href="type_c.html#184">MemberValue</a> = <a href="variable_c.html#89">VariableAllocValueAndData</a>(<a href="type_c.html#187">pc</a>, <a href="type_c.html#178">Parser</a>, sizeof(int), FALSE, NULL, TRUE);</a>
+<a name="231">        <a href="type_c.html#184">MemberValue</a>-&gtTyp = <a href="type_c.html#181">MemberType</a>;</a>
+<a name="232">        if (<a href="type_c.html#178">IsStruct</a>)</a>
+<a name="233">        { </a>
+<a name="234">            /* allocate this member's location in the struct */</a>
+<a name="235">            <a href="type_c.html#186">AlignBoundary</a> = <a href="type_c.html#184">MemberValue</a>-&gtTyp-&gtAlignBytes;</a>
+<a name="236">            if (((*<a href="type_c.html#178">Typ</a>)-&gtSizeof & (<a href="type_c.html#186">AlignBoundary</a>-1)) != 0)</a>
+<a name="237">                (*<a href="type_c.html#178">Typ</a>)-&gtSizeof += <a href="type_c.html#186">AlignBoundary</a> - ((*<a href="type_c.html#178">Typ</a>)-&gtSizeof & (<a href="type_c.html#186">AlignBoundary</a>-1));</a>
+<a name="238">                </a>
+<a name="239">            <a href="type_c.html#184">MemberValue</a>-&gtVal-&gtInteger = (*<a href="type_c.html#178">Typ</a>)-&gtSizeof;</a>
+<a name="240">            (*<a href="type_c.html#178">Typ</a>)-&gtSizeof += <a href="type_c.html#69">TypeSizeValue</a>(<a href="type_c.html#184">MemberValue</a>, TRUE);</a>
+<a name="241">        }</a>
+<a name="242">        else</a>
+<a name="243">        { </a>
+<a name="244">            /* union members always start at 0, make sure it's big enough to hold the largest member */</a>
+<a name="245">            <a href="type_c.html#184">MemberValue</a>-&gtVal-&gtInteger = 0;</a>
+<a name="246">            if (<a href="type_c.html#184">MemberValue</a>-&gtTyp-&gtSizeof &gt (*<a href="type_c.html#178">Typ</a>)-&gtSizeof)</a>
+<a name="247">                (*<a href="type_c.html#178">Typ</a>)-&gtSizeof = <a href="type_c.html#69">TypeSizeValue</a>(<a href="type_c.html#184">MemberValue</a>, TRUE);</a>
+<a name="248">        }</a>
+<a name="249"></a>
+<a name="250">        /* make sure to align to the size of the largest member's alignment */</a>
+<a name="251">        if ((*<a href="type_c.html#178">Typ</a>)-&gtAlignBytes &lt <a href="type_c.html#184">MemberValue</a>-&gtTyp-&gtAlignBytes)</a>
+<a name="252">            (*<a href="type_c.html#178">Typ</a>)-&gtAlignBytes = <a href="type_c.html#184">MemberValue</a>-&gtTyp-&gtAlignBytes;</a>
+<a name="253">        </a>
+<a name="254">        /* define it */</a>
+<a name="255">        if (!<a href="table_c.html#58">TableSet</a>(<a href="type_c.html#187">pc</a>, (*<a href="type_c.html#178">Typ</a>)-&gtMembers, <a href="type_c.html#182">MemberIdentifier</a>, <a href="type_c.html#184">MemberValue</a>, <a href="type_c.html#178">Parser</a>-&gtFileName, <a href="type_c.html#178">Parser</a>-&gtLine, <a href="type_c.html#178">Parser</a>-&gtCharacterPos))</a>
+<a name="256">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#178">Parser</a>, "member '%s' already defined", &<a href="type_c.html#182">MemberIdentifier</a>);</a>
+<a name="257">            </a>
+<a name="258">        if (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, NULL, TRUE) != TokenSemicolon)</a>
+<a name="259">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#178">Parser</a>, "semicolon expected");</a>
+<a name="260">                    </a>
+<a name="261">    } while (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, NULL, FALSE) != TokenRightBrace);</a>
+<a name="262">    </a>
+<a name="263">    /* now align the structure to the size of its largest member's alignment */</a>
+<a name="264">    <a href="type_c.html#186">AlignBoundary</a> = (*<a href="type_c.html#178">Typ</a>)-&gtAlignBytes;</a>
+<a name="265">    if (((*<a href="type_c.html#178">Typ</a>)-&gtSizeof & (<a href="type_c.html#186">AlignBoundary</a>-1)) != 0)</a>
+<a name="266">        (*<a href="type_c.html#178">Typ</a>)-&gtSizeof += <a href="type_c.html#186">AlignBoundary</a> - ((*<a href="type_c.html#178">Typ</a>)-&gtSizeof & (<a href="type_c.html#186">AlignBoundary</a>-1));</a>
+<a name="267">    </a>
+<a name="268">    <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#178">Parser</a>, NULL, TRUE);</a>
+<a name="269">}</a>
+<a name="270"></a>
+<a name="271">/* create a system struct which has no user-visible members */</a>
+<a name="272">struct ValueType *<a name="searched">TypeCreateOpaqueStruct</a>(Picoc *<a name="searched">pc</a>, struct ParseState *<a name="searched">Parser</a>, const char *<a name="searched">StructName</a>, int <a name="searched">Size</a>)</a>
+<a name="273">{</a>
+<a name="274">    struct Value<a name="searched">Typ</a>e *<a name="searched">Typ</a> = <a name="searched">Typ</a>eGetMatching(<a href="type_c.html#272">pc</a>, <a href="type_c.html#272">Parser</a>, &<a href="type_c.html#272">pc</a>-&gtUber<a name="searched">Typ</a>e, <a name="searched">Typ</a>eStruct, 0, <a href="type_c.html#272">StructName</a>, FALSE);</a>
+<a name="275">    </a>
+<a name="276">    /* create the (empty) table */</a>
+<a name="277">    <a href="type_c.html#274">Typ</a>-&gtMembers = <a href="variable_c.html#68">VariableAlloc</a>(<a href="type_c.html#272">pc</a>, <a href="type_c.html#272">Parser</a>, sizeof(struct Table) + STRUCT_TABLE_SIZE * sizeof(struct TableEntry), TRUE);</a>
+<a name="278">    <a href="type_c.html#274">Typ</a>-&gtMembers-&gtHashTable = (struct TableEntry **)((char *)<a href="type_c.html#274">Typ</a>-&gtMembers + sizeof(struct Table));</a>
+<a name="279">    <a href="table_c.html#32">TableInitTable</a>(<a href="type_c.html#274">Typ</a>-&gtMembers, (struct TableEntry **)((char *)<a href="type_c.html#274">Typ</a>-&gtMembers + sizeof(struct Table)), STRUCT_TABLE_SIZE, TRUE);</a>
+<a name="280">    <a href="type_c.html#274">Typ</a>-&gtSizeof = <a href="type_c.html#272">Size</a>;</a>
+<a name="281">    </a>
+<a name="282">    return <a href="type_c.html#274">Typ</a>;</a>
+<a name="283">}</a>
+<a name="284"></a>
+<a name="285">/* parse an enum declaration */</a>
+<a name="286">void <a name="searched">Typ</a>eParseEnum(struct ParseState *<a name="searched">Parser</a>, struct Value<a name="searched">Typ</a>e **<a name="searched">Typ</a>)</a>
+<a name="287">{</a>
+<a name="288">    struct Value *<a name="searched">LexValue</a>;</a>
+<a name="289">    struct Value <a name="searched">InitValue</a>;</a>
+<a name="290">    enum Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="291">    int <a name="searched">EnumValue</a> = 0;</a>
+<a name="292">    char *<a name="searched">EnumIdentifier</a>;</a>
+<a name="293">    Picoc *<a name="searched">pc</a> = <a href="type_c.html#286">Parser</a>-&gt<a name="searched">pc</a>;</a>
+<a name="294">    </a>
+<a name="295">    <a href="type_c.html#290">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, &<a href="type_c.html#288">LexValue</a>, FALSE);</a>
+<a name="296">    if (<a href="type_c.html#290">Token</a> == TokenIdentifier)</a>
+<a name="297">    {</a>
+<a name="298">        <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, &<a href="type_c.html#288">LexValue</a>, TRUE);</a>
+<a name="299">        <a href="type_c.html#292">EnumIdentifier</a> = <a href="type_c.html#288">LexValue</a>-&gtVal-&gtIdentifier;</a>
+<a name="300">        <a href="type_c.html#290">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, NULL, FALSE);</a>
+<a name="301">    }</a>
+<a name="302">    else</a>
+<a name="303">    {</a>
+<a name="304">        static char <a name="searched">TempNameBuf</a>[7] = "^e0000";</a>
+<a name="305">        <a href="type_c.html#292">EnumIdentifier</a> = <a href="platform_c.html#230">PlatformMakeTempName</a>(<a href="type_c.html#293">pc</a>, <a href="type_c.html#304">TempNameBuf</a>);</a>
+<a name="306">    }</a>
+<a name="307"></a>
+<a name="308">    <a href="type_c.html#32">TypeGetMatching</a>(<a href="type_c.html#293">pc</a>, <a href="type_c.html#286">Parser</a>, &<a href="type_c.html#293">pc</a>-&gtUberType, TypeEnum, 0, <a href="type_c.html#292">EnumIdentifier</a>, <a href="type_c.html#290">Token</a> != TokenLeftBrace);</a>
+<a name="309">    *<a href="type_c.html#286">Typ</a> = &<a href="type_c.html#293">pc</a>-&gtIntType;</a>
+<a name="310">    if (<a href="type_c.html#290">Token</a> != TokenLeftBrace)</a>
+<a name="311">    { </a>
+<a name="312">        /* use the already defined enum */</a>
+<a name="313">        if ((*<a href="type_c.html#286">Typ</a>)-&gtMembers == NULL)</a>
+<a name="314">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#286">Parser</a>, "enum '%s' isn't defined", <a href="type_c.html#292">EnumIdentifier</a>);</a>
+<a name="315">            </a>
+<a name="316">        return;</a>
+<a name="317">    }</a>
+<a name="318">    </a>
+<a name="319">    if (<a href="type_c.html#293">pc</a>-&gtTopStackFrame != NULL)</a>
+<a name="320">        <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#286">Parser</a>, "enum definitions can only be globals");</a>
+<a name="321">        </a>
+<a name="322">    <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, NULL, TRUE);    </a>
+<a name="323">    (*<a href="type_c.html#286">Typ</a>)-&gtMembers = &<a href="type_c.html#293">pc</a>-&gtGlobalTable;</a>
+<a name="324">    memset((void *)&<a href="type_c.html#289">InitValue</a>, '\0', sizeof(struct Value));</a>
+<a name="325">    <a href="type_c.html#289">InitValue</a>.<a href="type_c.html#286">Typ</a> = &<a href="type_c.html#293">pc</a>-&gtIntType;</a>
+<a name="326">    <a href="type_c.html#289">InitValue</a>.Val = (union AnyValue *)&<a href="type_c.html#291">EnumValue</a>;</a>
+<a name="327">    do {</a>
+<a name="328">        if (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, &<a href="type_c.html#288">LexValue</a>, TRUE) != TokenIdentifier)</a>
+<a name="329">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#286">Parser</a>, "identifier expected");</a>
+<a name="330">        </a>
+<a name="331">        <a href="type_c.html#292">EnumIdentifier</a> = <a href="type_c.html#288">LexValue</a>-&gtVal-&gtIdentifier;</a>
+<a name="332">        if (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, NULL, FALSE) == TokenAssign)</a>
+<a name="333">        {</a>
+<a name="334">            <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, NULL, TRUE);</a>
+<a name="335">            <a href="type_c.html#291">EnumValue</a> = <a href="expression_c.html#1569">ExpressionParseInt</a>(<a href="type_c.html#286">Parser</a>);</a>
+<a name="336">        }</a>
+<a name="337">        </a>
+<a name="338">        <a href="variable_c.html#259">VariableDefine</a>(<a href="type_c.html#293">pc</a>, <a href="type_c.html#286">Parser</a>, <a href="type_c.html#292">EnumIdentifier</a>, &<a href="type_c.html#289">InitValue</a>, NULL, FALSE);</a>
+<a name="339">            </a>
+<a name="340">        <a href="type_c.html#290">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#286">Parser</a>, NULL, TRUE);</a>
+<a name="341">        if (<a href="type_c.html#290">Token</a> != TokenComma && <a href="type_c.html#290">Token</a> != TokenRightBrace)</a>
+<a name="342">            <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#286">Parser</a>, "comma expected");</a>
+<a name="343">        </a>
+<a name="344">        <a href="type_c.html#291">EnumValue</a>++;</a>
+<a name="345">                    </a>
+<a name="346">    } while (<a href="type_c.html#290">Token</a> == TokenComma);</a>
+<a name="347">}</a>
+<a name="348"></a>
+<a name="349">/* parse a type - just the basic type */</a>
+<a name="350">int <a name="searched">Typ</a>eParseFront(struct ParseState *<a name="searched">Parser</a>, struct Value<a name="searched">Typ</a>e **<a name="searched">Typ</a>, int *<a name="searched">IsStatic</a>)</a>
+<a name="351">{</a>
+<a name="352">    struct ParseState <a name="searched">Before</a>;</a>
+<a name="353">    struct Value *<a name="searched">LexerValue</a>;</a>
+<a name="354">    enum Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="355">    int <a name="searched">Unsigned</a> = FALSE;</a>
+<a name="356">    struct Value *<a name="searched">VarValue</a>;</a>
+<a name="357">    int <a name="searched">StaticQualifier</a> = FALSE;</a>
+<a name="358">    Picoc *<a name="searched">pc</a> = <a href="type_c.html#350">Parser</a>-&gt<a name="searched">pc</a>;</a>
+<a name="359">    *<a href="type_c.html#350">Typ</a> = NULL;</a>
+<a name="360"></a>
+<a name="361">    /* ignore leading type qualifiers */</a>
+<a name="362">    <a href="parse_c.html#429">ParserCopy</a>(&<a href="type_c.html#352">Before</a>, <a href="type_c.html#350">Parser</a>);</a>
+<a name="363">    <a href="type_c.html#354">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#350">Parser</a>, &<a href="type_c.html#353">LexerValue</a>, TRUE);</a>
+<a name="364">    while (<a href="type_c.html#354">Token</a> == TokenStaticType || <a href="type_c.html#354">Token</a> == TokenAutoType || <a href="type_c.html#354">Token</a> == TokenRegisterType || <a href="type_c.html#354">Token</a> == TokenExternType)</a>
+<a name="365">    {</a>
+<a name="366">        if (<a href="type_c.html#354">Token</a> == TokenStaticType)</a>
+<a name="367">            <a href="type_c.html#357">StaticQualifier</a> = TRUE;</a>
+<a name="368">            </a>
+<a name="369">        <a href="type_c.html#354">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#350">Parser</a>, &<a href="type_c.html#353">LexerValue</a>, TRUE);</a>
+<a name="370">    }</a>
+<a name="371">    </a>
+<a name="372">    if (<a href="type_c.html#350">IsStatic</a> != NULL)</a>
+<a name="373">        *<a href="type_c.html#350">IsStatic</a> = <a href="type_c.html#357">StaticQualifier</a>;</a>
+<a name="374">        </a>
+<a name="375">    /* handle signed/unsigned with no trailing type */</a>
+<a name="376">    if (<a href="type_c.html#354">Token</a> == TokenSignedType || <a href="type_c.html#354">Token</a> == TokenUnsignedType)</a>
+<a name="377">    {</a>
+<a name="378">        enum LexToken <a name="searched">FollowToken</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#350">Parser</a>, &<a href="type_c.html#353">LexerValue</a>, FALSE);</a>
+<a name="379">        <a href="type_c.html#355">Unsigned</a> = (<a href="type_c.html#354">Token</a> == TokenUnsignedType);</a>
+<a name="380">        </a>
+<a name="381">        if (<a href="type_c.html#378">FollowToken</a> != TokenIntType && <a href="type_c.html#378">FollowToken</a> != TokenLongType && <a href="type_c.html#378">FollowToken</a> != TokenShortType && <a href="type_c.html#378">FollowToken</a> != TokenCharType)</a>
+<a name="382">        {</a>
+<a name="383">            if (<a href="type_c.html#354">Token</a> == TokenUnsignedType)</a>
+<a name="384">                *<a href="type_c.html#350">Typ</a> = &<a href="type_c.html#358">pc</a>-&gtUnsignedIntType;</a>
+<a name="385">            else</a>
+<a name="386">                *<a href="type_c.html#350">Typ</a> = &<a href="type_c.html#358">pc</a>-&gtIntType;</a>
+<a name="387">            </a>
+<a name="388">            return TRUE;</a>
+<a name="389">        }</a>
+<a name="390">        </a>
+<a name="391">        <a href="type_c.html#354">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#350">Parser</a>, &<a href="type_c.html#353">LexerValue</a>, TRUE);</a>
+<a name="392">    }</a>
+<a name="393">    </a>
+<a name="394">    switch (<a href="type_c.html#354">Token</a>)</a>
+<a name="395">    {</a>
+<a name="396">        case TokenIntType: *<a href="type_c.html#350">Typ</a> = <a href="type_c.html#355">Unsigned</a> ? &<a href="type_c.html#358">pc</a>-&gtUnsignedIntType : &<a href="type_c.html#358">pc</a>-&gtIntType; break;</a>
+<a name="397">        case TokenShortType: *<a href="type_c.html#350">Typ</a> = <a href="type_c.html#355">Unsigned</a> ? &<a href="type_c.html#358">pc</a>-&gtUnsignedShortType : &<a href="type_c.html#358">pc</a>-&gtShortType; break;</a>
+<a name="398">        case TokenCharType: *<a href="type_c.html#350">Typ</a> = <a href="type_c.html#355">Unsigned</a> ? &<a href="type_c.html#358">pc</a>-&gtUnsignedCharType : &<a href="type_c.html#358">pc</a>-&gtCharType; break;</a>
+<a name="399">        case TokenLongType: *<a href="type_c.html#350">Typ</a> = <a href="type_c.html#355">Unsigned</a> ? &<a href="type_c.html#358">pc</a>-&gtUnsignedLongType : &<a href="type_c.html#358">pc</a>-&gtLongType; break;</a>
+<a name="400">#ifndef NO_FP</a>
+<a name="401">        case TokenFloatType: case TokenDoubleType: *<a href="type_c.html#350">Typ</a> = &<a href="type_c.html#358">pc</a>-&gtFPType; break;</a>
+<a name="402">#endif</a>
+<a name="403">        case TokenVoidType: *<a href="type_c.html#350">Typ</a> = &<a href="type_c.html#358">pc</a>-&gtVoidType; break;</a>
+<a name="404">        </a>
+<a name="405">        case TokenStructType: case TokenUnionType: </a>
+<a name="406">            if (*<a href="type_c.html#350">Typ</a> != NULL)</a>
+<a name="407">                <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#350">Parser</a>, "bad type declaration");</a>
+<a name="408">                </a>
+<a name="409">            <a href="type_c.html#178">TypeParseStruct</a>(<a href="type_c.html#350">Parser</a>, <a href="type_c.html#350">Typ</a>, <a href="type_c.html#354">Token</a> == TokenStructType);</a>
+<a name="410">            break;</a>
+<a name="411"></a>
+<a name="412">        case TokenEnumType:</a>
+<a name="413">            if (*<a href="type_c.html#350">Typ</a> != NULL)</a>
+<a name="414">                <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#350">Parser</a>, "bad type declaration");</a>
+<a name="415">                </a>
+<a name="416">            <a href="type_c.html#286">TypeParseEnum</a>(<a href="type_c.html#350">Parser</a>, <a href="type_c.html#350">Typ</a>);</a>
+<a name="417">            break;</a>
+<a name="418">        </a>
+<a name="419">        case TokenIdentifier:</a>
+<a name="420">            /* we already know it's a typedef-defined type because we got here */</a>
+<a name="421">            <a href="variable_c.html#360">VariableGet</a>(<a href="type_c.html#358">pc</a>, <a href="type_c.html#350">Parser</a>, <a href="type_c.html#353">LexerValue</a>-&gtVal-&gtIdentifier, &<a href="type_c.html#356">VarValue</a>);</a>
+<a name="422">            *<a href="type_c.html#350">Typ</a> = <a href="type_c.html#356">VarValue</a>-&gtVal-&gtTyp;</a>
+<a name="423">            break;</a>
+<a name="424"></a>
+<a name="425">        default: <a href="parse_c.html#429">ParserCopy</a>(<a href="type_c.html#350">Parser</a>, &<a href="type_c.html#352">Before</a>); return FALSE;</a>
+<a name="426">    }</a>
+<a name="427">    </a>
+<a name="428">    return TRUE;</a>
+<a name="429">}</a>
+<a name="430"></a>
+<a name="431">/* parse a type - the part at the end after the identifier. eg. array specifications etc. */</a>
+<a name="432">struct ValueType *<a name="searched">TypeParseBack</a>(struct ParseState *<a name="searched">Parser</a>, struct ValueType *<a name="searched">FromType</a>)</a>
+<a name="433">{</a>
+<a name="434">    enum Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="435">    struct ParseState <a name="searched">Before</a>;</a>
+<a name="436"></a>
+<a name="437">    <a href="parse_c.html#429">ParserCopy</a>(&<a href="type_c.html#435">Before</a>, <a href="type_c.html#432">Parser</a>);</a>
+<a name="438">    <a href="type_c.html#434">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#432">Parser</a>, NULL, TRUE);</a>
+<a name="439">    if (<a href="type_c.html#434">Token</a> == TokenLeftSquareBracket)</a>
+<a name="440">    {</a>
+<a name="441">        /* add another array bound */</a>
+<a name="442">        if (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#432">Parser</a>, NULL, FALSE) == TokenRightSquareBracket)</a>
+<a name="443">        {</a>
+<a name="444">            /* an unsized array */</a>
+<a name="445">            <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#432">Parser</a>, NULL, TRUE);</a>
+<a name="446">            return <a href="type_c.html#32">TypeGetMatching</a>(<a href="type_c.html#432">Parser</a>-&gtpc, <a href="type_c.html#432">Parser</a>, <a href="type_c.html#432">TypeParseBack</a>(<a href="type_c.html#432">Parser</a>, <a href="type_c.html#432">FromType</a>), TypeArray, 0, <a href="type_c.html#432">Parser</a>-&gtpc-&gtStrEmpty, TRUE);</a>
+<a name="447">        }</a>
+<a name="448">        else</a>
+<a name="449">        {</a>
+<a name="450">            /* get a numeric array size */</a>
+<a name="451">            enum RunMode <a name="searched">OldMode</a> = <a href="type_c.html#432">Parser</a>-&gtMode;</a>
+<a name="452">            int <a name="searched">ArraySize</a>;</a>
+<a name="453">            <a href="type_c.html#432">Parser</a>-&gtMode = RunModeRun;</a>
+<a name="454">            <a href="type_c.html#452">ArraySize</a> = <a href="expression_c.html#1569">ExpressionParseInt</a>(<a href="type_c.html#432">Parser</a>);</a>
+<a name="455">            <a href="type_c.html#432">Parser</a>-&gtMode = <a href="type_c.html#451">OldMode</a>;</a>
+<a name="456">            </a>
+<a name="457">            if (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#432">Parser</a>, NULL, TRUE) != TokenRightSquareBracket)</a>
+<a name="458">                <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#432">Parser</a>, "']' expected");</a>
+<a name="459">            </a>
+<a name="460">            return <a href="type_c.html#32">TypeGetMatching</a>(<a href="type_c.html#432">Parser</a>-&gtpc, <a href="type_c.html#432">Parser</a>, <a href="type_c.html#432">TypeParseBack</a>(<a href="type_c.html#432">Parser</a>, <a href="type_c.html#432">FromType</a>), TypeArray, <a href="type_c.html#452">ArraySize</a>, <a href="type_c.html#432">Parser</a>-&gtpc-&gtStrEmpty, TRUE);</a>
+<a name="461">        }</a>
+<a name="462">    }</a>
+<a name="463">    else</a>
+<a name="464">    {</a>
+<a name="465">        /* the type specification has finished */</a>
+<a name="466">        <a href="parse_c.html#429">ParserCopy</a>(<a href="type_c.html#432">Parser</a>, &<a href="type_c.html#435">Before</a>);</a>
+<a name="467">        return <a href="type_c.html#432">FromType</a>;</a>
+<a name="468">    }</a>
+<a name="469">}</a>
+<a name="470"></a>
+<a name="471">/* parse a type - the part which is repeated with each identifier in a declaration list */</a>
+<a name="472">void <a name="searched">Typ</a>eParseIdentPart(struct ParseState *<a name="searched">Parser</a>, struct Value<a name="searched">Typ</a>e *<a name="searched">Basic<a name="searched">Typ</a></a>, struct Value<a name="searched">Typ</a>e **<a name="searched">Typ</a>, char **<a name="searched">Identifier</a>)</a>
+<a name="473">{</a>
+<a name="474">    struct ParseState <a name="searched">Before</a>;</a>
+<a name="475">    enum Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="476">    struct Value *<a name="searched">LexValue</a>;</a>
+<a name="477">    int <a name="searched">Done</a> = FALSE;</a>
+<a name="478">    *<a href="type_c.html#472">Typ</a> = <a href="type_c.html#472">BasicTyp</a>;</a>
+<a name="479">    *<a href="type_c.html#472">Identifier</a> = <a href="type_c.html#472">Parser</a>-&gtpc-&gtStrEmpty;</a>
+<a name="480">    </a>
+<a name="481">    while (!<a href="type_c.html#477">Done</a>)</a>
+<a name="482">    {</a>
+<a name="483">        <a href="parse_c.html#429">ParserCopy</a>(&<a href="type_c.html#474">Before</a>, <a href="type_c.html#472">Parser</a>);</a>
+<a name="484">        <a href="type_c.html#475">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#472">Parser</a>, &<a href="type_c.html#476">LexValue</a>, TRUE);</a>
+<a name="485">        switch (<a href="type_c.html#475">Token</a>)</a>
+<a name="486">        {</a>
+<a name="487">            case TokenOpenBracket:</a>
+<a name="488">                if (*<a href="type_c.html#472">Typ</a> != NULL)</a>
+<a name="489">                    <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#472">Parser</a>, "bad type declaration");</a>
+<a name="490">                </a>
+<a name="491">                <a href="type_c.html#526">TypeParse</a>(<a href="type_c.html#472">Parser</a>, <a href="type_c.html#472">Typ</a>, <a href="type_c.html#472">Identifier</a>, NULL);</a>
+<a name="492">                if (<a href="lex_c.html#883">LexGetToken</a>(<a href="type_c.html#472">Parser</a>, NULL, TRUE) != TokenCloseBracket)</a>
+<a name="493">                    <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#472">Parser</a>, "')' expected");</a>
+<a name="494">                break;</a>
+<a name="495">                </a>
+<a name="496">            case TokenAsterisk:</a>
+<a name="497">                if (*<a href="type_c.html#472">Typ</a> == NULL)</a>
+<a name="498">                    <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#472">Parser</a>, "bad type declaration");</a>
+<a name="499"></a>
+<a name="500">                *<a href="type_c.html#472">Typ</a> = <a href="type_c.html#32">TypeGetMatching</a>(<a href="type_c.html#472">Parser</a>-&gtpc, <a href="type_c.html#472">Parser</a>, *<a href="type_c.html#472">Typ</a>, TypePointer, 0, <a href="type_c.html#472">Parser</a>-&gtpc-&gtStrEmpty, TRUE);</a>
+<a name="501">                break;</a>
+<a name="502">            </a>
+<a name="503">            case TokenIdentifier:</a>
+<a name="504">                if (*<a href="type_c.html#472">Typ</a> == NULL || *<a href="type_c.html#472">Identifier</a> != <a href="type_c.html#472">Parser</a>-&gtpc-&gtStrEmpty)</a>
+<a name="505">                    <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#472">Parser</a>, "bad type declaration");</a>
+<a name="506">                </a>
+<a name="507">                *<a href="type_c.html#472">Identifier</a> = <a href="type_c.html#476">LexValue</a>-&gtVal-&gtIdentifier;</a>
+<a name="508">                <a href="type_c.html#477">Done</a> = TRUE;</a>
+<a name="509">                break;</a>
+<a name="510">                </a>
+<a name="511">            default: <a href="parse_c.html#429">ParserCopy</a>(<a href="type_c.html#472">Parser</a>, &<a href="type_c.html#474">Before</a>); <a href="type_c.html#477">Done</a> = TRUE; break;</a>
+<a name="512">        }</a>
+<a name="513">    }</a>
+<a name="514">    </a>
+<a name="515">    if (*<a href="type_c.html#472">Typ</a> == NULL)</a>
+<a name="516">        <a href="platform_c.html#134">ProgramFail</a>(<a href="type_c.html#472">Parser</a>, "bad type declaration");</a>
+<a name="517"></a>
+<a name="518">    if (*<a href="type_c.html#472">Identifier</a> != <a href="type_c.html#472">Parser</a>-&gtpc-&gtStrEmpty)</a>
+<a name="519">    { </a>
+<a name="520">        /* parse stuff after the identifier */</a>
+<a name="521">        *<a href="type_c.html#472">Typ</a> = <a href="type_c.html#432">TypeParseBack</a>(<a href="type_c.html#472">Parser</a>, *<a href="type_c.html#472">Typ</a>);</a>
+<a name="522">    }</a>
+<a name="523">}</a>
+<a name="524"></a>
+<a name="525">/* parse a type - a complete declaration including identifier */</a>
+<a name="526">void <a name="searched">Typ</a>eParse(struct ParseState *<a name="searched">Parser</a>, struct Value<a name="searched">Typ</a>e **<a name="searched">Typ</a>, char **<a name="searched">Identifier</a>, int *<a name="searched">IsStatic</a>)</a>
+<a name="527">{</a>
+<a name="528">    struct ValueType *<a name="searched">BasicType</a>;</a>
+<a name="529">    </a>
+<a name="530">    <a href="type_c.html#350">TypeParseFront</a>(<a href="type_c.html#526">Parser</a>, &<a href="type_c.html#528">BasicType</a>, <a href="type_c.html#526">IsStatic</a>);</a>
+<a name="531">    <a href="type_c.html#472">TypeParseIdentPart</a>(<a href="type_c.html#526">Parser</a>, <a href="type_c.html#528">BasicType</a>, <a href="type_c.html#526">Typ</a>, <a href="type_c.html#526">Identifier</a>);</a>
+<a name="532">}</a>
+<a name="533"></a>
+<a name="534">/* check if a type has been fully defined - otherwise it's just a forward declaration */</a>
+<a name="535">int <a name="searched">Typ</a>eIsForwardDeclared(struct ParseState *<a name="searched">Parser</a>, struct Value<a name="searched">Typ</a>e *<a name="searched">Typ</a>)</a>
+<a name="536">{</a>
+<a name="537">    if (<a href="type_c.html#535">Typ</a>-&gtBase == TypeArray)</a>
+<a name="538">        return <a href="type_c.html#535">TypeIsForwardDeclared</a>(<a href="type_c.html#535">Parser</a>, <a href="type_c.html#535">Typ</a>-&gtFromType);</a>
+<a name="539">    </a>
+<a name="540">    if ( (<a href="type_c.html#535">Typ</a>-&gtBase == TypeStruct || <a href="type_c.html#535">Typ</a>-&gtBase == TypeUnion) && <a href="type_c.html#535">Typ</a>-&gtMembers == NULL)</a>
+<a name="541">        return TRUE;</a>
+<a name="542">        </a>
+<a name="543">    return FALSE;</a>
+<a name="544">}</a>
+</pre></body></html>

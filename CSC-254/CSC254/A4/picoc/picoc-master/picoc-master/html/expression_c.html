@@ -1,0 +1,1589 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1"><font color="gray">/*<searched> picoc expression evaluator - a stack-based expression evaluation system</a>
+<a name="2"> * which handles operator precedence */</font></a>
+<a name="3"> </a>
+<a name="4">#include "interpreter.h"</a>
+<a name="5"></a>
+<a name="6"><font color="gray">/*<searched> whether evaluation is left to right for a given precedence level */</font></a>
+<a name="7">#define IS_LEFT_TO_RIGHT(p) ((p) != 2 && (p) != 14)</a>
+<a name="8">#define BRACKET_PRECEDENCE 20</a>
+<a name="9"></a>
+<a name="10"><font color="gray">/*<searched> If the destination is not float, we can't assign a floating value to it, we need to convert it to integer instead */</font></a>
+<a name="11">#define ASSIGN_FP_OR_INT(value) \</a>
+<a name="12">        <font color="green">if</font> (IS_FP(BottomValue)) { ResultFP = <a href="expression_c.html#272">ExpressionAssignFP</a>(Parser, BottomValue, value); } \</a>
+<a name="13">        <font color="green">else</font> { ResultInt = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, BottomValue, (<font color="red">long</font>)(value), FALSE); ResultIsInt = TRUE; } \</a>
+<a name="14"></a>
+<a name="15">#define DEEP_PRECEDENCE (BRACKET_PRECEDENCE*1000)</a>
+<a name="16"></a>
+<a name="17">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="18">#define <a href="expression_c.html#20">debugf</a> printf</a>
+<a name="19">#<font color="green">else</font></a>
+<a name="20"><font color="red">void</font> <a name="searched">debugf</a>(<font color="red">char</font> *<a name="searched">Format</a>, ...)</a>
+<a name="21">{</a>
+<a name="22">}</a>
+<a name="23">#endif</a>
+<a name="24"></a>
+<a name="25"><font color="gray">/*<searched> local prototypes */</font></a>
+<a name="26"><font color="red">enum</font> OperatorOrder</a>
+<a name="27">{</a>
+<a name="28">    OrderNone,</a>
+<a name="29">    OrderPrefix,</a>
+<a name="30">    OrderInfix,</a>
+<a name="31">    OrderPostfix</a>
+<a name="32">};</a>
+<a name="33"></a>
+<a name="34"><font color="gray">/*<searched> a stack of expressions we use in evaluation */</font></a>
+<a name="35"><font color="brown">struct</font> ExpressionStack</a>
+<a name="36">{</a>
+<a name="37">    struct ExpressionStack *Next;       <font color="gray">/*<searched> the next lower item on the stack */</font></a>
+<a name="38">    struct Value *Val;                  <font color="gray">/*<searched> the value for this stack node */</font></a>
+<a name="39">    enum LexToken Op;                   <font color="gray">/*<searched> the operator */</font></a>
+<a name="40">    short unsigned int Precedence;      <font color="gray">/*<searched> the operator precedence of this node */</font></a>
+<a name="41">    unsigned char Order;                <font color="gray">/*<searched> the evaluation order of this operator */</font></a>
+<a name="42">};</a>
+<a name="43"></a>
+<a name="44"><font color="gray">/*<searched> operator precedence definitions */</font></a>
+<a name="45"><font color="brown">struct</font> OpPrecedence</a>
+<a name="46">{</a>
+<a name="47">    <font color="red">unsigned</font> <font color="red">int</font> PrefixPrecedence:4;</a>
+<a name="48">    <font color="red">unsigned</font> <font color="red">int</font> PostfixPrecedence:4;</a>
+<a name="49">    <font color="red">unsigned</font> <font color="red">int</font> InfixPrecedence:4;</a>
+<a name="50">    <font color="red">char</font> *Name;</a>
+<a name="51">};</a>
+<a name="52"></a>
+<a name="53"><font color="gray">/*<searched> NOTE: the order of this array must correspond exactly to the order of these tokens in enum LexToken */</font></a>
+<a name="54">static <font color="brown">struct</font> OpPrecedence <a name="searched">OperatorPrecedence</a>[] =</a>
+<a name="55">{</a>
+<a name="56">    <font color="gray">/*<searched> TokenNone, */</font> { 0, 0, 0, "none" },</a>
+<a name="57">    <font color="gray">/*<searched> TokenComma, */</font> { 0, 0, 0, "," },</a>
+<a name="58">    <font color="gray">/*<searched> TokenAssign, */</font> { 0, 0, 2, "=" }, <font color="gray">/*<searched> TokenAddAssign, */</font> { 0, 0, 2, "+=" }, <font color="gray">/*<searched> TokenSubtractAssign, */</font> { 0, 0, 2, "-=" }, </a>
+<a name="59">    <font color="gray">/*<searched> TokenMultiplyAssign, */</font> { 0, 0, 2, "*=" }, <font color="gray">/*<searched> TokenDivideAssign, */</font> { 0, 0, 2, "/=" }, <font color="gray">/*<searched> TokenModulusAssign, */</font> { 0, 0, 2, "%=" },</a>
+<a name="60">    <font color="gray">/*<searched> TokenShiftLeftAssign, */</font> { 0, 0, 2, "&lt&lt=" }, <font color="gray">/*<searched> TokenShiftRightAssign, */</font> { 0, 0, 2, "&gt&gt=" }, <font color="gray">/*<searched> TokenArithmeticAndAssign, */</font> { 0, 0, 2, "&=" }, </a>
+<a name="61">    <font color="gray">/*<searched> TokenArithmeticOrAssign, */</font> { 0, 0, 2, "|=" }, <font color="gray">/*<searched> TokenArithmeticExorAssign, */</font> { 0, 0, 2, "^=" },</a>
+<a name="62">    <font color="gray">/*<searched> TokenQuestionMark, */</font> { 0, 0, 3, "?" }, <font color="gray">/*<searched> TokenColon, */</font> { 0, 0, 3, ":" },</a>
+<a name="63">    <font color="gray">/*<searched> TokenLogicalOr, */</font> { 0, 0, 4, "||" },</a>
+<a name="64">    <font color="gray">/*<searched> TokenLogicalAnd, */</font> { 0, 0, 5, "&&" },</a>
+<a name="65">    <font color="gray">/*<searched> TokenArithmeticOr, */</font> { 0, 0, 6, "|" },</a>
+<a name="66">    <font color="gray">/*<searched> TokenArithmeticExor, */</font> { 0, 0, 7, "^" },</a>
+<a name="67">    <font color="gray">/*<searched> TokenAmpersand, */</font> { 14, 0, 8, "&" },</a>
+<a name="68">    <font color="gray">/*<searched> TokenEqual, */</font>  { 0, 0, 9, "==" }, <font color="gray">/*<searched> TokenNotEqual, */</font> { 0, 0, 9, "!=" },</a>
+<a name="69">    <font color="gray">/*<searched> TokenLessThan, */</font> { 0, 0, 10, "&lt" }, <font color="gray">/*<searched> TokenGreaterThan, */</font> { 0, 0, 10, "&gt" }, <font color="gray">/*<searched> TokenLessEqual, */</font> { 0, 0, 10, "&lt=" }, <font color="gray">/*<searched> TokenGreaterEqual, */</font> { 0, 0, 10, "&gt=" },</a>
+<a name="70">    <font color="gray">/*<searched> TokenShiftLeft, */</font> { 0, 0, 11, "&lt&lt" }, <font color="gray">/*<searched> TokenShiftRight, */</font> { 0, 0, 11, "&gt&gt" },</a>
+<a name="71">    <font color="gray">/*<searched> TokenPlus, */</font> { 14, 0, 12, "+" }, <font color="gray">/*<searched> TokenMinus, */</font> { 14, 0, 12, "-" },</a>
+<a name="72">    <font color="gray">/*<searched> TokenAsterisk, */</font> { 14, 0, 13, "*" }, <font color="gray">/*<searched> TokenSlash, */</font> { 0, 0, 13, "/" }, <font color="gray">/*<searched> TokenModulus, */</font> { 0, 0, 13, "%" },</a>
+<a name="73">    <font color="gray">/*<searched> TokenIncrement, */</font> { 14, 15, 0, "++" }, <font color="gray">/*<searched> TokenDecrement, */</font> { 14, 15, 0, "--" }, <font color="gray">/*<searched> TokenUnaryNot, */</font> { 14, 0, 0, "!" }, <font color="gray">/*<searched> TokenUnaryExor, */</font> { 14, 0, 0, "~" }, <font color="gray">/*<searched> TokenSizeof, */</font> { 14, 0, 0, "sizeof" }, <font color="gray">/*<searched> TokenCast, */</font> { 14, 0, 0, "cast" },</a>
+<a name="74">    <font color="gray">/*<searched> TokenLeftSquareBracket, */</font> { 0, 0, 15, "[" }, <font color="gray">/*<searched> TokenRightSquareBracket, */</font> { 0, 15, 0, "]" }, <font color="gray">/*<searched> TokenDot, */</font> { 0, 0, 15, "." }, <font color="gray">/*<searched> TokenArrow, */</font> { 0, 0, 15, "-&gt" },</a>
+<a name="75">    <font color="gray">/*<searched> TokenOpenBracket, */</font> { 15, 0, 0, "(" }, <font color="gray">/*<searched> TokenCloseBracket, */</font> { 0, 15, 0, ")" }</a>
+<a name="76">};</a>
+<a name="77"></a>
+<a name="78"><font color="red">void</font> <a href="expression_c.html#1441">ExpressionParseFunctionCall</a>(<font color="brown">struct</font> ParseState *Parser, <font color="brown">struct</font> ExpressionStack **StackTop, const <font color="red">char</font> *FuncName, <font color="red">int</font> RunIt);</a>
+<a name="79"></a>
+<a name="80">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="81"><font color="gray">/*<searched> show the contents of the expression stack */</font></a>
+<a name="82"><font color="red">void</font> ExpressionStackShow(Picoc *pc, <font color="brown">struct</font> ExpressionStack *StackTop)</a>
+<a name="83">{</a>
+<a name="84">    printf("Expression stack [0x%lx,0x%lx]: ", (<font color="red">long</font>)pc-&gtHeapStackTop, (<font color="red">long</font>)StackTop);</a>
+<a name="85">    </a>
+<a name="86">    <font color="green">while</font> (StackTop != NULL)</a>
+<a name="87">    {</a>
+<a name="88">        <font color="green">if</font> (StackTop-&gtOrder == OrderNone)</a>
+<a name="89">        { </a>
+<a name="90">            <font color="gray">/*<searched> it's a value */</font></a>
+<a name="91">            <font color="green">if</font> (StackTop-&gtVal-&gtIsLValue)</a>
+<a name="92">                printf("lvalue=");</a>
+<a name="93">            <font color="green">else</font></a>
+<a name="94">                printf("value=");</a>
+<a name="95">                </a>
+<a name="96">            <font color="green">switch</font> (StackTop-&gtVal-&gtTyp-&gtBase)</a>
+<a name="97">            {</a>
+<a name="98">                <font color="green">case</font> TypeVoid:      printf("<font color="red">void</font>"); break;</a>
+<a name="99">                <font color="green">case</font> TypeInt:       printf("%d:<font color="red">int</font>", StackTop-&gtVal-&gtVal-&gtInteger); break;</a>
+<a name="100">                <font color="green">case</font> TypeShort:     printf("%d:<font color="red">short</font>", StackTop-&gtVal-&gtVal-&gtShortInteger); break;</a>
+<a name="101">                <font color="green">case</font> TypeChar:      printf("%d:<font color="red">char</font>", StackTop-&gtVal-&gtVal-&gtCharacter); break;</a>
+<a name="102">                <font color="green">case</font> TypeLong:      printf("%ld:<font color="red">long</font>", StackTop-&gtVal-&gtVal-&gtLongInteger); break;</a>
+<a name="103">                <font color="green">case</font> TypeUnsignedShort: printf("%d:<font color="red">unsigned</font> <font color="red">short</font>", StackTop-&gtVal-&gtVal-&gtUnsignedShortInteger); break;</a>
+<a name="104">                <font color="green">case</font> TypeUnsignedInt: printf("%d:<font color="red">unsigned</font> <font color="red">int</font>", StackTop-&gtVal-&gtVal-&gtUnsignedInteger); break;</a>
+<a name="105">                <font color="green">case</font> TypeUnsignedLong: printf("%ld:<font color="red">unsigned</font> <font color="red">long</font>", StackTop-&gtVal-&gtVal-&gtUnsignedLongInteger); break;</a>
+<a name="106">                <font color="green">case</font> TypeFP:        printf("%f:fp", StackTop-&gtVal-&gtVal-&gtFP); break;</a>
+<a name="107">                <font color="green">case</font> TypeFunction:  printf("%s:function", StackTop-&gtVal-&gtVal-&gtIdentifier); break;</a>
+<a name="108">                <font color="green">case</font> TypeMacro:     printf("%s:macro", StackTop-&gtVal-&gtVal-&gtIdentifier); break;</a>
+<a name="109">                <font color="green">case</font> TypePointer:</a>
+<a name="110">                    <font color="green">if</font> (StackTop-&gtVal-&gtVal-&gtPointer == NULL)</a>
+<a name="111">                        printf("ptr(NULL)");</a>
+<a name="112">                    <font color="green">else</font> <font color="green">if</font> (StackTop-&gtVal-&gtTyp-&gtFromType-&gtBase == TypeChar)</a>
+<a name="113">                        printf("\"%s\":string", (<font color="red">char</font> *)StackTop-&gtVal-&gtVal-&gtPointer);</a>
+<a name="114">                    <font color="green">else</font></a>
+<a name="115">                        printf("ptr(0x%lx)", (<font color="red">long</font>)StackTop-&gtVal-&gtVal-&gtPointer); </a>
+<a name="116">                    break;</a>
+<a name="117">                <font color="green">case</font> TypeArray:     printf("array"); break;</a>
+<a name="118">                <font color="green">case</font> TypeStruct:    printf("%s:<font color="brown">struct</font>", StackTop-&gtVal-&gtVal-&gtIdentifier); break;</a>
+<a name="119">                <font color="green">case</font> TypeUnion:     printf("%s:union", StackTop-&gtVal-&gtVal-&gtIdentifier); break;</a>
+<a name="120">                <font color="green">case</font> TypeEnum:      printf("%s:<font color="red">enum</font>", StackTop-&gtVal-&gtVal-&gtIdentifier); break;</a>
+<a name="121">                <font color="green">case</font> Type_Type:     <a href="clibrary_c.html#54">PrintType</a>(StackTop-&gtVal-&gtVal-&gtTyp, pc-&gtCStdOut); printf(":type"); break;</a>
+<a name="122">                default:            printf("unknown"); break;</a>
+<a name="123">            }</a>
+<a name="124">            printf("[0x%lx,0x%lx]", (<font color="red">long</font>)StackTop, (<font color="red">long</font>)StackTop-&gtVal);</a>
+<a name="125">        }</a>
+<a name="126">        <font color="green">else</font></a>
+<a name="127">        { </a>
+<a name="128">            <font color="gray">/*<searched> it's an operator */</font></a>
+<a name="129">            printf("op='%s' %s %d", <a href="expression_c.html#54">OperatorPrecedence</a>[(<font color="red">int</font>)StackTop-&gtOp].Name, </a>
+<a name="130">                (StackTop-&gtOrder == OrderPrefix) ? "prefix" : ((StackTop-&gtOrder == OrderPostfix) ? "postfix" : "infix"), </a>
+<a name="131">                StackTop-&gtPrecedence);</a>
+<a name="132">            printf("[0x%lx]", (<font color="red">long</font>)StackTop);</a>
+<a name="133">        }</a>
+<a name="134">        </a>
+<a name="135">        StackTop = StackTop-&gtNext;</a>
+<a name="136">        <font color="green">if</font> (StackTop != NULL)</a>
+<a name="137">            printf(", ");</a>
+<a name="138">    }</a>
+<a name="139">    </a>
+<a name="140">    printf("\n");</a>
+<a name="141">}</a>
+<a name="142">#endif</a>
+<a name="143"></a>
+<a name="144"><fon<a name="searched">t</a> color="red">in<a name="searched">t</a></fon<a name="searched">t</a>> <a name="searched">IsTypeToken</a>(<fon<a name="searched">t</a> color="brown">s<a name="searched">t</a>ruc<a name="searched">t</a></fon<a name="searched">t</a>> ParseS<a name="searched">t</a>a<a name="searched">t</a>e * <a name="searched">Parser</a>, <fon<a name="searched">t</a> color="red"><font color="red">enum</font></fon<a name="searched">t</a>> LexToken <a name="searched">t</a>, <fon<a name="searched">t</a> color="brown">s<a name="searched">t</a>ruc<a name="searched">t</a></fon<a name="searched">t</a>> Value * <a name="searched">LexValue</a>)</a>
+<a name="145">{</a>
+<a name="146">    <font color="green">if</font> (t &gt= TokenIntType && <a href="expression_c.html#144">t</a> &lt= TokenUnsignedType)</a>
+<a name="147">        return 1; <font color="gray">/*<searched> base type */</font></a>
+<a name="148">    </a>
+<a name="149">    <font color="gray">/*<searched> typedef'ed type? */</font></a>
+<a name="150">    if (t == TokenIdentifier) <font color="gray">/*<searched> see TypeParseFront, case TokenIdentifier and ParseTypedef */</font></a>
+<a name="151">    {</a>
+<a name="152">        <font color="brown">struct</font> Value * <a name="searched">VarValue</a>;</a>
+<a name="153">        <font color="green">if</font> (VariableDefined(Parser-&gtpc, <a href="expression_c.html#144">LexValue</a>-&gtVal-&gtPointer))</a>
+<a name="154">        {</a>
+<a name="155">            <a href="variable_c.html#360">VariableGet</a>(Parser-&gtpc, <a href="expression_c.html#144">Parser</a>, <a href="expression_c.html#144">LexValue</a>-&gtVal-&gtPointer, &<a href="expression_c.html#152">VarValue</a>);</a>
+<a name="156">            <font color="green">if</font> (VarValue-&gtTyp == &<a href="expression_c.html#144">Parser</a>-&gtpc-&gtTypeType)</a>
+<a name="157">                <font color="green">return</font> 1;</a>
+<a name="158">        }</a>
+<a name="159">    }</a>
+<a name="160">    </a>
+<a name="161">    <font color="green">return</font> 0;</a>
+<a name="162">}</a>
+<a name="163"></a>
+<a name="164"><font color="red">long</font> <a name="searched">ExpressionCoerceInteger</a>(<font color="brown">struct</font> <a name="searched">Val</a>ue *<a name="searched">Val</a>)</a>
+<a name="165">{</a>
+<a name="166">    <font color="green">switch</font> (Val-&gtTyp-&gtBase)</a>
+<a name="167">    {</a>
+<a name="168">        <font color="green">case</font> TypeInt:             <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtInteger;</a>
+<a name="169">        <font color="green">case</font> TypeChar:            <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtCharacter;</a>
+<a name="170">        <font color="green">case</font> TypeShort:           <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtShortInteger;</a>
+<a name="171">        <font color="green">case</font> TypeLong:            <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtLongInteger;</a>
+<a name="172">        <font color="green">case</font> TypeUnsignedInt:     <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtUnsignedInteger;</a>
+<a name="173">        <font color="green">case</font> TypeUnsignedShort:   <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtUnsignedShortInteger;</a>
+<a name="174">        <font color="green">case</font> TypeUnsignedLong:    <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtUnsignedLongInteger;</a>
+<a name="175">        <font color="green">case</font> TypeUnsignedChar:    <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtUnsignedCharacter;</a>
+<a name="176">        <font color="green">case</font> TypePointer:         <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtPointer;</a>
+<a name="177">#ifndef NO_FP</a>
+<a name="178">        <font color="green">case</font> TypeFP:              <font color="green">return</font> (<font color="red">long</font>)Val-&gtVal-&gtFP;</a>
+<a name="179">#endif</a>
+<a name="180">        default:                  <font color="green">return</font> 0;</a>
+<a name="181">    }</a>
+<a name="182">}</a>
+<a name="183"></a>
+<a name="184"><font color="red">unsigned</font> <font color="red">long</font> <a name="searched">ExpressionCoerceUnsignedInteger</a>(<font color="brown">struct</font> <a name="searched">Val</a>ue *<a name="searched">Val</a>)</a>
+<a name="185">{</a>
+<a name="186">    <font color="green">switch</font> (Val-&gtTyp-&gtBase)</a>
+<a name="187">    {</a>
+<a name="188">        <font color="green">case</font> TypeInt:             <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtInteger;</a>
+<a name="189">        <font color="green">case</font> TypeChar:            <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtCharacter;</a>
+<a name="190">        <font color="green">case</font> TypeShort:           <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtShortInteger;</a>
+<a name="191">        <font color="green">case</font> TypeLong:            <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtLongInteger;</a>
+<a name="192">        <font color="green">case</font> TypeUnsignedInt:     <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtUnsignedInteger;</a>
+<a name="193">        <font color="green">case</font> TypeUnsignedShort:   <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtUnsignedShortInteger;</a>
+<a name="194">        <font color="green">case</font> TypeUnsignedLong:    <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtUnsignedLongInteger;</a>
+<a name="195">        <font color="green">case</font> TypeUnsignedChar:    <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtUnsignedCharacter;</a>
+<a name="196">        <font color="green">case</font> TypePointer:         <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtPointer;</a>
+<a name="197">#ifndef NO_FP</a>
+<a name="198">        <font color="green">case</font> TypeFP:              <font color="green">return</font> (<font color="red">unsigned</font> <font color="red">long</font>)Val-&gtVal-&gtFP;</a>
+<a name="199">#endif</a>
+<a name="200">        default:                  <font color="green">return</font> 0;</a>
+<a name="201">    }</a>
+<a name="202">}</a>
+<a name="203"></a>
+<a name="204">#ifndef NO_FP</a>
+<a name="205"><font color="red">double</font> <a name="searched">ExpressionCoerceFP</a>(<font color="brown">struct</font> <a name="searched">Val</a>ue *<a name="searched">Val</a>)</a>
+<a name="206">{</a>
+<a name="207">#ifndef BROKEN_FLOAT_CASTS</a>
+<a name="208">    <font color="red">int</font> <a name="searched">IntVal</a>;</a>
+<a name="209">    <font color="red">unsigned</font> <a name="searched">UnsignedVal</a>;</a>
+<a name="210">    </a>
+<a name="211">    <font color="green">switch</font> (Val-&gtTyp-&gtBase)</a>
+<a name="212">    {</a>
+<a name="213">        <font color="green">case</font> TypeInt:             <a href="expression_c.html#208">IntVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtInteger; <font color="green">return</font> (<font color="red">double</font>)IntVal;</a>
+<a name="214">        <font color="green">case</font> TypeChar:            <a href="expression_c.html#208">IntVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtCharacter; <font color="green">return</font> (<font color="red">double</font>)IntVal;</a>
+<a name="215">        <font color="green">case</font> TypeShort:           <a href="expression_c.html#208">IntVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtShortInteger; <font color="green">return</font> (<font color="red">double</font>)IntVal;</a>
+<a name="216">        <font color="green">case</font> TypeLong:            <a href="expression_c.html#208">IntVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtLongInteger; <font color="green">return</font> (<font color="red">double</font>)IntVal;</a>
+<a name="217">        <font color="green">case</font> TypeUnsignedInt:     <a href="expression_c.html#209">UnsignedVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtUnsignedInteger; <font color="green">return</font> (<font color="red">double</font>)UnsignedVal;</a>
+<a name="218">        <font color="green">case</font> TypeUnsignedShort:   <a href="expression_c.html#209">UnsignedVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtUnsignedShortInteger; <font color="green">return</font> (<font color="red">double</font>)UnsignedVal;</a>
+<a name="219">        <font color="green">case</font> TypeUnsignedLong:    <a href="expression_c.html#209">UnsignedVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtUnsignedLongInteger; <font color="green">return</font> (<font color="red">double</font>)UnsignedVal;</a>
+<a name="220">        <font color="green">case</font> TypeUnsignedChar:    <a href="expression_c.html#209">UnsignedVal</a> = <a href="expression_c.html#205">Val</a>-&gtVal-&gtUnsignedCharacter; <font color="green">return</font> (<font color="red">double</font>)UnsignedVal;</a>
+<a name="221">        <font color="green">case</font> TypeFP:              <font color="green">return</font> <a href="expression_c.html#205">Val</a>-&gtVal-&gtFP;</a>
+<a name="222">        default:                  <font color="green">return</font> 0.0;</a>
+<a name="223">    }</a>
+<a name="224">#<font color="green">else</font></a>
+<a name="225">    <font color="green">switch</font> (Val-&gtTyp-&gtBase)</a>
+<a name="226">    {</a>
+<a name="227">        <font color="green">case</font> TypeInt:             <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtInteger;</a>
+<a name="228">        <font color="green">case</font> TypeChar:            <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtCharacter;</a>
+<a name="229">        <font color="green">case</font> TypeShort:           <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtShortInteger;</a>
+<a name="230">        <font color="green">case</font> TypeLong:            <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtLongInteger;</a>
+<a name="231">        <font color="green">case</font> TypeUnsignedInt:     <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtUnsignedInteger;</a>
+<a name="232">        <font color="green">case</font> TypeUnsignedShort:   <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtUnsignedShortInteger;</a>
+<a name="233">        <font color="green">case</font> TypeUnsignedLong:    <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtUnsignedLongInteger;</a>
+<a name="234">        <font color="green">case</font> TypeUnsignedChar:    <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtUnsignedCharacter;</a>
+<a name="235">        <font color="green">case</font> TypeFP:              <font color="green">return</font> (<font color="red">double</font>)Val-&gtVal-&gtFP;</a>
+<a name="236">        default:                  <font color="green">return</font> 0.0;</a>
+<a name="237">    }</a>
+<a name="238">#endif</a>
+<a name="239">}</a>
+<a name="240">#endif</a>
+<a name="241"></a>
+<a name="242"><font color="gray">/*<searched> assign an integer value */</font></a>
+<a name="243"><font color="red">long</font> <a name="searched">ExpressionAssignInt</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">DestValue</a>, <font color="red">long</font> <a name="searched">FromInt</a>, <font color="red">int</font> <a name="searched">After</a>)</a>
+<a name="244">{</a>
+<a name="245">    <font color="red">long</font> <a name="searched">Result</a>;</a>
+<a name="246">    </a>
+<a name="247">    <font color="green">if</font> (!<a href="expression_c.html#243">DestValue</a>-&gtIsLValue) </a>
+<a name="248">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "can't assign to this"); </a>
+<a name="249">    </a>
+<a name="250">    <font color="green">if</font> (After)</a>
+<a name="251">        <a href="expression_c.html#245">Result</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(DestValue);</a>
+<a name="252">    <font color="green">else</font></a>
+<a name="253">        <a href="expression_c.html#245">Result</a> = <a href="expression_c.html#243">FromInt</a>;</a>
+<a name="254"></a>
+<a name="255">    <font color="green">switch</font> (DestValue-&gtTyp-&gtBase)</a>
+<a name="256">    {</a>
+<a name="257">        <font color="green">case</font> TypeInt:           <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtInteger = <a href="expression_c.html#243">FromInt</a>; break;</a>
+<a name="258">        <font color="green">case</font> TypeShort:         <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtShortInteger = (<font color="red">short</font>)FromInt; break;</a>
+<a name="259">        <font color="green">case</font> TypeChar:          <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtCharacter = (<font color="red">char</font>)FromInt; break;</a>
+<a name="260">        <font color="green">case</font> TypeLong:          <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtLongInteger = (<font color="red">long</font>)FromInt; break;</a>
+<a name="261">        <font color="green">case</font> TypeUnsignedInt:   <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtUnsignedInteger = (<font color="red">unsigned</font> <font color="red">int</font>)FromInt; break;</a>
+<a name="262">        <font color="green">case</font> TypeUnsignedShort: <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtUnsignedShortInteger = (<font color="red">unsigned</font> <font color="red">short</font>)FromInt; break;</a>
+<a name="263">        <font color="green">case</font> TypeUnsignedLong:  <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtUnsignedLongInteger = (<font color="red">unsigned</font> <font color="red">long</font>)FromInt; break;</a>
+<a name="264">        <font color="green">case</font> TypeUnsignedChar:  <a href="expression_c.html#243">DestValue</a>-&gtVal-&gtUnsignedCharacter = (<font color="red">unsigned</font> <font color="red">char</font>)FromInt; break;</a>
+<a name="265">        default: break;</a>
+<a name="266">    }</a>
+<a name="267">    <font color="green">return</font> <a href="expression_c.html#245">Result</a>;</a>
+<a name="268">}</a>
+<a name="269"></a>
+<a name="270">#ifndef NO_FP</a>
+<a name="271"><font color="gray">/*<searched> assign a floating point value */</font></a>
+<a name="272"><font color="red">double</font> <a name="searched">ExpressionAssignFP</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">DestValue</a>, <font color="red">double</font> <a name="searched">FromFP</a>)</a>
+<a name="273">{</a>
+<a name="274">    <font color="green">if</font> (!<a href="expression_c.html#272">DestValue</a>-&gtIsLValue) </a>
+<a name="275">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "can't assign to this"); </a>
+<a name="276">    </a>
+<a name="277">    <a href="expression_c.html#272">DestValue</a>-&gtVal-&gtFP = <a href="expression_c.html#272">FromFP</a>;</a>
+<a name="278">    <font color="green">return</font> <a href="expression_c.html#272">FromFP</a>;</a>
+<a name="279">}</a>
+<a name="280">#endif</a>
+<a name="281"></a>
+<a name="282"><font color="gray">/*<searched> push a node on to the expression stack */</font></a>
+<a name="283"><font color="red">void</font> <a name="searched">ExpressionStackPushValueNode</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a>)</a>
+<a name="284">{</a>
+<a name="285">    <font color="brown">struct</font> ExpressionStack *<a name="searched">StackNode</a> = <a href="variable_c.html#68">VariableAlloc</a>(Parser-&gtpc, <a href="expression_c.html#283">Parser</a>, sizeof(<font color="brown">struct</font> ExpressionStack), FALSE);</a>
+<a name="286">    <a href="expression_c.html#285">StackNode</a>-&gtNext = *StackTop;</a>
+<a name="287">    <a href="expression_c.html#285">StackNode</a>-&gtVal = <a href="expression_c.html#283">ValueLoc</a>;</a>
+<a name="288">    *StackTop = <a href="expression_c.html#285">StackNode</a>;</a>
+<a name="289">#ifdef FANCY_ERROR_MESSAGES</a>
+<a name="290">    <a href="expression_c.html#285">StackNode</a>-&gtLine = <a href="expression_c.html#283">Parser</a>-&gtLine;</a>
+<a name="291">    <a href="expression_c.html#285">StackNode</a>-&gtCharacterPos = <a href="expression_c.html#283">Parser</a>-&gtCharacterPos;</a>
+<a name="292">#endif</a>
+<a name="293">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="294">    ExpressionStackShow(Parser-&gtpc, *StackTop);</a>
+<a name="295">#endif</a>
+<a name="296">}</a>
+<a name="297"></a>
+<a name="298"><font color="gray">/*<searched> push a blank value on to the expression stack by type */</font></a>
+<a name="299"><font color="brown">struct</font> Value *<a name="searched">ExpressionStackPushValueByType</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> ValueType *<a name="searched">PushType</a>)</a>
+<a name="300">{</a>
+<a name="301">    <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a> = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#299">Parser</a>, <a href="expression_c.html#299">PushType</a>, FALSE, NULL, FALSE);</a>
+<a name="302">    <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#299">StackTop</a>, <a href="expression_c.html#301">ValueLoc</a>);</a>
+<a name="303">    </a>
+<a name="304">    <font color="green">return</font> <a href="expression_c.html#301">ValueLoc</a>;</a>
+<a name="305">}</a>
+<a name="306"></a>
+<a name="307"><font color="gray">/*<searched> push a value on to the expression stack */</font></a>
+<a name="308"><font color="red">void</font> ExpressionStack<a name="searched">PushValue</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> Value *<a name="searched">PushValue</a>)</a>
+<a name="309">{</a>
+<a name="310">    <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a> = <a href="variable_c.html#118">VariableAllocValueAndCopy</a>(Parser-&gtpc, <a href="expression_c.html#308">Parser</a>, <a href="expression_c.html#308">PushValue</a>, FALSE);</a>
+<a name="311">    <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#308">StackTop</a>, <a href="expression_c.html#310">ValueLoc</a>);</a>
+<a name="312">}</a>
+<a name="313"></a>
+<a name="314"><font color="red">void</font> <a name="searched">ExpressionStackPushLValue</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> Value *<a name="searched">PushValue</a>, <font color="red">int</font> <a name="searched">Offset</a>)</a>
+<a name="315">{</a>
+<a name="316">    <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a> = <a href="variable_c.html#150">VariableAllocValueShared</a>(Parser, <a href="expression_c.html#314">PushValue</a>);</a>
+<a name="317">    <a href="expression_c.html#316">ValueLoc</a>-&gtVal = (<font color="red">void</font> *)((<font color="red">char</font> *)ValueLoc-&gtVal + <a href="expression_c.html#314">Offset</a>);</a>
+<a name="318">    <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#314">StackTop</a>, <a href="expression_c.html#316">ValueLoc</a>);</a>
+<a name="319">}</a>
+<a name="320"></a>
+<a name="321"><font color="red">void</font> <a name="searched">ExpressionStackPushDereference</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> Value *<a name="searched">DereferenceValue</a>)</a>
+<a name="322">{</a>
+<a name="323">    <font color="brown">struct</font> Value *<a name="searched">DerefVal</a>;</a>
+<a name="324">    <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a>;</a>
+<a name="325">    <font color="red">int</font> <a name="searched">Offset</a>;</a>
+<a name="326">    <font color="brown">struct</font> ValueType *<a name="searched">DerefType</a>;</a>
+<a name="327">    <font color="red">int</font> <a name="searched">DerefIsLValue</a>;</a>
+<a name="328">    <font color="red">void</font> *<a name="searched">DerefDataLoc</a> = <a href="variable_c.html#458">VariableDereferencePointer</a>(Parser, <a href="expression_c.html#321">DereferenceValue</a>, &<a href="expression_c.html#323">DerefVal</a>, &<a href="expression_c.html#325">Offset</a>, &<a href="expression_c.html#326">DerefType</a>, &<a href="expression_c.html#327">DerefIsLValue</a>);</a>
+<a name="329">    <font color="green">if</font> (DerefDataLoc == NULL)</a>
+<a name="330">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "NULL pointer dereference");</a>
+<a name="331"></a>
+<a name="332">    <a href="expression_c.html#324">ValueLoc</a> = <a href="variable_c.html#135">VariableAllocValueFromExistingData</a>(Parser, <a href="expression_c.html#326">DerefType</a>, (union AnyValue *)DerefDataLoc, <a href="expression_c.html#327">DerefIsLValue</a>, <a href="expression_c.html#323">DerefVal</a>);</a>
+<a name="333">    <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#321">StackTop</a>, <a href="expression_c.html#324">ValueLoc</a>);</a>
+<a name="334">}</a>
+<a name="335"></a>
+<a name="336"><font color="red">void</font> <a name="searched">ExpressionPushInt</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">long</font> <a name="searched">IntValue</a>)</a>
+<a name="337">{</a>
+<a name="338">    <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a> = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#336">Parser</a>, &<a href="expression_c.html#336">Parser</a>-&gtpc-&gtIntType, FALSE, NULL, FALSE);</a>
+<a name="339">    <a href="expression_c.html#338">ValueLoc</a>-&gtVal-&gtInteger = <a href="expression_c.html#336">IntValue</a>;</a>
+<a name="340">    <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#336">StackTop</a>, <a href="expression_c.html#338">ValueLoc</a>);</a>
+<a name="341">}</a>
+<a name="342"></a>
+<a name="343">#ifndef NO_FP</a>
+<a name="344"><font color="red">void</font> <a name="searched">ExpressionPushFP</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">double</font> <a name="searched">FPValue</a>)</a>
+<a name="345">{</a>
+<a name="346">    <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a> = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#344">Parser</a>, &<a href="expression_c.html#344">Parser</a>-&gtpc-&gtFPType, FALSE, NULL, FALSE);</a>
+<a name="347">    <a href="expression_c.html#346">ValueLoc</a>-&gtVal-&gtFP = <a href="expression_c.html#344">FPValue</a>;</a>
+<a name="348">    <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#344">StackTop</a>, <a href="expression_c.html#346">ValueLoc</a>);</a>
+<a name="349">}</a>
+<a name="350">#endif</a>
+<a name="351"></a>
+<a name="352"><font color="gray">/*<searched> assign to a pointer */</font></a>
+<a name="353"><font color="red">void</font> <a name="searched">ExpressionAssignToPointer</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">ToValue</a>, <font color="brown">struct</font> Value *<a name="searched">FromValue</a>, const <font color="red">char</font> *<a name="searched">FuncName</a>, <font color="red">int</font> <a name="searched">ParamNo</a>, <font color="red">int</font> <a name="searched">AllowPointerCoercion</a>)</a>
+<a name="354">{</a>
+<a name="355">    <font color="brown">struct</font> ValueType *<a name="searched">PointedToType</a> = <a href="expression_c.html#353">ToValue</a>-&gtTyp-&gtFromType;</a>
+<a name="356">    </a>
+<a name="357">    <font color="green">if</font> (FromValue-&gtTyp == <a href="expression_c.html#353">ToValue</a>-&gtTyp || <a href="expression_c.html#353">FromValue</a>-&gtTyp == <a href="expression_c.html#353">Parser</a>-&gtpc-&gtVoidPtrType || (ToValue-&gtTyp == <a href="expression_c.html#353">Parser</a>-&gtpc-&gtVoidPtrType && <a href="expression_c.html#353">FromValue</a>-&gtTyp-&gtBase == TypePointer))</a>
+<a name="358">        <a href="expression_c.html#353">ToValue</a>-&gtVal-&gtPointer = <a href="expression_c.html#353">FromValue</a>-&gtVal-&gtPointer;      <font color="gray">/*<searched> plain old pointer assignment */</font></a>
+<a name="359">        </a>
+<a name="360">    <font color="green">else</font> <font color="green">if</font> (FromValue-&gtTyp-&gtBase == TypeArray && (PointedToType == <a href="expression_c.html#353">FromValue</a>-&gtTyp-&gtFromType || <a href="expression_c.html#353">ToValue</a>-&gtTyp == <a href="expression_c.html#353">Parser</a>-&gtpc-&gtVoidPtrType))</a>
+<a name="361">    {</a>
+<a name="362">        <font color="gray">/*<searched> the form is: blah *x = array of blah */</font></a>
+<a name="363">        <a href="expression_c.html#353">ToValue</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)&<a href="expression_c.html#353">FromValue</a>-&gtVal-&gtArrayMem[0];</a>
+<a name="364">    }</a>
+<a name="365">    <font color="green">else</font> <font color="green">if</font> (FromValue-&gtTyp-&gtBase == TypePointer && <a href="expression_c.html#353">FromValue</a>-&gtTyp-&gtFromType-&gtBase == TypeArray && </a>
+<a name="366">               (PointedToType == <a href="expression_c.html#353">FromValue</a>-&gtTyp-&gtFromType-&gtFromType || <a href="expression_c.html#353">ToValue</a>-&gtTyp == <a href="expression_c.html#353">Parser</a>-&gtpc-&gtVoidPtrType) )</a>
+<a name="367">    {</a>
+<a name="368">        <font color="gray">/*<searched> the form is: blah *x = pointer to array of blah */</font></a>
+<a name="369">        <a href="expression_c.html#353">ToValue</a>-&gtVal-&gtPointer = <a href="variable_c.html#458">VariableDereferencePointer</a>(Parser, <a href="expression_c.html#353">FromValue</a>, NULL, NULL, NULL, NULL);</a>
+<a name="370">    }</a>
+<a name="371">    <font color="green">else</font> <font color="green">if</font> (IS_NUMERIC_COERCIBLE(FromValue) && <a href="expression_c.html#164">ExpressionCoerceInteger</a>(FromValue) == 0)</a>
+<a name="372">    {</a>
+<a name="373">        <font color="gray">/*<searched> null pointer assignment */</font></a>
+<a name="374">        <a href="expression_c.html#353">ToValue</a>-&gtVal-&gtPointer = NULL;</a>
+<a name="375">    }</a>
+<a name="376">    <font color="green">else</font> <font color="green">if</font> (AllowPointerCoercion && IS_NUMERIC_COERCIBLE(FromValue))</a>
+<a name="377">    {</a>
+<a name="378">        <font color="gray">/*<searched> assign integer to native pointer */</font></a>
+<a name="379">        <a href="expression_c.html#353">ToValue</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)(<font color="red">unsigned</font> <font color="red">long</font>)ExpressionCoerceUnsignedInteger(FromValue);</a>
+<a name="380">    }</a>
+<a name="381">    <font color="green">else</font> <font color="green">if</font> (AllowPointerCoercion && <a href="expression_c.html#353">FromValue</a>-&gtTyp-&gtBase == TypePointer)</a>
+<a name="382">    {</a>
+<a name="383">        <font color="gray">/*<searched> assign a pointer to a pointer to a different type */</font></a>
+<a name="384">        <a href="expression_c.html#353">ToValue</a>-&gtVal-&gtPointer = <a href="expression_c.html#353">FromValue</a>-&gtVal-&gtPointer;</a>
+<a name="385">    }</a>
+<a name="386">    <font color="green">else</font></a>
+<a name="387">        <a href="platform_c.html#159">AssignFail</a>(Parser, "%t from %t", <a href="expression_c.html#353">ToValue</a>-&gtTyp, <a href="expression_c.html#353">FromValue</a>-&gtTyp, 0, 0, <a href="expression_c.html#353">FuncName</a>, <a href="expression_c.html#353">ParamNo</a>); </a>
+<a name="388">}</a>
+<a name="389"></a>
+<a name="390"><font color="gray">/*<searched> assign any kind of value */</font></a>
+<a name="391"><font color="red">void</font> <a name="searched">ExpressionAssign</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value *<a name="searched">DestValue</a>, <font color="brown">struct</font> Value *<a name="searched">SourceValue</a>, <font color="red">int</font> <a name="searched">Force</a>, const <font color="red">char</font> *<a name="searched">FuncName</a>, <font color="red">int</font> <a name="searched">ParamNo</a>, <font color="red">int</font> <a name="searched">AllowPointerCoercion</a>)</a>
+<a name="392">{</a>
+<a name="393">    <font color="green">if</font> (!<a href="expression_c.html#391">DestValue</a>-&gtIsLValue && !<a href="expression_c.html#391">Force</a>) </a>
+<a name="394">        <a href="platform_c.html#159">AssignFail</a>(Parser, "not an lvalue", NULL, NULL, 0, 0, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>); </a>
+<a name="395"></a>
+<a name="396">    <font color="green">if</font> (IS_NUMERIC_COERCIBLE(DestValue) && !IS_NUMERIC_COERCIBLE_PLUS_POINTERS(SourceValue, <a href="expression_c.html#391">AllowPointerCoercion</a>))</a>
+<a name="397">        <a href="platform_c.html#159">AssignFail</a>(Parser, "%t from %t", <a href="expression_c.html#391">DestValue</a>-&gtTyp, <a href="expression_c.html#391">SourceValue</a>-&gtTyp, 0, 0, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>); </a>
+<a name="398"></a>
+<a name="399">    <font color="green">switch</font> (DestValue-&gtTyp-&gtBase)</a>
+<a name="400">    {</a>
+<a name="401">        <font color="green">case</font> TypeInt:           <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtInteger = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(SourceValue); break;</a>
+<a name="402">        <font color="green">case</font> TypeShort:         <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtShortInteger = (<font color="red">short</font>)ExpressionCoerceInteger(SourceValue); break;</a>
+<a name="403">        <font color="green">case</font> TypeChar:          <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtCharacter = (<font color="red">char</font>)ExpressionCoerceInteger(SourceValue); break;</a>
+<a name="404">        <font color="green">case</font> TypeLong:          <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtLongInteger = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(SourceValue); break;</a>
+<a name="405">        <font color="green">case</font> TypeUnsignedInt:   <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtUnsignedInteger = <a href="expression_c.html#184">ExpressionCoerceUnsignedInteger</a>(SourceValue); break;</a>
+<a name="406">        <font color="green">case</font> TypeUnsignedShort: <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtUnsignedShortInteger = (<font color="red">unsigned</font> <font color="red">short</font>)ExpressionCoerceUnsignedInteger(SourceValue); break;</a>
+<a name="407">        <font color="green">case</font> TypeUnsignedLong:  <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtUnsignedLongInteger = <a href="expression_c.html#184">ExpressionCoerceUnsignedInteger</a>(SourceValue); break;</a>
+<a name="408">        <font color="green">case</font> TypeUnsignedChar:  <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtUnsignedCharacter = (<font color="red">unsigned</font> <font color="red">char</font>)ExpressionCoerceUnsignedInteger(SourceValue); break;</a>
+<a name="409"></a>
+<a name="410">#ifndef NO_FP</a>
+<a name="411">        <font color="green">case</font> TypeFP:</a>
+<a name="412">            <font color="green">if</font> (!IS_NUMERIC_COERCIBLE_PLUS_POINTERS(SourceValue, <a href="expression_c.html#391">AllowPointerCoercion</a>)) </a>
+<a name="413">                <a href="platform_c.html#159">AssignFail</a>(Parser, "%t from %t", <a href="expression_c.html#391">DestValue</a>-&gtTyp, <a href="expression_c.html#391">SourceValue</a>-&gtTyp, 0, 0, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>); </a>
+<a name="414">            </a>
+<a name="415">            <a href="expression_c.html#391">DestValue</a>-&gtVal-&gtFP = <a href="expression_c.html#205">ExpressionCoerceFP</a>(SourceValue);</a>
+<a name="416">            break;</a>
+<a name="417">#endif</a>
+<a name="418">        <font color="green">case</font> TypePointer:</a>
+<a name="419">            <a href="expression_c.html#353">ExpressionAssignToPointer</a>(Parser, <a href="expression_c.html#391">DestValue</a>, <a href="expression_c.html#391">SourceValue</a>, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>, <a href="expression_c.html#391">AllowPointerCoercion</a>);</a>
+<a name="420">            break;</a>
+<a name="421">        </a>
+<a name="422">        <font color="green">case</font> TypeArray:</a>
+<a name="423">            <font color="green">if</font> (SourceValue-&gtTyp-&gtBase == TypeArray && <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtFromType == <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtFromType && <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtArraySize == 0)</a>
+<a name="424">            {</a>
+<a name="425">                <font color="gray">/*<searched> destination array is unsized - need to resize the destination array to the same size as the source array */</font></a>
+<a name="426">                <a href="expression_c.html#391">DestValue</a>-&gtTyp = <a href="expression_c.html#391">SourceValue</a>-&gtTyp;</a>
+<a name="427">                <a href="variable_c.html#156">VariableRealloc</a>(Parser, <a href="expression_c.html#391">DestValue</a>, <a href="type_c.html#69">TypeSizeValue</a>(DestValue, FALSE));</a>
+<a name="428">                </a>
+<a name="429">                <font color="green">if</font> (DestValue-&gtLValueFrom != NULL)</a>
+<a name="430">                {</a>
+<a name="431">                    <font color="gray">/*<searched> copy the resized value back to the LValue */</font></a>
+<a name="432">                    <a href="expression_c.html#391">DestValue</a>-&gtLValueFrom-&gtVal = <a href="expression_c.html#391">DestValue</a>-&gtVal;</a>
+<a name="433">                    <a href="expression_c.html#391">DestValue</a>-&gtLValueFrom-&gtAnyValOnHeap = <a href="expression_c.html#391">DestValue</a>-&gtAnyValOnHeap;</a>
+<a name="434">                }</a>
+<a name="435">            }</a>
+<a name="436"></a>
+<a name="437">            <font color="gray">/*<searched> char array = "abcd" */</font></a>
+<a name="438">            <font color="green">if</font> (DestValue-&gtTyp-&gtFromType-&gtBase == TypeChar && <a href="expression_c.html#391">SourceValue</a>-&gtTyp-&gtBase == TypePointer && <a href="expression_c.html#391">SourceValue</a>-&gtTyp-&gtFromType-&gtBase == TypeChar)</a>
+<a name="439">            {</a>
+<a name="440">                if (DestValue-&gtTyp-&gtArraySize == 0) <font color="gray">/*<searched> char x[] = "abcd", x is unsized */</font></a>
+<a name="441">                {</a>
+<a name="442">                    <font color="red">int</font> <a name="searched">Size</a> = strlen(SourceValue-&gtVal-&gtPointer) + 1;</a>
+<a name="443">                    #ifdef DEBUG_ARRAY_INITIALIZER</a>
+<a name="444">                    PRINT_SOURCE_POS;</a>
+<a name="445">                    fprintf(stderr, "str size: %d\n", <a href="expression_c.html#442">Size</a>);</a>
+<a name="446">                    #endif</a>
+<a name="447">                    <a href="expression_c.html#391">DestValue</a>-&gtTyp = <a href="type_c.html#32">TypeGetMatching</a>(Parser-&gtpc, <a href="expression_c.html#391">Parser</a>, <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtFromType, <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtBase, <a href="expression_c.html#442">Size</a>, <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtIdentifier, TRUE);</a>
+<a name="448">                    <a href="variable_c.html#156">VariableRealloc</a>(Parser, <a href="expression_c.html#391">DestValue</a>, <a href="type_c.html#69">TypeSizeValue</a>(DestValue, FALSE));</a>
+<a name="449">                }</a>
+<a name="450">                <font color="gray">/*<searched> else, it's char x[10] = "abcd" */</font></a>
+<a name="451"></a>
+<a name="452">                #ifdef DEBUG_ARRAY_INITIALIZER</a>
+<a name="453">                PRINT_SOURCE_POS;</a>
+<a name="454">                fprintf(stderr, "<font color="red">char</font>[%d] from <font color="red">char</font>* (len=%d)\n", <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtArraySize, strlen(SourceValue-&gtVal-&gtPointer));</a>
+<a name="455">                #endif</a>
+<a name="456">                memcpy((<font color="red">void</font> *)DestValue-&gtVal, <a href="expression_c.html#391">SourceValue</a>-&gtVal-&gtPointer, <a href="type_c.html#69">TypeSizeValue</a>(DestValue, FALSE));</a>
+<a name="457">                break;</a>
+<a name="458">            }</a>
+<a name="459"></a>
+<a name="460">            <font color="green">if</font> (DestValue-&gtTyp != <a href="expression_c.html#391">SourceValue</a>-&gtTyp)</a>
+<a name="461">                <a href="platform_c.html#159">AssignFail</a>(Parser, "%t from %t", <a href="expression_c.html#391">DestValue</a>-&gtTyp, <a href="expression_c.html#391">SourceValue</a>-&gtTyp, 0, 0, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>); </a>
+<a name="462">            </a>
+<a name="463">            <font color="green">if</font> (DestValue-&gtTyp-&gtArraySize != <a href="expression_c.html#391">SourceValue</a>-&gtTyp-&gtArraySize)</a>
+<a name="464">                <a href="platform_c.html#159">AssignFail</a>(Parser, "from an array of size %d to one of size %d", NULL, NULL, <a href="expression_c.html#391">DestValue</a>-&gtTyp-&gtArraySize, <a href="expression_c.html#391">SourceValue</a>-&gtTyp-&gtArraySize, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>);</a>
+<a name="465">            </a>
+<a name="466">            memcpy((<font color="red">void</font> *)DestValue-&gtVal, (<font color="red">void</font> *)SourceValue-&gtVal, <a href="type_c.html#69">TypeSizeValue</a>(DestValue, FALSE));</a>
+<a name="467">            break;</a>
+<a name="468">        </a>
+<a name="469">        <font color="green">case</font> TypeStruct:</a>
+<a name="470">        <font color="green">case</font> TypeUnion:</a>
+<a name="471">            <font color="green">if</font> (DestValue-&gtTyp != <a href="expression_c.html#391">SourceValue</a>-&gtTyp)</a>
+<a name="472">                <a href="platform_c.html#159">AssignFail</a>(Parser, "%t from %t", <a href="expression_c.html#391">DestValue</a>-&gtTyp, <a href="expression_c.html#391">SourceValue</a>-&gtTyp, 0, 0, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>); </a>
+<a name="473">            </a>
+<a name="474">            memcpy((<font color="red">void</font> *)DestValue-&gtVal, (<font color="red">void</font> *)SourceValue-&gtVal, <a href="type_c.html#69">TypeSizeValue</a>(SourceValue, FALSE));</a>
+<a name="475">            break;</a>
+<a name="476">        </a>
+<a name="477">        default:</a>
+<a name="478">            <a href="platform_c.html#159">AssignFail</a>(Parser, "%t", <a href="expression_c.html#391">DestValue</a>-&gtTyp, NULL, 0, 0, <a href="expression_c.html#391">FuncName</a>, <a href="expression_c.html#391">ParamNo</a>); </a>
+<a name="479">            break;</a>
+<a name="480">    }</a>
+<a name="481">}</a>
+<a name="482"></a>
+<a name="483"><font color="gray">/*<searched> evaluate the first half of a ternary operator x ? y : z */</font></a>
+<a name="484"><font color="red">void</font> <a name="searched">ExpressionQuestionMarkOperator</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> Value *<a name="searched">BottomValue</a>, <font color="brown">struct</font> Value *<a name="searched">TopValue</a>)</a>
+<a name="485">{</a>
+<a name="486">    <font color="green">if</font> (!IS_NUMERIC_COERCIBLE(TopValue))</a>
+<a name="487">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "first argument to '?' should be a number");</a>
+<a name="488"></a>
+<a name="489">    <font color="green">if</font> (ExpressionCoerceInteger(TopValue))</a>
+<a name="490">    {</a>
+<a name="491">        <font color="gray">/*<searched> the condition's true, return the <a href="expression_c.html#484">BottomValue</a> */</font></a>
+<a name="492">        <a href="expression_c.html#308">ExpressionStackPushValue</a>(Parser, <a href="expression_c.html#484">StackTop</a>, <a href="expression_c.html#484">BottomValue</a>);</a>
+<a name="493">    }</a>
+<a name="494">    <font color="green">else</font></a>
+<a name="495">    {</a>
+<a name="496">        <font color="gray">/*<searched> the condition's false, return void */</font></a>
+<a name="497">        <a href="expression_c.html#299">ExpressionStackPushValueByType</a>(Parser, <a href="expression_c.html#484">StackTop</a>, &<a href="expression_c.html#484">Parser</a>-&gtpc-&gtVoidType);</a>
+<a name="498">    }</a>
+<a name="499">}</a>
+<a name="500"></a>
+<a name="501"><font color="gray">/*<searched> evaluate the second half of a ternary operator x ? y : z */</font></a>
+<a name="502"><font color="red">void</font> <a name="searched">ExpressionColonOperator</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="brown">struct</font> Value *<a name="searched">BottomValue</a>, <font color="brown">struct</font> Value *<a name="searched">TopValue</a>)</a>
+<a name="503">{</a>
+<a name="504">    <font color="green">if</font> (TopValue-&gtTyp-&gtBase == TypeVoid)</a>
+<a name="505">    {</a>
+<a name="506">        <font color="gray">/*<searched> invoke the "else" part - return the <a href="expression_c.html#502">BottomValue</a> */</font></a>
+<a name="507">        <a href="expression_c.html#308">ExpressionStackPushValue</a>(Parser, <a href="expression_c.html#502">StackTop</a>, <a href="expression_c.html#502">BottomValue</a>);</a>
+<a name="508">    }</a>
+<a name="509">    <font color="green">else</font></a>
+<a name="510">    {</a>
+<a name="511">        <font color="gray">/*<searched> it was a "then" - return the <a href="expression_c.html#502">TopValue</a> */</font></a>
+<a name="512">        <a href="expression_c.html#308">ExpressionStackPushValue</a>(Parser, <a href="expression_c.html#502">StackTop</a>, <a href="expression_c.html#502">TopValue</a>);</a>
+<a name="513">    }</a>
+<a name="514">}</a>
+<a name="515"></a>
+<a name="516"><font color="gray">/*<searched> evaluate a prefix operator */</font></a>
+<a name="517"><font color="red">void</font> ExpressionPrefix<a name="searched">Op</a>erator(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">enum</font> LexToken <a name="searched">Op</a>, <font color="brown">struct</font> Value *<a name="searched">TopValue</a>)</a>
+<a name="518">{</a>
+<a name="519">    <font color="brown">struct</font> Value *<a name="searched">Result</a>;</a>
+<a name="520">    union AnyValue *<a name="searched">ValPtr</a>;</a>
+<a name="521"></a>
+<a name="522">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#517">ExpressionPrefixOperator</a>()\n");</a>
+<a name="523">    <font color="green">switch</font> (Op)</a>
+<a name="524">    {</a>
+<a name="525">        <font color="green">case</font> TokenAmpersand:</a>
+<a name="526">            <font color="green">if</font> (!<a href="expression_c.html#517">TopValue</a>-&gtIsLValue)</a>
+<a name="527">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "can't get the address of this");</a>
+<a name="528"></a>
+<a name="529">	    <a href="expression_c.html#520">ValPtr</a> = <a href="expression_c.html#517">TopValue</a>-&gtVal;</a>
+<a name="530">            <a href="expression_c.html#519">Result</a> = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#517">Parser</a>, <a href="type_c.html#32">TypeGetMatching</a>(Parser-&gtpc, <a href="expression_c.html#517">Parser</a>, <a href="expression_c.html#517">TopValue</a>-&gtTyp, TypePointer, 0, <a href="expression_c.html#517">Parser</a>-&gtpc-&gtStrEmpty, TRUE), FALSE, NULL, FALSE);</a>
+<a name="531">            <a href="expression_c.html#519">Result</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)ValPtr;</a>
+<a name="532">            <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="expression_c.html#519">Result</a>);</a>
+<a name="533">            break;</a>
+<a name="534"></a>
+<a name="535">        <font color="green">case</font> TokenAsterisk:</a>
+<a name="536">            <a href="expression_c.html#321">ExpressionStackPushDereference</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="expression_c.html#517">TopValue</a>);</a>
+<a name="537">            break;</a>
+<a name="538">        </a>
+<a name="539">        <font color="green">case</font> TokenSizeof:</a>
+<a name="540">            <font color="gray">/*<searched> return the size of the argument */</font></a>
+<a name="541">            <font color="green">if</font> (TopValue-&gtTyp == &<a href="expression_c.html#517">Parser</a>-&gtpc-&gtTypeType)</a>
+<a name="542">                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="type_c.html#80">TypeSize</a>(TopValue-&gtVal-&gtTyp, <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtTyp-&gtArraySize, TRUE));</a>
+<a name="543">            <font color="green">else</font></a>
+<a name="544">                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="type_c.html#80">TypeSize</a>(TopValue-&gtTyp, <a href="expression_c.html#517">TopValue</a>-&gtTyp-&gtArraySize, TRUE));</a>
+<a name="545">            break;</a>
+<a name="546">        </a>
+<a name="547">        default:</a>
+<a name="548">            <font color="gray">/*<searched> an arithmetic operator */</font></a>
+<a name="549">#ifndef NO_FP</a>
+<a name="550">            <font color="green">if</font> (TopValue-&gtTyp == &<a href="expression_c.html#517">Parser</a>-&gtpc-&gtFPType)</a>
+<a name="551">            {</a>
+<a name="552">                <font color="gray">/*<searched> floating point prefix arithmetic */</font></a>
+<a name="553">                <font color="red">double</font> <a name="searched">ResultFP</a> = 0.0;</a>
+<a name="554">                </a>
+<a name="555">                <font color="green">switch</font> (Op)</a>
+<a name="556">                {</a>
+<a name="557">                    <font color="green">case</font> TokenPlus:         <a href="expression_c.html#553">ResultFP</a> = <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtFP; break;</a>
+<a name="558">                    <font color="green">case</font> TokenMinus:        <a href="expression_c.html#553">ResultFP</a> = -<a href="expression_c.html#517">TopValue</a>-&gtVal-&gtFP; break;</a>
+<a name="559">                    <font color="green">case</font> TokenIncrement:    <a href="expression_c.html#553">ResultFP</a> = <a href="expression_c.html#272">ExpressionAssignFP</a>(Parser, <a href="expression_c.html#517">TopValue</a>, <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtFP+1); break;</a>
+<a name="560">                    <font color="green">case</font> TokenDecrement:    <a href="expression_c.html#553">ResultFP</a> = <a href="expression_c.html#272">ExpressionAssignFP</a>(Parser, <a href="expression_c.html#517">TopValue</a>, <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtFP-1); break;</a>
+<a name="561">                    <font color="green">case</font> TokenUnaryNot:     <a href="expression_c.html#553">ResultFP</a> = !<a href="expression_c.html#517">TopValue</a>-&gtVal-&gtFP; break;</a>
+<a name="562">                    default:                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="563">                }</a>
+<a name="564">                </a>
+<a name="565">                <a href="expression_c.html#344">ExpressionPushFP</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="expression_c.html#553">ResultFP</a>);</a>
+<a name="566">            }</a>
+<a name="567">            <font color="green">else</font> </a>
+<a name="568">#endif</a>
+<a name="569">            <font color="green">if</font> (IS_NUMERIC_COERCIBLE(TopValue))</a>
+<a name="570">            {</a>
+<a name="571">                <font color="gray">/*<searched> integer prefix arithmetic */</font></a>
+<a name="572">                <font color="red">long</font> <a name="searched">ResultInt</a> = 0;</a>
+<a name="573">                <font color="red">long</font> <a name="searched">TopInt</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(TopValue);</a>
+<a name="574">                <font color="green">switch</font> (Op)</a>
+<a name="575">                {</a>
+<a name="576">                    <font color="green">case</font> TokenPlus:         <a href="expression_c.html#572">ResultInt</a> = <a href="expression_c.html#573">TopInt</a>; break;</a>
+<a name="577">                    <font color="green">case</font> TokenMinus:        <a href="expression_c.html#572">ResultInt</a> = -<a href="expression_c.html#573">TopInt</a>; break;</a>
+<a name="578">                    <font color="green">case</font> TokenIncrement:    <a href="expression_c.html#572">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#517">TopValue</a>, <a href="expression_c.html#573">TopInt</a>+1, FALSE); break;</a>
+<a name="579">                    <font color="green">case</font> TokenDecrement:    <a href="expression_c.html#572">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#517">TopValue</a>, <a href="expression_c.html#573">TopInt</a>-1, FALSE); break;</a>
+<a name="580">                    <font color="green">case</font> TokenUnaryNot:     <a href="expression_c.html#572">ResultInt</a> = !<a href="expression_c.html#573">TopInt</a>; break;</a>
+<a name="581">                    <font color="green">case</font> TokenUnaryExor:    <a href="expression_c.html#572">ResultInt</a> = ~<a href="expression_c.html#573">TopInt</a>; break;</a>
+<a name="582">                    default:                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="583">                }</a>
+<a name="584"></a>
+<a name="585">                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="expression_c.html#572">ResultInt</a>);</a>
+<a name="586">            }</a>
+<a name="587">            <font color="green">else</font> <font color="green">if</font> (TopValue-&gtTyp-&gtBase == TypePointer)</a>
+<a name="588">            {</a>
+<a name="589">                <font color="gray">/*<searched> pointer prefix arithmetic */</font></a>
+<a name="590">                <font color="red">int</font> <a name="searched">Size</a> = Type<a name="searched">Size</a>(TopValue-&gtTyp-&gtFromType, 0, TRUE);</a>
+<a name="591">                <font color="brown">struct</font> Value *<a name="searched">StackValue</a>;</a>
+<a name="592">                <font color="red">void</font> *<a name="searched">ResultPtr</a>;</a>
+<a name="593"></a>
+<a name="594">                <font color="green">if</font> (TopValue-&gtVal-&gtPointer == NULL)</a>
+<a name="595">                    <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid use of a NULL pointer");</a>
+<a name="596">                </a>
+<a name="597">                <font color="green">if</font> (!<a href="expression_c.html#517">TopValue</a>-&gtIsLValue) </a>
+<a name="598">                    <a href="platform_c.html#134">ProgramFail</a>(Parser, "can't assign to this"); </a>
+<a name="599">                    </a>
+<a name="600">                <font color="green">switch</font> (Op)</a>
+<a name="601">                {</a>
+<a name="602">                    <font color="green">case</font> TokenIncrement:    <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)((<font color="red">char</font> *)TopValue-&gtVal-&gtPointer + <a href="expression_c.html#590">Size</a>); break;</a>
+<a name="603">                    <font color="green">case</font> TokenDecrement:    <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)((<font color="red">char</font> *)TopValue-&gtVal-&gtPointer - <a href="expression_c.html#590">Size</a>); break;</a>
+<a name="604">                    default:                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="605">                }</a>
+<a name="606"></a>
+<a name="607">                <a href="expression_c.html#592">ResultPtr</a> = <a href="expression_c.html#517">TopValue</a>-&gtVal-&gtPointer;</a>
+<a name="608">                <a href="expression_c.html#591">StackValue</a> = <a href="expression_c.html#299">ExpressionStackPushValueByType</a>(Parser, <a href="expression_c.html#517">StackTop</a>, <a href="expression_c.html#517">TopValue</a>-&gtTyp);</a>
+<a name="609">                <a href="expression_c.html#591">StackValue</a>-&gtVal-&gtPointer = <a href="expression_c.html#592">ResultPtr</a>;</a>
+<a name="610">            }</a>
+<a name="611">            <font color="green">else</font></a>
+<a name="612">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation");</a>
+<a name="613">            break;</a>
+<a name="614">    }</a>
+<a name="615">}</a>
+<a name="616"></a>
+<a name="617"><font color="gray">/*<searched> evaluate a postfix operator */</font></a>
+<a name="618"><font color="red">void</font> ExpressionPostfix<a name="searched">Op</a>erator(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">enum</font> LexToken <a name="searched">Op</a>, <font color="brown">struct</font> Value *<a name="searched">TopValue</a>)</a>
+<a name="619">{</a>
+<a name="620">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#618">ExpressionPostfixOperator</a>()\n");</a>
+<a name="621">#ifndef NO_FP</a>
+<a name="622">    <font color="green">if</font> (TopValue-&gtTyp == &<a href="expression_c.html#618">Parser</a>-&gtpc-&gtFPType)</a>
+<a name="623">    {</a>
+<a name="624">        <font color="gray">/*<searched> floating point prefix arithmetic */</font></a>
+<a name="625">        <font color="red">double</font> <a name="searched">ResultFP</a> = 0.0;</a>
+<a name="626">        </a>
+<a name="627">        <font color="green">switch</font> (Op)</a>
+<a name="628">        {</a>
+<a name="629">            <font color="green">case</font> TokenIncrement:    <a href="expression_c.html#625">ResultFP</a> = <a href="expression_c.html#272">ExpressionAssignFP</a>(Parser, <a href="expression_c.html#618">TopValue</a>, <a href="expression_c.html#618">TopValue</a>-&gtVal-&gtFP+1); break;</a>
+<a name="630">            <font color="green">case</font> TokenDecrement:    <a href="expression_c.html#625">ResultFP</a> = <a href="expression_c.html#272">ExpressionAssignFP</a>(Parser, <a href="expression_c.html#618">TopValue</a>, <a href="expression_c.html#618">TopValue</a>-&gtVal-&gtFP-1); break;</a>
+<a name="631">            default:                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="632">        }</a>
+<a name="633">        </a>
+<a name="634">        <a href="expression_c.html#344">ExpressionPushFP</a>(Parser, <a href="expression_c.html#618">StackTop</a>, <a href="expression_c.html#625">ResultFP</a>);</a>
+<a name="635">    }</a>
+<a name="636">    <font color="green">else</font> </a>
+<a name="637">#endif</a>
+<a name="638">    <font color="green">if</font> (IS_NUMERIC_COERCIBLE(TopValue))</a>
+<a name="639">    {</a>
+<a name="640">        <font color="red">long</font> <a name="searched">ResultInt</a> = 0;</a>
+<a name="641">        <font color="red">long</font> <a name="searched">TopInt</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(TopValue);</a>
+<a name="642">        <font color="green">switch</font> (Op)</a>
+<a name="643">        {</a>
+<a name="644">            <font color="green">case</font> TokenIncrement:            <a href="expression_c.html#640">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#618">TopValue</a>, <a href="expression_c.html#641">TopInt</a>+1, TRUE); break;</a>
+<a name="645">            <font color="green">case</font> TokenDecrement:            <a href="expression_c.html#640">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#618">TopValue</a>, <a href="expression_c.html#641">TopInt</a>-1, TRUE); break;</a>
+<a name="646">            case TokenRightSquareBracket:   ProgramFail(Parser, "not supported"); break;  <font color="gray">/*<searched> XXX */</font></a>
+<a name="647">            case TokenCloseBracket:         ProgramFail(Parser, "not supported"); break;  <font color="gray">/*<searched> XXX */</font></a>
+<a name="648">            default:                        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="649">        }</a>
+<a name="650">    </a>
+<a name="651">        <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#618">StackTop</a>, <a href="expression_c.html#640">ResultInt</a>);</a>
+<a name="652">    }</a>
+<a name="653">    <font color="green">else</font> <font color="green">if</font> (TopValue-&gtTyp-&gtBase == TypePointer)</a>
+<a name="654">    {</a>
+<a name="655">        <font color="gray">/*<searched> pointer postfix arithmetic */</font></a>
+<a name="656">        <font color="red">int</font> <a name="searched">Size</a> = Type<a name="searched">Size</a>(TopValue-&gtTyp-&gtFromType, 0, TRUE);</a>
+<a name="657">        <font color="brown">struct</font> Value *<a name="searched">StackValue</a>;</a>
+<a name="658">        <font color="red">void</font> *<a name="searched">OrigPointer</a> = <a href="expression_c.html#618">TopValue</a>-&gtVal-&gtPointer;</a>
+<a name="659">        </a>
+<a name="660">        <font color="green">if</font> (TopValue-&gtVal-&gtPointer == NULL)</a>
+<a name="661">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid use of a NULL pointer");</a>
+<a name="662">            </a>
+<a name="663">        <font color="green">if</font> (!<a href="expression_c.html#618">TopValue</a>-&gtIsLValue) </a>
+<a name="664">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "can't assign to this"); </a>
+<a name="665">        </a>
+<a name="666">        <font color="green">switch</font> (Op)</a>
+<a name="667">        {</a>
+<a name="668">            <font color="green">case</font> TokenIncrement:    <a href="expression_c.html#618">TopValue</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)((<font color="red">char</font> *)TopValue-&gtVal-&gtPointer + <a href="expression_c.html#656">Size</a>); break;</a>
+<a name="669">            <font color="green">case</font> TokenDecrement:    <a href="expression_c.html#618">TopValue</a>-&gtVal-&gtPointer = (<font color="red">void</font> *)((<font color="red">char</font> *)TopValue-&gtVal-&gtPointer - <a href="expression_c.html#656">Size</a>); break;</a>
+<a name="670">            default:                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="671">        }</a>
+<a name="672">        </a>
+<a name="673">        <a href="expression_c.html#657">StackValue</a> = <a href="expression_c.html#299">ExpressionStackPushValueByType</a>(Parser, <a href="expression_c.html#618">StackTop</a>, <a href="expression_c.html#618">TopValue</a>-&gtTyp);</a>
+<a name="674">        <a href="expression_c.html#657">StackValue</a>-&gtVal-&gtPointer = <a href="expression_c.html#658">OrigPointer</a>;</a>
+<a name="675">    }</a>
+<a name="676">    <font color="green">else</font></a>
+<a name="677">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation");</a>
+<a name="678">}</a>
+<a name="679"></a>
+<a name="680"><font color="gray">/*<searched> evaluate an infix operator */</font></a>
+<a name="681"><font color="red">void</font> ExpressionInfix<a name="searched">Op</a>erator(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">enum</font> LexToken <a name="searched">Op</a>, <font color="brown">struct</font> Value *<a name="searched">BottomValue</a>, <font color="brown">struct</font> Value *<a name="searched">TopValue</a>)</a>
+<a name="682">{</a>
+<a name="683">    <font color="red">long</font> <a name="searched">ResultInt</a> = 0;</a>
+<a name="684">    <font color="brown">struct</font> Value *<a name="searched">StackValue</a>;</a>
+<a name="685">    <font color="red">void</font> *<a name="searched">Pointer</a>;</a>
+<a name="686">    </a>
+<a name="687">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#681">ExpressionInfixOperator</a>()\n");</a>
+<a name="688">    <font color="green">if</font> (BottomValue == NULL || <a href="expression_c.html#681">TopValue</a> == NULL)</a>
+<a name="689">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid expression");</a>
+<a name="690">        </a>
+<a name="691">    <font color="green">if</font> (Op == TokenLeftSquareBracket)</a>
+<a name="692">    { </a>
+<a name="693">        <font color="gray">/*<searched> array index */</font></a>
+<a name="694">        <font color="red">int</font> <a name="searched">ArrayIndex</a>;</a>
+<a name="695">        <font color="brown">struct</font> Value *<a name="searched">Result</a> = NULL;</a>
+<a name="696">        </a>
+<a name="697">        <font color="green">if</font> (!IS_NUMERIC_COERCIBLE(TopValue))</a>
+<a name="698">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "array index must be an integer");</a>
+<a name="699">        </a>
+<a name="700">        <a href="expression_c.html#694">ArrayIndex</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(TopValue);</a>
+<a name="701"></a>
+<a name="702">        <font color="gray">/*<searched> make the array element result */</font></a>
+<a name="703">        <font color="green">switch</font> (BottomValue-&gtTyp-&gtBase)</a>
+<a name="704">        {</a>
+<a name="705">            <font color="green">case</font> TypeArray:   <a href="expression_c.html#695">Result</a> = <a href="variable_c.html#135">VariableAllocValueFromExistingData</a>(Parser, <a href="expression_c.html#681">BottomValue</a>-&gtTyp-&gtFromType, (union AnyValue *)(&<a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtArrayMem[0] + <a href="type_c.html#80">TypeSize</a>(BottomValue-&gtTyp, <a href="expression_c.html#694">ArrayIndex</a>, TRUE)), <a href="expression_c.html#681">BottomValue</a>-&gtIsLValue, <a href="expression_c.html#681">BottomValue</a>-&gtLValueFrom); break;</a>
+<a name="706">            <font color="green">case</font> TypePointer: <a href="expression_c.html#695">Result</a> = <a href="variable_c.html#135">VariableAllocValueFromExistingData</a>(Parser, <a href="expression_c.html#681">BottomValue</a>-&gtTyp-&gtFromType, (union AnyValue *)((<font color="red">char</font> *)BottomValue-&gtVal-&gtPointer + <a href="type_c.html#80">TypeSize</a>(BottomValue-&gtTyp-&gtFromType, 0, TRUE) * <a href="expression_c.html#694">ArrayIndex</a>), <a href="expression_c.html#681">BottomValue</a>-&gtIsLValue, <a href="expression_c.html#681">BottomValue</a>-&gtLValueFrom); break;</a>
+<a name="707">            default:          <a href="platform_c.html#134">ProgramFail</a>(Parser, "this %t is not an array", <a href="expression_c.html#681">BottomValue</a>-&gtTyp);</a>
+<a name="708">        }</a>
+<a name="709">        </a>
+<a name="710">        <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#695">Result</a>);</a>
+<a name="711">    }</a>
+<a name="712">    <font color="green">else</font> <font color="green">if</font> (Op == TokenQuestionMark)</a>
+<a name="713">        <a href="expression_c.html#484">ExpressionQuestionMarkOperator</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">TopValue</a>, <a href="expression_c.html#681">BottomValue</a>);</a>
+<a name="714">    </a>
+<a name="715">    <font color="green">else</font> <font color="green">if</font> (Op == TokenColon)</a>
+<a name="716">        <a href="expression_c.html#502">ExpressionColonOperator</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">TopValue</a>, <a href="expression_c.html#681">BottomValue</a>);</a>
+<a name="717">        </a>
+<a name="718">#ifndef NO_FP</a>
+<a name="719">    <font color="green">else</font> <font color="green">if</font> ( (TopValue-&gtTyp == &<a href="expression_c.html#681">Parser</a>-&gtpc-&gtFPType && <a href="expression_c.html#681">BottomValue</a>-&gtTyp == &<a href="expression_c.html#681">Parser</a>-&gtpc-&gtFPType) ||</a>
+<a name="720">              (TopValue-&gtTyp == &<a href="expression_c.html#681">Parser</a>-&gtpc-&gtFPType && IS_NUMERIC_COERCIBLE(BottomValue)) ||</a>
+<a name="721">              (IS_NUMERIC_COERCIBLE(TopValue) && <a href="expression_c.html#681">BottomValue</a>-&gtTyp == &<a href="expression_c.html#681">Parser</a>-&gtpc-&gtFPType) )</a>
+<a name="722">    {</a>
+<a name="723">        <font color="gray">/*<searched> floating point infix arithmetic */</font></a>
+<a name="724">        <font color="red">int</font> <a name="searched">ResultIsInt</a> = FALSE;</a>
+<a name="725">        <font color="red">double</font> <a name="searched">ResultFP</a> = 0.0;</a>
+<a name="726">        <font color="red">double</font> <a name="searched">TopFP</a> = (TopValue-&gtTyp == &<a href="expression_c.html#681">Parser</a>-&gtpc-&gtFPType) ? <a href="expression_c.html#681">TopValue</a>-&gtVal-&gtFP : (<font color="red">double</font>)ExpressionCoerceInteger(TopValue);</a>
+<a name="727">        <font color="red">double</font> <a name="searched">BottomFP</a> = (BottomValue-&gtTyp == &<a href="expression_c.html#681">Parser</a>-&gtpc-&gtFPType) ? <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtFP : (<font color="red">double</font>)ExpressionCoerceInteger(BottomValue);</a>
+<a name="728"></a>
+<a name="729">        <font color="green">switch</font> (Op)</a>
+<a name="730">        {</a>
+<a name="731">            <font color="green">case</font> TokenAssign:               ASSIGN_FP_OR_INT(TopFP); break;</a>
+<a name="732">            <font color="green">case</font> TokenAddAssign:            ASSIGN_FP_OR_INT(BottomFP + <a href="expression_c.html#726">TopFP</a>); break;</a>
+<a name="733">            <font color="green">case</font> TokenSubtractAssign:       ASSIGN_FP_OR_INT(BottomFP - <a href="expression_c.html#726">TopFP</a>); break;</a>
+<a name="734">            <font color="green">case</font> TokenMultiplyAssign:       ASSIGN_FP_OR_INT(BottomFP * <a href="expression_c.html#726">TopFP</a>); break;</a>
+<a name="735">            <font color="green">case</font> TokenDivideAssign:         ASSIGN_FP_OR_INT(BottomFP / <a href="expression_c.html#726">TopFP</a>); break;</a>
+<a name="736">            <font color="green">case</font> TokenEqual:                <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#727">BottomFP</a> == <a href="expression_c.html#726">TopFP</a>; <a href="expression_c.html#724">ResultIsInt</a> = TRUE; break;</a>
+<a name="737">            <font color="green">case</font> TokenNotEqual:             <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#727">BottomFP</a> != <a href="expression_c.html#726">TopFP</a>; <a href="expression_c.html#724">ResultIsInt</a> = TRUE; break;</a>
+<a name="738">            <font color="green">case</font> TokenLessThan:             <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#727">BottomFP</a> &lt <a href="expression_c.html#726">TopFP</a>; <a href="expression_c.html#724">ResultIsInt</a> = TRUE; break;</a>
+<a name="739">            <font color="green">case</font> TokenGreaterThan:          <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#727">BottomFP</a> &gt <a href="expression_c.html#726">TopFP</a>; <a href="expression_c.html#724">ResultIsInt</a> = TRUE; break;</a>
+<a name="740">            <font color="green">case</font> TokenLessEqual:            <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#727">BottomFP</a> &lt= <a href="expression_c.html#726">TopFP</a>; <a href="expression_c.html#724">ResultIsInt</a> = TRUE; break;</a>
+<a name="741">            <font color="green">case</font> TokenGreaterEqual:         <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#727">BottomFP</a> &gt= <a href="expression_c.html#726">TopFP</a>; <a href="expression_c.html#724">ResultIsInt</a> = TRUE; break;</a>
+<a name="742">            <font color="green">case</font> TokenPlus:                 <a href="expression_c.html#725">ResultFP</a> = <a href="expression_c.html#727">BottomFP</a> + <a href="expression_c.html#726">TopFP</a>; break;</a>
+<a name="743">            <font color="green">case</font> TokenMinus:                <a href="expression_c.html#725">ResultFP</a> = <a href="expression_c.html#727">BottomFP</a> - <a href="expression_c.html#726">TopFP</a>; break;</a>
+<a name="744">            <font color="green">case</font> TokenAsterisk:             <a href="expression_c.html#725">ResultFP</a> = <a href="expression_c.html#727">BottomFP</a> * <a href="expression_c.html#726">TopFP</a>; break;</a>
+<a name="745">            <font color="green">case</font> TokenSlash:                <a href="expression_c.html#725">ResultFP</a> = <a href="expression_c.html#727">BottomFP</a> / <a href="expression_c.html#726">TopFP</a>; break;</a>
+<a name="746">            default:                        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="747">        }</a>
+<a name="748"></a>
+<a name="749">        <font color="green">if</font> (ResultIsInt)</a>
+<a name="750">            <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#683">ResultInt</a>);</a>
+<a name="751">        <font color="green">else</font></a>
+<a name="752">            <a href="expression_c.html#344">ExpressionPushFP</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#725">ResultFP</a>);</a>
+<a name="753">    }</a>
+<a name="754">#endif</a>
+<a name="755">    <font color="green">else</font> <font color="green">if</font> (IS_NUMERIC_COERCIBLE(TopValue) && IS_NUMERIC_COERCIBLE(BottomValue))</a>
+<a name="756">    { </a>
+<a name="757">        <font color="gray">/*<searched> integer operation */</font></a>
+<a name="758">        <font color="red">long</font> <a name="searched">TopInt</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(TopValue);</a>
+<a name="759">        <font color="red">long</font> <a name="searched">BottomInt</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(BottomValue);</a>
+<a name="760">        <font color="green">switch</font> (Op)</a>
+<a name="761">        {</a>
+<a name="762">            <font color="green">case</font> TokenAssign:               <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="763">            <font color="green">case</font> TokenAddAssign:            <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> + <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="764">            <font color="green">case</font> TokenSubtractAssign:       <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> - <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="765">            <font color="green">case</font> TokenMultiplyAssign:       <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> * <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="766">            <font color="green">case</font> TokenDivideAssign:         <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> / <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="767">#ifndef NO_MODULUS</a>
+<a name="768">            <font color="green">case</font> TokenModulusAssign:        <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> % <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="769">#endif</a>
+<a name="770">            <font color="green">case</font> TokenShiftLeftAssign:      <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> &lt&lt <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="771">            <font color="green">case</font> TokenShiftRightAssign:     <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> &gt&gt <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="772">            <font color="green">case</font> TokenArithmeticAndAssign:  <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> & <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="773">            <font color="green">case</font> TokenArithmeticOrAssign:   <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> | <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="774">            <font color="green">case</font> TokenArithmeticExorAssign: <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#243">ExpressionAssignInt</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#759">BottomInt</a> ^ <a href="expression_c.html#758">TopInt</a>, FALSE); break;</a>
+<a name="775">            <font color="green">case</font> TokenLogicalOr:            <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> || <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="776">            <font color="green">case</font> TokenLogicalAnd:           <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> && <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="777">            <font color="green">case</font> TokenArithmeticOr:         <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> | <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="778">            <font color="green">case</font> TokenArithmeticExor:       <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> ^ <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="779">            <font color="green">case</font> TokenAmpersand:            <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> & <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="780">            <font color="green">case</font> TokenEqual:                <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> == <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="781">            <font color="green">case</font> TokenNotEqual:             <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> != <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="782">            <font color="green">case</font> TokenLessThan:             <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> &lt <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="783">            <font color="green">case</font> TokenGreaterThan:          <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> &gt <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="784">            <font color="green">case</font> TokenLessEqual:            <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> &lt= <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="785">            <font color="green">case</font> TokenGreaterEqual:         <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> &gt= <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="786">            <font color="green">case</font> TokenShiftLeft:            <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> &lt&lt <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="787">            <font color="green">case</font> TokenShiftRight:           <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> &gt&gt <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="788">            <font color="green">case</font> TokenPlus:                 <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> + <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="789">            <font color="green">case</font> TokenMinus:                <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> - <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="790">            <font color="green">case</font> TokenAsterisk:             <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> * <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="791">            <font color="green">case</font> TokenSlash:                <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> / <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="792">#ifndef NO_MODULUS</a>
+<a name="793">            <font color="green">case</font> TokenModulus:              <a href="expression_c.html#683">ResultInt</a> = <a href="expression_c.html#759">BottomInt</a> % <a href="expression_c.html#758">TopInt</a>; break;</a>
+<a name="794">#endif</a>
+<a name="795">            default:                        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="796">        }</a>
+<a name="797">        </a>
+<a name="798">        <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#683">ResultInt</a>);</a>
+<a name="799">    }</a>
+<a name="800">    <font color="green">else</font> <font color="green">if</font> (BottomValue-&gtTyp-&gtBase == TypePointer && IS_NUMERIC_COERCIBLE(TopValue))</a>
+<a name="801">    {</a>
+<a name="802">        <font color="gray">/*<searched> pointer/integer infix arithmetic */</font></a>
+<a name="803">        <font color="red">long</font> <a name="searched">TopInt</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(TopValue);</a>
+<a name="804"></a>
+<a name="805">        <font color="green">if</font> (Op == TokenEqual || <a href="expression_c.html#681">Op</a> == TokenNotEqual)</a>
+<a name="806">        {</a>
+<a name="807">            <font color="gray">/*<searched> comparison to a NULL pointer */</font></a>
+<a name="808">            <font color="green">if</font> (TopInt != 0) </a>
+<a name="809">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation");</a>
+<a name="810">            </a>
+<a name="811">            <font color="green">if</font> (Op == TokenEqual)</a>
+<a name="812">                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtPointer == NULL);</a>
+<a name="813">            <font color="green">else</font></a>
+<a name="814">                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtPointer != NULL);</a>
+<a name="815">        }</a>
+<a name="816">        <font color="green">else</font> <font color="green">if</font> (Op == TokenPlus || <a href="expression_c.html#681">Op</a> == TokenMinus)</a>
+<a name="817">        {</a>
+<a name="818">            <font color="gray">/*<searched> pointer arithmetic */</font></a>
+<a name="819">            <font color="red">int</font> <a name="searched">Size</a> = Type<a name="searched">Size</a>(BottomValue-&gtTyp-&gtFromType, 0, TRUE);</a>
+<a name="820">            </a>
+<a name="821">            <a href="expression_c.html#685">Pointer</a> = <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtPointer;</a>
+<a name="822">            <font color="green">if</font> (Pointer == NULL)</a>
+<a name="823">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid use of a NULL pointer");</a>
+<a name="824">            </a>
+<a name="825">            <font color="green">if</font> (Op == TokenPlus)</a>
+<a name="826">                <a href="expression_c.html#685">Pointer</a> = (<font color="red">void</font> *)((<font color="red">char</font> *)Pointer + <a href="expression_c.html#803">TopInt</a> * <a href="expression_c.html#819">Size</a>);</a>
+<a name="827">            <font color="green">else</font></a>
+<a name="828">                <a href="expression_c.html#685">Pointer</a> = (<font color="red">void</font> *)((<font color="red">char</font> *)Pointer - <a href="expression_c.html#803">TopInt</a> * <a href="expression_c.html#819">Size</a>);</a>
+<a name="829">            </a>
+<a name="830">            <a href="expression_c.html#684">StackValue</a> = <a href="expression_c.html#299">ExpressionStackPushValueByType</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>-&gtTyp);</a>
+<a name="831">            <a href="expression_c.html#684">StackValue</a>-&gtVal-&gtPointer = <a href="expression_c.html#685">Pointer</a>;</a>
+<a name="832">        }</a>
+<a name="833">        <font color="green">else</font> <font color="green">if</font> (Op == TokenAssign && <a href="expression_c.html#803">TopInt</a> == 0)</a>
+<a name="834">        {</a>
+<a name="835">            <font color="gray">/*<searched> assign a NULL pointer */</font></a>
+<a name="836">            <a href="heap_c.html#83">HeapUnpopStack</a>(Parser-&gtpc, sizeof(<font color="brown">struct</font> Value));</a>
+<a name="837">            <a href="expression_c.html#391">ExpressionAssign</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#681">TopValue</a>, FALSE, NULL, 0, FALSE);</a>
+<a name="838">            <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>);</a>
+<a name="839">        }</a>
+<a name="840">        <font color="green">else</font> <font color="green">if</font> (Op == TokenAddAssign || <a href="expression_c.html#681">Op</a> == TokenSubtractAssign)</a>
+<a name="841">        {</a>
+<a name="842">            <font color="gray">/*<searched> pointer arithmetic */</font></a>
+<a name="843">            <font color="red">int</font> <a name="searched">Size</a> = Type<a name="searched">Size</a>(BottomValue-&gtTyp-&gtFromType, 0, TRUE);</a>
+<a name="844"></a>
+<a name="845">            <a href="expression_c.html#685">Pointer</a> = <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtPointer;</a>
+<a name="846">            <font color="green">if</font> (Pointer == NULL)</a>
+<a name="847">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid use of a NULL pointer");</a>
+<a name="848"></a>
+<a name="849">            <font color="green">if</font> (Op == TokenAddAssign)</a>
+<a name="850">                <a href="expression_c.html#685">Pointer</a> = (<font color="red">void</font> *)((<font color="red">char</font> *)Pointer + <a href="expression_c.html#803">TopInt</a> * <a href="expression_c.html#843">Size</a>);</a>
+<a name="851">            <font color="green">else</font></a>
+<a name="852">                <a href="expression_c.html#685">Pointer</a> = (<font color="red">void</font> *)((<font color="red">char</font> *)Pointer - <a href="expression_c.html#803">TopInt</a> * <a href="expression_c.html#843">Size</a>);</a>
+<a name="853"></a>
+<a name="854">            <a href="heap_c.html#83">HeapUnpopStack</a>(Parser-&gtpc, sizeof(<font color="brown">struct</font> Value));</a>
+<a name="855">            <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtPointer = <a href="expression_c.html#685">Pointer</a>;</a>
+<a name="856">            <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>);</a>
+<a name="857">        }</a>
+<a name="858">        <font color="green">else</font></a>
+<a name="859">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation");</a>
+<a name="860">    }</a>
+<a name="861">    <font color="green">else</font> <font color="green">if</font> (BottomValue-&gtTyp-&gtBase == TypePointer && <a href="expression_c.html#681">TopValue</a>-&gtTyp-&gtBase == TypePointer && <a href="expression_c.html#681">Op</a> != TokenAssign)</a>
+<a name="862">    {</a>
+<a name="863">        <font color="gray">/*<searched> pointer/pointer operations */</font></a>
+<a name="864">        <font color="red">char</font> *<a name="searched">TopLoc</a> = (<font color="red">char</font> *)TopValue-&gtVal-&gtPointer;</a>
+<a name="865">        <font color="red">char</font> *<a name="searched">BottomLoc</a> = (<font color="red">char</font> *)BottomValue-&gtVal-&gtPointer;</a>
+<a name="866">        </a>
+<a name="867">        <font color="green">switch</font> (Op)</a>
+<a name="868">        {</a>
+<a name="869">            <font color="green">case</font> TokenEqual:                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#865">BottomLoc</a> == <a href="expression_c.html#864">TopLoc</a>); break;</a>
+<a name="870">            <font color="green">case</font> TokenNotEqual:             <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#865">BottomLoc</a> != <a href="expression_c.html#864">TopLoc</a>); break;</a>
+<a name="871">            <font color="green">case</font> TokenMinus:                <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#865">BottomLoc</a> - <a href="expression_c.html#864">TopLoc</a>); break;</a>
+<a name="872">            default:                        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation"); break;</a>
+<a name="873">        }</a>
+<a name="874">    }</a>
+<a name="875">    <font color="green">else</font> <font color="green">if</font> (Op == TokenAssign)</a>
+<a name="876">    {</a>
+<a name="877">        <font color="gray">/*<searched> assign a non-numeric type */</font></a>
+<a name="878">        HeapUnpopStack(Parser-&gtpc, sizeof(struct Value));   <font color="gray">/*<searched> XXX - possible bug if lvalue is a temp value and takes more than sizeof(struct Value) */</font></a>
+<a name="879">        <a href="expression_c.html#391">ExpressionAssign</a>(Parser, <a href="expression_c.html#681">BottomValue</a>, <a href="expression_c.html#681">TopValue</a>, FALSE, NULL, 0, FALSE);</a>
+<a name="880">        <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>);</a>
+<a name="881">    }</a>
+<a name="882">    <font color="green">else</font> <font color="green">if</font> (Op == TokenCast)</a>
+<a name="883">    {</a>
+<a name="884">        <font color="gray">/*<searched> cast a value to a different type */</font>   <font color="gray">/*<searched> XXX - possible bug if the destination type takes more than sizeof(struct Value) + sizeof(struct ValueType *) */</font></a>
+<a name="885">        <font color="brown">struct</font> Value *<a name="searched">ValueLoc</a> = <a href="expression_c.html#299">ExpressionStackPushValueByType</a>(Parser, <a href="expression_c.html#681">StackTop</a>, <a href="expression_c.html#681">BottomValue</a>-&gtVal-&gtTyp);</a>
+<a name="886">        <a href="expression_c.html#391">ExpressionAssign</a>(Parser, <a href="expression_c.html#885">ValueLoc</a>, <a href="expression_c.html#681">TopValue</a>, TRUE, NULL, 0, TRUE);</a>
+<a name="887">    }</a>
+<a name="888">    <font color="green">else</font></a>
+<a name="889">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid operation");</a>
+<a name="890">}</a>
+<a name="891"></a>
+<a name="892"><font color="gray">/*<searched> take the contents of the expression stack and compute the top until there's nothing greater than the given precedence */</font></a>
+<a name="893"><font color="red">void</font> <a name="searched">ExpressionStackCollapse</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">int</font> <a name="searched">Precedence</a>, <font color="red">int</font> *<a name="searched">Ignore<a name="searched">Precedence</a></a>)</a>
+<a name="894">{</a>
+<a name="895">    <font color="red">int</font> <a name="searched">FoundPrecedence</a> = <a href="expression_c.html#893">Precedence</a>;</a>
+<a name="896">    <font color="brown">struct</font> Value *<a name="searched">TopValue</a>;</a>
+<a name="897">    <font color="brown">struct</font> Value *<a name="searched">BottomValue</a>;</a>
+<a name="898">    <font color="brown">struct</font> ExpressionStack *<a name="searched">TopStackNode</a> = *StackTop;</a>
+<a name="899">    <font color="brown">struct</font> ExpressionStack *<a name="searched">TopOperatorNode</a>;</a>
+<a name="900">    </a>
+<a name="901">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#893">ExpressionStackCollapse</a>(%d):\n", <a href="expression_c.html#893">Precedence</a>);</a>
+<a name="902">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="903">    ExpressionStackShow(Parser-&gtpc, *StackTop);</a>
+<a name="904">#endif</a>
+<a name="905">    <font color="green">while</font> (TopStackNode != NULL && <a href="expression_c.html#898">TopStackNode</a>-&gtNext != NULL && <a href="expression_c.html#895">FoundPrecedence</a> &gt= <a href="expression_c.html#893">Precedence</a>)</a>
+<a name="906">    {</a>
+<a name="907">        <font color="gray">/*<searched> find the top operator on the stack */</font></a>
+<a name="908">        <font color="green">if</font> (TopStackNode-&gtOrder == OrderNone)</a>
+<a name="909">            <a href="expression_c.html#899">TopOperatorNode</a> = <a href="expression_c.html#898">TopStackNode</a>-&gtNext;</a>
+<a name="910">        <font color="green">else</font></a>
+<a name="911">            <a href="expression_c.html#899">TopOperatorNode</a> = <a href="expression_c.html#898">TopStackNode</a>;</a>
+<a name="912">        </a>
+<a name="913">        <a href="expression_c.html#895">FoundPrecedence</a> = <a href="expression_c.html#899">TopOperatorNode</a>-&gtPrecedence;</a>
+<a name="914">        </a>
+<a name="915">        <font color="gray">/*<searched> does it have a high enough precedence? */</font></a>
+<a name="916">        <font color="green">if</font> (FoundPrecedence &gt= <a href="expression_c.html#893">Precedence</a> && <a href="expression_c.html#899">TopOperatorNode</a> != NULL)</a>
+<a name="917">        {</a>
+<a name="918">            <font color="gray">/*<searched> execute this operator */</font></a>
+<a name="919">            <font color="green">switch</font> (TopOperatorNode-&gtOrder)</a>
+<a name="920">            {</a>
+<a name="921">                <font color="green">case</font> OrderPrefix:</a>
+<a name="922">                    <font color="gray">/*<searched> prefix evaluation */</font></a>
+<a name="923">                    <a href="expression_c.html#20">debugf</a>("prefix evaluation\n");</a>
+<a name="924">                    <a href="expression_c.html#896">TopValue</a> = <a href="expression_c.html#898">TopStackNode</a>-&gtVal;</a>
+<a name="925">                    </a>
+<a name="926">                    <font color="gray">/*<searched> pop the value and then the prefix operator - assume they'll still be there until we're done */</font></a>
+<a name="927">                    <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, NULL, sizeof(<font color="brown">struct</font> ExpressionStack) + sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(TopValue));</a>
+<a name="928">                    <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, <a href="expression_c.html#899">TopOperatorNode</a>, sizeof(<font color="brown">struct</font> ExpressionStack));</a>
+<a name="929">                    *StackTop = <a href="expression_c.html#899">TopOperatorNode</a>-&gtNext;</a>
+<a name="930">                    </a>
+<a name="931">                    <font color="gray">/*<searched> do the prefix operation */</font></a>
+<a name="932">                    if (Parser-&gtMode == RunModeRun <font color="gray">/*<searched> && <a href="expression_c.html#895">FoundPrecedence</a> &lt *IgnorePrecedence */</font>)</a>
+<a name="933">                    {</a>
+<a name="934">                        <font color="gray">/*<searched> run the operator */</font></a>
+<a name="935">                        <a href="expression_c.html#517">ExpressionPrefixOperator</a>(Parser, <a href="expression_c.html#893">StackTop</a>, <a href="expression_c.html#899">TopOperatorNode</a>-&gtOp, <a href="expression_c.html#896">TopValue</a>);</a>
+<a name="936">                    }</a>
+<a name="937">                    <font color="green">else</font></a>
+<a name="938">                    {</a>
+<a name="939">                        <font color="gray">/*<searched> we're not running it so just return 0 */</font></a>
+<a name="940">                        <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#893">StackTop</a>, 0);</a>
+<a name="941">                    }</a>
+<a name="942">                    break;</a>
+<a name="943">                </a>
+<a name="944">                <font color="green">case</font> OrderPostfix:</a>
+<a name="945">                    <font color="gray">/*<searched> postfix evaluation */</font></a>
+<a name="946">                    <a href="expression_c.html#20">debugf</a>("postfix evaluation\n");</a>
+<a name="947">                    <a href="expression_c.html#896">TopValue</a> = <a href="expression_c.html#898">TopStackNode</a>-&gtNext-&gtVal;</a>
+<a name="948">                    </a>
+<a name="949">                    <font color="gray">/*<searched> pop the postfix operator and then the value - assume they'll still be there until we're done */</font></a>
+<a name="950">                    <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, NULL, sizeof(<font color="brown">struct</font> ExpressionStack));</a>
+<a name="951">                    <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, <a href="expression_c.html#896">TopValue</a>, sizeof(<font color="brown">struct</font> ExpressionStack) + sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(TopValue));</a>
+<a name="952">                    *StackTop = <a href="expression_c.html#898">TopStackNode</a>-&gtNext-&gtNext;</a>
+<a name="953"></a>
+<a name="954">                    <font color="gray">/*<searched> do the postfix operation */</font></a>
+<a name="955">                    if (Parser-&gtMode == RunModeRun <font color="gray">/*<searched> && <a href="expression_c.html#895">FoundPrecedence</a> &lt *IgnorePrecedence */</font>)</a>
+<a name="956">                    {</a>
+<a name="957">                        <font color="gray">/*<searched> run the operator */</font></a>
+<a name="958">                        <a href="expression_c.html#618">ExpressionPostfixOperator</a>(Parser, <a href="expression_c.html#893">StackTop</a>, <a href="expression_c.html#899">TopOperatorNode</a>-&gtOp, <a href="expression_c.html#896">TopValue</a>);</a>
+<a name="959">                    }</a>
+<a name="960">                    <font color="green">else</font></a>
+<a name="961">                    {</a>
+<a name="962">                        <font color="gray">/*<searched> we're not running it so just return 0 */</font></a>
+<a name="963">                        <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#893">StackTop</a>, 0);</a>
+<a name="964">                    }</a>
+<a name="965">                    break;</a>
+<a name="966">                </a>
+<a name="967">                <font color="green">case</font> OrderInfix:</a>
+<a name="968">                    <font color="gray">/*<searched> infix evaluation */</font></a>
+<a name="969">                    <a href="expression_c.html#20">debugf</a>("infix evaluation\n");</a>
+<a name="970">                    <a href="expression_c.html#896">TopValue</a> = <a href="expression_c.html#898">TopStackNode</a>-&gtVal;</a>
+<a name="971">                    <font color="green">if</font> (TopValue != NULL)</a>
+<a name="972">                    {</a>
+<a name="973">                        <a href="expression_c.html#897">BottomValue</a> = <a href="expression_c.html#899">TopOperatorNode</a>-&gtNext-&gtVal;</a>
+<a name="974">                        </a>
+<a name="975">                        <font color="gray">/*<searched> pop a value, the operator and another value - assume they'll still be there until we're done */</font></a>
+<a name="976">                        <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, NULL, sizeof(<font color="brown">struct</font> ExpressionStack) + sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(TopValue));</a>
+<a name="977">                        <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, NULL, sizeof(<font color="brown">struct</font> ExpressionStack));</a>
+<a name="978">                        <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, <a href="expression_c.html#897">BottomValue</a>, sizeof(<font color="brown">struct</font> ExpressionStack) + sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(BottomValue));</a>
+<a name="979">                        *StackTop = <a href="expression_c.html#899">TopOperatorNode</a>-&gtNext-&gtNext;</a>
+<a name="980">                        </a>
+<a name="981">                        <font color="gray">/*<searched> do the infix operation */</font></a>
+<a name="982">                        if (Parser-&gtMode == RunModeRun <font color="gray">/*<searched> && <a href="expression_c.html#895">FoundPrecedence</a> &lt= *IgnorePrecedence */</font>)</a>
+<a name="983">                        {</a>
+<a name="984">                            <font color="gray">/*<searched> run the operator */</font></a>
+<a name="985">                            <a href="expression_c.html#681">ExpressionInfixOperator</a>(Parser, <a href="expression_c.html#893">StackTop</a>, <a href="expression_c.html#899">TopOperatorNode</a>-&gtOp, <a href="expression_c.html#897">BottomValue</a>, <a href="expression_c.html#896">TopValue</a>);</a>
+<a name="986">                        }</a>
+<a name="987">                        <font color="green">else</font></a>
+<a name="988">                        {</a>
+<a name="989">                            <font color="gray">/*<searched> we're not running it so just return 0 */</font></a>
+<a name="990">                            <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#893">StackTop</a>, 0);</a>
+<a name="991">                        }</a>
+<a name="992">                    }</a>
+<a name="993">                    <font color="green">else</font></a>
+<a name="994">                        <a href="expression_c.html#895">FoundPrecedence</a> = -1;</a>
+<a name="995">                    break;</a>
+<a name="996"></a>
+<a name="997">                <font color="green">case</font> OrderNone:</a>
+<a name="998">                    <font color="gray">/*<searched> this should never happen */</font></a>
+<a name="999">                    assert(TopOperatorNode-&gtOrder != OrderNone);</a>
+<a name="1000">                    break;</a>
+<a name="1001">            }</a>
+<a name="1002">            </a>
+<a name="1003">            <font color="gray">/*<searched> if we've returned above the ignored precedence level turn ignoring off */</font></a>
+<a name="1004">            <font color="green">if</font> (FoundPrecedence &lt= *IgnorePrecedence)</a>
+<a name="1005">                *IgnorePrecedence = DEEP_PRECEDENCE;</a>
+<a name="1006">        }</a>
+<a name="1007">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="1008">        ExpressionStackShow(Parser-&gtpc, *StackTop);</a>
+<a name="1009">#endif</a>
+<a name="1010">        <a href="expression_c.html#898">TopStackNode</a> = *StackTop;</a>
+<a name="1011">    }</a>
+<a name="1012">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#893">ExpressionStackCollapse</a>() finished\n");</a>
+<a name="1013">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="1014">    ExpressionStackShow(Parser-&gtpc, *StackTop);</a>
+<a name="1015">#endif</a>
+<a name="1016">}</a>
+<a name="1017"></a>
+<a name="1018"><font color="gray">/*<searched> push an operator on to the expression stack */</font></a>
+<a name="1019"><font color="red">void</font> <a name="searched">ExpressionStackPushOperator</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">enum</font> Operator<a name="searched">Order</a> <a name="searched">Order</a>, <font color="red">enum</font> Lex<a name="searched">Token</a> <a name="searched">Token</a>, <font color="red">int</font> <a name="searched">Precedence</a>)</a>
+<a name="1020">{</a>
+<a name="1021">    <font color="brown">struct</font> ExpressionStack *<a name="searched">StackNode</a> = <a href="variable_c.html#68">VariableAlloc</a>(Parser-&gtpc, <a href="expression_c.html#1019">Parser</a>, sizeof(<font color="brown">struct</font> ExpressionStack), FALSE);</a>
+<a name="1022">    <a href="expression_c.html#1021">StackNode</a>-&gtNext = *StackTop;</a>
+<a name="1023">    <a href="expression_c.html#1021">StackNode</a>-&gtOrder = <a href="expression_c.html#1019">Order</a>;</a>
+<a name="1024">    <a href="expression_c.html#1021">StackNode</a>-&gtOp = <a href="expression_c.html#1019">Token</a>;</a>
+<a name="1025">    <a href="expression_c.html#1021">StackNode</a>-&gtPrecedence = <a href="expression_c.html#1019">Precedence</a>;</a>
+<a name="1026">    *StackTop = <a href="expression_c.html#1021">StackNode</a>;</a>
+<a name="1027">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#1019">ExpressionStackPushOperator</a>()\n");</a>
+<a name="1028">#ifdef FANCY_ERROR_MESSAGES</a>
+<a name="1029">    <a href="expression_c.html#1021">StackNode</a>-&gtLine = <a href="expression_c.html#1019">Parser</a>-&gtLine;</a>
+<a name="1030">    <a href="expression_c.html#1021">StackNode</a>-&gtCharacterPos = <a href="expression_c.html#1019">Parser</a>-&gtCharacterPos;</a>
+<a name="1031">#endif</a>
+<a name="1032">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="1033">    ExpressionStackShow(Parser-&gtpc, *StackTop);</a>
+<a name="1034">#endif</a>
+<a name="1035">}</a>
+<a name="1036"></a>
+<a name="1037"><font color="gray">/*<searched> do the '.' and '-&gt' operators */</font></a>
+<a name="1038"><font color="red">void</font> <a name="searched">ExpressionGetStructElement</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, <font color="red">enum</font> Lex<a name="searched">Token</a> <a name="searched">Token</a>)</a>
+<a name="1039">{</a>
+<a name="1040">    <font color="brown">struct</font> Value *<a name="searched">Ident</a>;</a>
+<a name="1041">    </a>
+<a name="1042">    <font color="gray">/*<searched> get the identifier following the '.' or '-&gt' */</font></a>
+<a name="1043">    <font color="green">if</font> (LexGetToken(Parser, &<a href="expression_c.html#1040">Ident</a>, TRUE) != TokenIdentifier)</a>
+<a name="1044">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "need an structure or union member after '%s'", (Token == TokenDot) ? "." : "-&gt");</a>
+<a name="1045"></a>
+<a name="1046">    <font color="green">if</font> (Parser-&gtMode == RunModeRun)</a>
+<a name="1047">    { </a>
+<a name="1048">        <font color="gray">/*<searched> look up the struct element */</font></a>
+<a name="1049">        <font color="brown">struct</font> Value *<a name="searched">ParamVal</a> = (*StackTop)-&gtVal;</a>
+<a name="1050">        <font color="brown">struct</font> Value *<a name="searched">StructVal</a> = <a href="expression_c.html#1049">ParamVal</a>;</a>
+<a name="1051">        <font color="brown">struct</font> ValueType *<a name="searched">StructType</a> = <a href="expression_c.html#1049">ParamVal</a>-&gtTyp;</a>
+<a name="1052">        <font color="red">char</font> *<a name="searched">DerefDataLoc</a> = (<font color="red">char</font> *)ParamVal-&gtVal;</a>
+<a name="1053">        <font color="brown">struct</font> Value *<a name="searched">MemberValue</a> = NULL;</a>
+<a name="1054">        <font color="brown">struct</font> Value *<a name="searched">Result</a>;</a>
+<a name="1055"></a>
+<a name="1056">        <font color="gray">/*<searched> if we're doing '-&gt' dereference the struct pointer first */</font></a>
+<a name="1057">        <font color="green">if</font> (Token == TokenArrow)</a>
+<a name="1058">            <a href="expression_c.html#1052">DerefDataLoc</a> = <a href="variable_c.html#458">VariableDereferencePointer</a>(Parser, <a href="expression_c.html#1049">ParamVal</a>, &<a href="expression_c.html#1050">StructVal</a>, NULL, &<a href="expression_c.html#1051">StructType</a>, NULL);</a>
+<a name="1059">        </a>
+<a name="1060">        <font color="green">if</font> (StructType-&gtBase != TypeStruct && <a href="expression_c.html#1051">StructType</a>-&gtBase != TypeUnion)</a>
+<a name="1061">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "can't use '%s' on something that's not a <font color="brown">struct</font> or union %s : it's a %t", (Token == TokenDot) ? "." : "-&gt", (Token == TokenArrow) ? "pointer" : "", <a href="expression_c.html#1049">ParamVal</a>-&gtTyp);</a>
+<a name="1062">            </a>
+<a name="1063">        <font color="green">if</font> (!<a href="table_c.html#81">TableGet</a>(StructType-&gtMembers, <a href="expression_c.html#1040">Ident</a>-&gtVal-&gtIdentifier, &<a href="expression_c.html#1053">MemberValue</a>, NULL, NULL, NULL))</a>
+<a name="1064">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "doesn't have a member called '%s'", <a href="expression_c.html#1040">Ident</a>-&gtVal-&gtIdentifier);</a>
+<a name="1065">        </a>
+<a name="1066">        <font color="gray">/*<searched> pop the value - assume it'll still be there until we're done */</font></a>
+<a name="1067">        <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, <a href="expression_c.html#1049">ParamVal</a>, sizeof(<font color="brown">struct</font> ExpressionStack) + sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(StructVal));</a>
+<a name="1068">        *StackTop = (*StackTop)-&gtNext;</a>
+<a name="1069">        </a>
+<a name="1070">        <font color="gray">/*<searched> make the result value for this member only */</font></a>
+<a name="1071">        <a href="expression_c.html#1054">Result</a> = <a href="variable_c.html#135">VariableAllocValueFromExistingData</a>(Parser, <a href="expression_c.html#1053">MemberValue</a>-&gtTyp, (<font color="red">void</font> *)(DerefDataLoc + <a href="expression_c.html#1053">MemberValue</a>-&gtVal-&gtInteger), TRUE, (StructVal != NULL) ? <a href="expression_c.html#1050">StructVal</a>-&gtLValueFrom : NULL);</a>
+<a name="1072">        <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, <a href="expression_c.html#1038">StackTop</a>, <a href="expression_c.html#1054">Result</a>);</a>
+<a name="1073">    }</a>
+<a name="1074">}</a>
+<a name="1075"></a>
+<a name="1076"><font color="gray">/*<searched> parse an expression with operator precedence */</font></a>
+<a name="1077"><font color="red">int</font> <a name="searched">ExpressionParse</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> Value **<a name="searched">Result</a>)</a>
+<a name="1078">{</a>
+<a name="1079">    <font color="brown">struct</font> Value *<a name="searched">LexValue</a>;</a>
+<a name="1080">    <font color="red">int</font> <a name="searched">PrefixState</a> = TRUE;</a>
+<a name="1081">    <font color="red">int</font> <a name="searched">Done</a> = FALSE;</a>
+<a name="1082">    <font color="red">int</font> <a name="searched">BracketPrecedence</a> = 0;</a>
+<a name="1083">    <font color="red">int</font> <a name="searched">LocalPrecedence</a>;</a>
+<a name="1084">    <font color="red">int</font> <a name="searched">Precedence</a> = 0;</a>
+<a name="1085">    <font color="red">int</font> <a name="searched">IgnorePrecedence</a> = DEEP_PRECEDENCE;</a>
+<a name="1086">    <font color="brown">struct</font> ExpressionStack *<a name="searched">StackTop</a> = NULL;</a>
+<a name="1087">    <font color="red">int</font> <a name="searched">TernaryDepth</a> = 0;</a>
+<a name="1088">    </a>
+<a name="1089">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#1077">ExpressionParse</a>():\n");</a>
+<a name="1090">    do</a>
+<a name="1091">    {</a>
+<a name="1092">        <font color="brown">struct</font> ParseState <a name="searched">PreState</a>;</a>
+<a name="1093">        <font color="red">enum</font> Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="1094"></a>
+<a name="1095">        <a href="parse_c.html#429">ParserCopy</a>(&<a href="expression_c.html#1092">PreState</a>, <a href="expression_c.html#1077">Parser</a>);</a>
+<a name="1096">        <a href="expression_c.html#1093">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, &<a href="expression_c.html#1079">LexValue</a>, TRUE);</a>
+<a name="1097">        <font color="green">if</font> ( ( ( (<font color="red">int</font>)Token &gt TokenComma && (<font color="red">int</font>)Token &lt= (<font color="red">int</font>)TokenOpenBracket) || </a>
+<a name="1098">               (Token == TokenCloseBracket && <a href="expression_c.html#1082">BracketPrecedence</a> != 0)) && </a>
+<a name="1099">               (Token != TokenColon || <a href="expression_c.html#1087">TernaryDepth</a> &gt 0) )</a>
+<a name="1100">        { </a>
+<a name="1101">            <font color="gray">/*<searched> it's an operator with precedence */</font></a>
+<a name="1102">            <font color="green">if</font> (PrefixState)</a>
+<a name="1103">            { </a>
+<a name="1104">                <font color="gray">/*<searched> expect a prefix operator */</font></a>
+<a name="1105">                <font color="green">if</font> (OperatorPrecedence[(<font color="red">int</font>)Token].PrefixPrecedence == 0)</a>
+<a name="1106">                    <a href="platform_c.html#134">ProgramFail</a>(Parser, "operator not expected here");</a>
+<a name="1107">                </a>
+<a name="1108">                <a href="expression_c.html#1083">LocalPrecedence</a> = <a href="expression_c.html#54">OperatorPrecedence</a>[(<font color="red">int</font>)Token].PrefixPrecedence;</a>
+<a name="1109">                <a href="expression_c.html#1084">Precedence</a> = <a href="expression_c.html#1082">BracketPrecedence</a> + <a href="expression_c.html#1083">LocalPrecedence</a>;</a>
+<a name="1110"></a>
+<a name="1111">                <font color="green">if</font> (Token == TokenOpenBracket)</a>
+<a name="1112">                { </a>
+<a name="1113">                    <font color="gray">/*<searched> it's either a new bracket level or a cast */</font></a>
+<a name="1114">                    <font color="red">enum</font> LexToken <a name="searched">BracketToken</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, &<a href="expression_c.html#1079">LexValue</a>, FALSE);</a>
+<a name="1115">                    <font color="green">if</font> (IsTypeToken(Parser, <a href="expression_c.html#1114">BracketToken</a>, <a href="expression_c.html#1079">LexValue</a>) && (StackTop == NULL || <a href="expression_c.html#1086">StackTop</a>-&gtOp != TokenSizeof) )</a>
+<a name="1116">                    {</a>
+<a name="1117">                        <font color="gray">/*<searched> it's a cast - get the new type */</font></a>
+<a name="1118">                        <font color="brown">struct</font> ValueType *<a name="searched">CastType</a>;</a>
+<a name="1119">                        <font color="red">char</font> *<a name="searched">CastIdentifier</a>;</a>
+<a name="1120">                        <font color="brown">struct</font> Value *<a name="searched">CastTypeValue</a>;</a>
+<a name="1121">                        </a>
+<a name="1122">                        <a href="type_c.html#526">TypeParse</a>(Parser, &<a href="expression_c.html#1118">CastType</a>, &<a href="expression_c.html#1119">CastIdentifier</a>, NULL);</a>
+<a name="1123">                        <font color="green">if</font> (LexGetToken(Parser, &<a href="expression_c.html#1079">LexValue</a>, TRUE) != TokenCloseBracket)</a>
+<a name="1124">                            <a href="platform_c.html#134">ProgramFail</a>(Parser, "brackets not closed");</a>
+<a name="1125">                        </a>
+<a name="1126">                        <font color="gray">/*<searched> scan and collapse the stack to the precedence of this infix cast operator, then push */</font></a>
+<a name="1127">                        <a href="expression_c.html#1084">Precedence</a> = <a href="expression_c.html#1082">BracketPrecedence</a> + <a href="expression_c.html#54">OperatorPrecedence</a>[(<font color="red">int</font>)TokenCast].PrefixPrecedence;</a>
+<a name="1128"></a>
+<a name="1129">                        <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1084">Precedence</a>+1, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1130">                        <a href="expression_c.html#1120">CastTypeValue</a> = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#1077">Parser</a>, &<a href="expression_c.html#1077">Parser</a>-&gtpc-&gtTypeType, FALSE, NULL, FALSE);</a>
+<a name="1131">                        <a href="expression_c.html#1120">CastTypeValue</a>-&gtVal-&gtTyp = <a href="expression_c.html#1118">CastType</a>;</a>
+<a name="1132">                        <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1120">CastTypeValue</a>);</a>
+<a name="1133">                        <a href="expression_c.html#1019">ExpressionStackPushOperator</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, OrderInfix, TokenCast, <a href="expression_c.html#1084">Precedence</a>);</a>
+<a name="1134">                    }</a>
+<a name="1135">                    <font color="green">else</font></a>
+<a name="1136">                    {</a>
+<a name="1137">                        <font color="gray">/*<searched> boost the bracket operator precedence */</font></a>
+<a name="1138">                        <a href="expression_c.html#1082">BracketPrecedence</a> += BRACKET_PRECEDENCE;</a>
+<a name="1139">                    }</a>
+<a name="1140">                }</a>
+<a name="1141">                <font color="green">else</font></a>
+<a name="1142">                { </a>
+<a name="1143">                    <font color="gray">/*<searched> scan and collapse the stack to the precedence of this operator, then push */</font></a>
+<a name="1144">                    </a>
+<a name="1145">                    <font color="gray">/*<searched> take some extra care for double prefix operators, e.g. x = - -5, or x = **y */</font></a>
+<a name="1146">                    <font color="red">int</font> <a name="searched">NextToken</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, NULL, FALSE);</a>
+<a name="1147">                    <font color="red">int</font> <a name="searched">TempPrecedenceBoost</a> = 0;</a>
+<a name="1148">                    <font color="green">if</font> (NextToken &gt TokenComma && <a href="expression_c.html#1146">NextToken</a> &lt TokenOpenBracket)</a>
+<a name="1149">                    {</a>
+<a name="1150">                        <font color="red">int</font> <a name="searched">NextPrecedence</a> = <a href="expression_c.html#54">OperatorPrecedence</a>[(<font color="red">int</font>)NextToken].PrefixPrecedence;</a>
+<a name="1151">                        </a>
+<a name="1152">                        <font color="gray">/*<searched> two prefix operators with equal precedence? make sure the innermost one runs first */</font></a>
+<a name="1153">                        <font color="gray">/*<searched> XXX - probably not correct, but can't find a test that fails at this */</font></a>
+<a name="1154">                        <font color="green">if</font> (LocalPrecedence == <a href="expression_c.html#1150">NextPrecedence</a>)</a>
+<a name="1155">                            <a href="expression_c.html#1147">TempPrecedenceBoost</a> = -1;</a>
+<a name="1156">                    }</a>
+<a name="1157"></a>
+<a name="1158">                    <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1084">Precedence</a>, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1159">                    <a href="expression_c.html#1019">ExpressionStackPushOperator</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, OrderPrefix, <a href="expression_c.html#1093">Token</a>, <a href="expression_c.html#1084">Precedence</a> + <a href="expression_c.html#1147">TempPrecedenceBoost</a>);</a>
+<a name="1160">                }</a>
+<a name="1161">            }</a>
+<a name="1162">            <font color="green">else</font></a>
+<a name="1163">            { </a>
+<a name="1164">                <font color="gray">/*<searched> expect an infix or postfix operator */</font></a>
+<a name="1165">                <font color="green">if</font> (OperatorPrecedence[(<font color="red">int</font>)Token].PostfixPrecedence != 0)</a>
+<a name="1166">                {</a>
+<a name="1167">                    <font color="green">switch</font> (Token)</a>
+<a name="1168">                    {</a>
+<a name="1169">                        <font color="green">case</font> TokenCloseBracket:</a>
+<a name="1170">                        <font color="green">case</font> TokenRightSquareBracket:</a>
+<a name="1171">                            <font color="green">if</font> (BracketPrecedence == 0)</a>
+<a name="1172">                            { </a>
+<a name="1173">                                <font color="gray">/*<searched> assume this bracket is after the end of the expression */</font></a>
+<a name="1174">                                <a href="parse_c.html#429">ParserCopy</a>(Parser, &<a href="expression_c.html#1092">PreState</a>);</a>
+<a name="1175">                                <a href="expression_c.html#1081">Done</a> = TRUE;</a>
+<a name="1176">                            }</a>
+<a name="1177">                            <font color="green">else</font></a>
+<a name="1178">                            {</a>
+<a name="1179">                                <font color="gray">/*<searched> collapse to the bracket precedence */</font></a>
+<a name="1180">                                <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1082">BracketPrecedence</a>, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1181">                                <a href="expression_c.html#1082">BracketPrecedence</a> -= BRACKET_PRECEDENCE;</a>
+<a name="1182">                            }    </a>
+<a name="1183">                            break;</a>
+<a name="1184">                    </a>
+<a name="1185">                        default:</a>
+<a name="1186">                            <font color="gray">/*<searched> scan and collapse the stack to the precedence of this operator, then push */</font></a>
+<a name="1187">                            <a href="expression_c.html#1084">Precedence</a> = <a href="expression_c.html#1082">BracketPrecedence</a> + <a href="expression_c.html#54">OperatorPrecedence</a>[(<font color="red">int</font>)Token].PostfixPrecedence;</a>
+<a name="1188">                            <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1084">Precedence</a>, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1189">                            <a href="expression_c.html#1019">ExpressionStackPushOperator</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, OrderPostfix, <a href="expression_c.html#1093">Token</a>, <a href="expression_c.html#1084">Precedence</a>);</a>
+<a name="1190">                            break;</a>
+<a name="1191">                    }</a>
+<a name="1192">                }</a>
+<a name="1193">                <font color="green">else</font> <font color="green">if</font> (OperatorPrecedence[(<font color="red">int</font>)Token].InfixPrecedence != 0)</a>
+<a name="1194">                { </a>
+<a name="1195">                    <font color="gray">/*<searched> scan and collapse the stack, then push */</font></a>
+<a name="1196">                    <a href="expression_c.html#1084">Precedence</a> = <a href="expression_c.html#1082">BracketPrecedence</a> + <a href="expression_c.html#54">OperatorPrecedence</a>[(<font color="red">int</font>)Token].InfixPrecedence;</a>
+<a name="1197">                    </a>
+<a name="1198">                    <font color="gray">/*<searched> for right to left order, only go down to the next higher precedence so we evaluate it in reverse order */</font></a>
+<a name="1199">                    <font color="gray">/*<searched> for left to right order, collapse down to this precedence so we evaluate it in forward order */</font></a>
+<a name="1200">                    <font color="green">if</font> (IS_LEFT_TO_RIGHT(OperatorPrecedence[(<font color="red">int</font>)Token].InfixPrecedence))</a>
+<a name="1201">                        <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1084">Precedence</a>, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1202">                    <font color="green">else</font></a>
+<a name="1203">                        <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1084">Precedence</a>+1, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1204">                        </a>
+<a name="1205">                    <font color="green">if</font> (Token == TokenDot || <a href="expression_c.html#1093">Token</a> == TokenArrow)</a>
+<a name="1206">                    {</a>
+<a name="1207">                        ExpressionGetStructElement(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1093">Token</a>); <font color="gray">/*<searched> this operator is followed by a struct element so handle it as a special case */</font></a>
+<a name="1208">                    }</a>
+<a name="1209">                    <font color="green">else</font></a>
+<a name="1210">                    { </a>
+<a name="1211">                        <font color="gray">/*<searched> if it's a && or || operator we may not need to evaluate the right hand side of the expression */</font></a>
+<a name="1212">                        <font color="green">if</font> ( (Token == TokenLogicalOr || <a href="expression_c.html#1093">Token</a> == TokenLogicalAnd) && IS_NUMERIC_COERCIBLE(StackTop-&gtVal))</a>
+<a name="1213">                        {</a>
+<a name="1214">                            <font color="red">long</font> <a name="searched">LHSInt</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(StackTop-&gtVal);</a>
+<a name="1215">                            <font color="green">if</font> ( ( (Token == TokenLogicalOr && <a href="expression_c.html#1214">LHSInt</a>) || (Token == TokenLogicalAnd && !<a href="expression_c.html#1214">LHSInt</a>) ) &&</a>
+<a name="1216">                                 (IgnorePrecedence &gt <a href="expression_c.html#1084">Precedence</a>) )</a>
+<a name="1217">                                <a href="expression_c.html#1085">IgnorePrecedence</a> = <a href="expression_c.html#1084">Precedence</a>;</a>
+<a name="1218">                        }</a>
+<a name="1219">                        </a>
+<a name="1220">                        <font color="gray">/*<searched> push the operator on the stack */</font></a>
+<a name="1221">                        <a href="expression_c.html#1019">ExpressionStackPushOperator</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, OrderInfix, <a href="expression_c.html#1093">Token</a>, <a href="expression_c.html#1084">Precedence</a>);</a>
+<a name="1222">                        <a href="expression_c.html#1080">PrefixState</a> = TRUE;</a>
+<a name="1223">                        </a>
+<a name="1224">                        <font color="green">switch</font> (Token)</a>
+<a name="1225">                        {</a>
+<a name="1226">                            <font color="green">case</font> TokenQuestionMark: <a href="expression_c.html#1087">TernaryDepth</a>++; break;</a>
+<a name="1227">                            <font color="green">case</font> TokenColon: <a href="expression_c.html#1087">TernaryDepth</a>--; break;</a>
+<a name="1228">                            default: break;</a>
+<a name="1229">                        }</a>
+<a name="1230">                    }</a>
+<a name="1231"></a>
+<a name="1232">                    <font color="gray">/*<searched> treat an open square bracket as an infix array index operator followed by an open bracket */</font></a>
+<a name="1233">                    <font color="green">if</font> (Token == TokenLeftSquareBracket)</a>
+<a name="1234">                    { </a>
+<a name="1235">                        <font color="gray">/*<searched> boost the bracket operator precedence, then push */</font></a>
+<a name="1236">                        <a href="expression_c.html#1082">BracketPrecedence</a> += BRACKET_PRECEDENCE;</a>
+<a name="1237">                    }</a>
+<a name="1238">                }</a>
+<a name="1239">                <font color="green">else</font></a>
+<a name="1240">                    <a href="platform_c.html#134">ProgramFail</a>(Parser, "operator not expected here");</a>
+<a name="1241">            }</a>
+<a name="1242">        }</a>
+<a name="1243">        <font color="green">else</font> <font color="green">if</font> (Token == TokenIdentifier)</a>
+<a name="1244">        { </a>
+<a name="1245">            <font color="gray">/*<searched> it's a variable, function or a macro */</font></a>
+<a name="1246">            <font color="green">if</font> (!<a href="expression_c.html#1080">PrefixState</a>)</a>
+<a name="1247">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "identifier not expected here");</a>
+<a name="1248">                </a>
+<a name="1249">            <font color="green">if</font> (LexGetToken(Parser, NULL, FALSE) == TokenOpenBracket)</a>
+<a name="1250">            {</a>
+<a name="1251">                <a href="expression_c.html#1441">ExpressionParseFunctionCall</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1079">LexValue</a>-&gtVal-&gtIdentifier, <a href="expression_c.html#1077">Parser</a>-&gtMode == RunModeRun && <a href="expression_c.html#1084">Precedence</a> &lt <a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1252">            }</a>
+<a name="1253">            <font color="green">else</font></a>
+<a name="1254">            {</a>
+<a name="1255">                if (Parser-&gtMode == RunModeRun <font color="gray">/*<searched> && <a href="expression_c.html#1084">Precedence</a> &lt <a href="expression_c.html#1085">IgnorePrecedence</a> */</font>)</a>
+<a name="1256">                {</a>
+<a name="1257">                    <font color="brown">struct</font> Value *<a name="searched">VariableValue</a> = NULL;</a>
+<a name="1258">                    </a>
+<a name="1259">                    <a href="variable_c.html#360">VariableGet</a>(Parser-&gtpc, <a href="expression_c.html#1077">Parser</a>, <a href="expression_c.html#1079">LexValue</a>-&gtVal-&gtIdentifier, &<a href="expression_c.html#1257">VariableValue</a>);</a>
+<a name="1260">                    <font color="green">if</font> (VariableValue-&gtTyp-&gtBase == TypeMacro)</a>
+<a name="1261">                    {</a>
+<a name="1262">                        <font color="gray">/*<searched> evaluate a macro as a kind of simple subroutine */</font></a>
+<a name="1263">                        <font color="brown">struct</font> ParseState <a name="searched">MacroParser</a>;</a>
+<a name="1264">                        <font color="brown">struct</font> Value *<a name="searched">MacroResult</a>;</a>
+<a name="1265">                        </a>
+<a name="1266">                        <a href="parse_c.html#429">ParserCopy</a>(&<a href="expression_c.html#1263">MacroParser</a>, &<a href="expression_c.html#1257">VariableValue</a>-&gtVal-&gtMacroDef.Body);</a>
+<a name="1267">                        <a href="expression_c.html#1263">MacroParser</a>.Mode = <a href="expression_c.html#1077">Parser</a>-&gtMode;</a>
+<a name="1268">                        <font color="green">if</font> (VariableValue-&gtVal-&gtMacroDef.NumParams != 0)</a>
+<a name="1269">                            <a href="platform_c.html#134">ProgramFail</a>(&<a href="expression_c.html#1263">MacroParser</a>, "macro arguments missing");</a>
+<a name="1270">                            </a>
+<a name="1271">                        <font color="green">if</font> (!<a href="expression_c.html#1077">ExpressionParse</a>(&<a href="expression_c.html#1263">MacroParser</a>, &<a href="expression_c.html#1264">MacroResult</a>) || <a href="lex_c.html#883">LexGetToken</a>(&<a href="expression_c.html#1263">MacroParser</a>, NULL, FALSE) != TokenEndOfFunction)</a>
+<a name="1272">                            <a href="platform_c.html#134">ProgramFail</a>(&<a href="expression_c.html#1263">MacroParser</a>, "expression expected");</a>
+<a name="1273">                        </a>
+<a name="1274">                        <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1264">MacroResult</a>);</a>
+<a name="1275">                    }</a>
+<a name="1276">                    <font color="green">else</font> <font color="green">if</font> (VariableValue-&gtTyp == &<a href="expression_c.html#1077">Parser</a>-&gtpc-&gtVoidType)</a>
+<a name="1277">                        <a href="platform_c.html#134">ProgramFail</a>(Parser, "a <font color="red">void</font> value isn't much use here");</a>
+<a name="1278">                    <font color="green">else</font></a>
+<a name="1279">                        ExpressionStackPushLValue(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1257">VariableValue</a>, 0); <font color="gray">/*<searched> it's a value variable */</font></a>
+<a name="1280">                }</a>
+<a name="1281">                else <font color="gray">/*<searched> push a dummy value */</font></a>
+<a name="1282">                    <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, 0);</a>
+<a name="1283">                    </a>
+<a name="1284">            }</a>
+<a name="1285"></a>
+<a name="1286">             <font color="gray">/*<searched> if we've successfully ignored the RHS turn ignoring off */</font></a>
+<a name="1287">            <font color="green">if</font> (Precedence &lt= <a href="expression_c.html#1085">IgnorePrecedence</a>)</a>
+<a name="1288">                <a href="expression_c.html#1085">IgnorePrecedence</a> = DEEP_PRECEDENCE;</a>
+<a name="1289"></a>
+<a name="1290">            <a href="expression_c.html#1080">PrefixState</a> = FALSE;</a>
+<a name="1291">        }</a>
+<a name="1292">        <font color="green">else</font> <font color="green">if</font> ((<font color="red">int</font>)Token &gt TokenCloseBracket && (<font color="red">int</font>)Token &lt= TokenCharacterConstant)</a>
+<a name="1293">        { </a>
+<a name="1294">            <font color="gray">/*<searched> it's a value of some sort, push it */</font></a>
+<a name="1295">            <font color="green">if</font> (!<a href="expression_c.html#1080">PrefixState</a>)</a>
+<a name="1296">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "value not expected here");</a>
+<a name="1297">                </a>
+<a name="1298">            <a href="expression_c.html#1080">PrefixState</a> = FALSE;</a>
+<a name="1299">            <a href="expression_c.html#308">ExpressionStackPushValue</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1079">LexValue</a>);</a>
+<a name="1300">        }</a>
+<a name="1301">        <font color="green">else</font> <font color="green">if</font> (IsTypeToken(Parser, <a href="expression_c.html#1093">Token</a>, <a href="expression_c.html#1079">LexValue</a>))</a>
+<a name="1302">        {</a>
+<a name="1303">            <font color="gray">/*<searched> it's a type. push it on the stack like a value. this is used in sizeof() */</font></a>
+<a name="1304">            <font color="brown">struct</font> Value<a name="searched">Typ</a>e *<a name="searched">Typ</a>;</a>
+<a name="1305">            <font color="red">char</font> *<a name="searched">Identifier</a>;</a>
+<a name="1306">            <font color="brown">struct</font> Value *<a name="searched">TypeValue</a>;</a>
+<a name="1307">            </a>
+<a name="1308">            <font color="green">if</font> (!<a href="expression_c.html#1080">PrefixState</a>)</a>
+<a name="1309">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "type not expected here");</a>
+<a name="1310">                </a>
+<a name="1311">            <a href="expression_c.html#1080">PrefixState</a> = FALSE;</a>
+<a name="1312">            <a href="parse_c.html#429">ParserCopy</a>(Parser, &<a href="expression_c.html#1092">PreState</a>);</a>
+<a name="1313">            <a href="type_c.html#526">TypeParse</a>(Parser, &<a href="expression_c.html#1304">Typ</a>, &<a href="expression_c.html#1305">Identifier</a>, NULL);</a>
+<a name="1314">            <a href="expression_c.html#1306">TypeValue</a> = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#1077">Parser</a>, &<a href="expression_c.html#1077">Parser</a>-&gtpc-&gtTypeType, FALSE, NULL, FALSE);</a>
+<a name="1315">            <a href="expression_c.html#1306">TypeValue</a>-&gtVal-&gtTyp = Typ;</a>
+<a name="1316">            <a href="expression_c.html#283">ExpressionStackPushValueNode</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, <a href="expression_c.html#1306">TypeValue</a>);</a>
+<a name="1317">        }</a>
+<a name="1318">        <font color="green">else</font></a>
+<a name="1319">        { </a>
+<a name="1320">            <font color="gray">/*<searched> it isn't a token from an expression */</font></a>
+<a name="1321">            <a href="parse_c.html#429">ParserCopy</a>(Parser, &<a href="expression_c.html#1092">PreState</a>);</a>
+<a name="1322">            <a href="expression_c.html#1081">Done</a> = TRUE;</a>
+<a name="1323">        }</a>
+<a name="1324">        </a>
+<a name="1325">    } <font color="green">while</font> (!<a href="expression_c.html#1081">Done</a>);</a>
+<a name="1326">    </a>
+<a name="1327">    <font color="gray">/*<searched> check that brackets have been closed */</font></a>
+<a name="1328">    <font color="green">if</font> (BracketPrecedence &gt 0)</a>
+<a name="1329">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "brackets not closed");</a>
+<a name="1330">        </a>
+<a name="1331">    <font color="gray">/*<searched> scan and collapse the stack to precedence 0 */</font></a>
+<a name="1332">    <a href="expression_c.html#893">ExpressionStackCollapse</a>(Parser, &<a href="expression_c.html#1086">StackTop</a>, 0, &<a href="expression_c.html#1085">IgnorePrecedence</a>);</a>
+<a name="1333">    </a>
+<a name="1334">    <font color="gray">/*<searched> fix up the stack and return the result if we're in run mode */</font></a>
+<a name="1335">    <font color="green">if</font> (StackTop != NULL)</a>
+<a name="1336">    {</a>
+<a name="1337">        <font color="gray">/*<searched> all that should be left is a single value on the stack */</font></a>
+<a name="1338">        <font color="green">if</font> (Parser-&gtMode == RunModeRun)</a>
+<a name="1339">        {</a>
+<a name="1340">            <font color="green">if</font> (StackTop-&gtOrder != OrderNone || <a href="expression_c.html#1086">StackTop</a>-&gtNext != NULL)</a>
+<a name="1341">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "invalid expression");</a>
+<a name="1342">                </a>
+<a name="1343">            *Result = <a href="expression_c.html#1086">StackTop</a>-&gtVal;</a>
+<a name="1344">            <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, <a href="expression_c.html#1086">StackTop</a>, sizeof(<font color="brown">struct</font> ExpressionStack));</a>
+<a name="1345">        }</a>
+<a name="1346">        <font color="green">else</font></a>
+<a name="1347">            <a href="heap_c.html#92">HeapPopStack</a>(Parser-&gtpc, <a href="expression_c.html#1086">StackTop</a>-&gtVal, sizeof(<font color="brown">struct</font> ExpressionStack) + sizeof(<font color="brown">struct</font> Value) + <a href="type_c.html#60">TypeStackSizeValue</a>(StackTop-&gtVal));</a>
+<a name="1348">    }</a>
+<a name="1349">    </a>
+<a name="1350">    <a href="expression_c.html#20">debugf</a>("<a href="expression_c.html#1077">ExpressionParse</a>() done\n\n");</a>
+<a name="1351">#ifdef DEBUG_EXPRESSIONS</a>
+<a name="1352">    ExpressionStackShow(Parser-&gtpc, <a href="expression_c.html#1086">StackTop</a>);</a>
+<a name="1353">#endif</a>
+<a name="1354">    <font color="green">return</font> <a href="expression_c.html#1086">StackTop</a> != NULL;</a>
+<a name="1355">}</a>
+<a name="1356"></a>
+<a name="1357"></a>
+<a name="1358"><font color="gray">/*<searched> do a parameterised macro call */</font></a>
+<a name="1359"><font color="red">void</font> <a name="searched">ExpressionParseMacroCall</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, const <font color="red">char</font> *<a name="searched">MacroName</a>, <font color="brown">struct</font> MacroDef *<a name="searched">MDef</a>)</a>
+<a name="1360">{</a>
+<a name="1361">    <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a> = NULL;</a>
+<a name="1362">    <font color="brown">struct</font> Value *<a name="searched">Param</a>;</a>
+<a name="1363">    <font color="brown">struct</font> Value **<a name="searched">ParamArray</a> = NULL;</a>
+<a name="1364">    <font color="red">int</font> <a name="searched">ArgCount</a>;</a>
+<a name="1365">    <font color="red">enum</font> Lex<a name="searched">Token</a> <a name="searched">Token</a>;</a>
+<a name="1366">    </a>
+<a name="1367">    <font color="green">if</font> (Parser-&gtMode == RunModeRun) </a>
+<a name="1368">    { </a>
+<a name="1369">        <font color="gray">/*<searched> create a stack frame for this macro */</font></a>
+<a name="1370">#ifndef NO_FP</a>
+<a name="1371">        ExpressionStackPushValueByType(Parser, <a href="expression_c.html#1359">StackTop</a>, &<a href="expression_c.html#1359">Parser</a>-&gtpc-&gtFPType);  <font color="gray">/*<searched> largest return type there is */</font></a>
+<a name="1372">#<font color="green">else</font></a>
+<a name="1373">        ExpressionStackPushValueByType(Parser, <a href="expression_c.html#1359">StackTop</a>, &<a href="expression_c.html#1359">Parser</a>-&gtpc-&gtIntType);  <font color="gray">/*<searched> largest return type there is */</font></a>
+<a name="1374">#endif</a>
+<a name="1375">        <a href="expression_c.html#1361">ReturnValue</a> = (*StackTop)-&gtVal;</a>
+<a name="1376">        <a href="heap_c.html#108">HeapPushStackFrame</a>(Parser-&gtpc);</a>
+<a name="1377">        <a href="expression_c.html#1363">ParamArray</a> = <a href="heap_c.html#67">HeapAllocStack</a>(Parser-&gtpc, sizeof(<font color="brown">struct</font> Value *) * <a href="expression_c.html#1359">MDef</a>-&gtNumParams);    </a>
+<a name="1378">        <font color="green">if</font> (ParamArray == NULL)</a>
+<a name="1379">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "out of memory");</a>
+<a name="1380">    }</a>
+<a name="1381">    <font color="green">else</font></a>
+<a name="1382">        <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#1359">StackTop</a>, 0);</a>
+<a name="1383">        </a>
+<a name="1384">    <font color="gray">/*<searched> parse arguments */</font></a>
+<a name="1385">    <a href="expression_c.html#1364">ArgCount</a> = 0;</a>
+<a name="1386">    do {</a>
+<a name="1387">        <font color="green">if</font> (ExpressionParse(Parser, &<a href="expression_c.html#1362">Param</a>))</a>
+<a name="1388">        {</a>
+<a name="1389">            <font color="green">if</font> (Parser-&gtMode == RunModeRun)</a>
+<a name="1390">            { </a>
+<a name="1391">                <font color="green">if</font> (ArgCount &lt <a href="expression_c.html#1359">MDef</a>-&gtNumParams)</a>
+<a name="1392">                    <a href="expression_c.html#1363">ParamArray</a>[<a href="expression_c.html#1364">ArgCount</a>] = <a href="expression_c.html#1362">Param</a>;</a>
+<a name="1393">                <font color="green">else</font></a>
+<a name="1394">                    <a href="platform_c.html#134">ProgramFail</a>(Parser, "too many arguments to %s()", <a href="expression_c.html#1359">MacroName</a>);</a>
+<a name="1395">            }</a>
+<a name="1396">            </a>
+<a name="1397">            <a href="expression_c.html#1364">ArgCount</a>++;</a>
+<a name="1398">            <a href="expression_c.html#1365">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, NULL, TRUE);</a>
+<a name="1399">            <font color="green">if</font> (Token != TokenComma && <a href="expression_c.html#1365">Token</a> != TokenCloseBracket)</a>
+<a name="1400">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "comma expected");</a>
+<a name="1401">        }</a>
+<a name="1402">        <font color="green">else</font></a>
+<a name="1403">        { </a>
+<a name="1404">            <font color="gray">/*<searched> end of argument list? */</font></a>
+<a name="1405">            <a href="expression_c.html#1365">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, NULL, TRUE);</a>
+<a name="1406">            <font color="green">if</font> (!TokenCloseBracket)</a>
+<a name="1407">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "bad argument");</a>
+<a name="1408">        }</a>
+<a name="1409">        </a>
+<a name="1410">    } <font color="green">while</font> (Token != TokenCloseBracket);</a>
+<a name="1411">    </a>
+<a name="1412">    <font color="green">if</font> (Parser-&gtMode == RunModeRun) </a>
+<a name="1413">    { </a>
+<a name="1414">        <font color="gray">/*<searched> evaluate the macro */</font></a>
+<a name="1415">        <font color="brown">struct</font> ParseState <a name="searched">MacroParser</a>;</a>
+<a name="1416">        <font color="red">int</font> <a name="searched">Count</a>;</a>
+<a name="1417">        <font color="brown">struct</font> Value *<a name="searched">EvalValue</a>;</a>
+<a name="1418">        </a>
+<a name="1419">        <font color="green">if</font> (ArgCount &lt <a href="expression_c.html#1359">MDef</a>-&gtNumParams)</a>
+<a name="1420">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "not enough arguments to '%s'", <a href="expression_c.html#1359">MacroName</a>);</a>
+<a name="1421">        </a>
+<a name="1422">        <font color="green">if</font> (MDef-&gtBody.Pos == NULL)</a>
+<a name="1423">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "'%s' is undefined", <a href="expression_c.html#1359">MacroName</a>);</a>
+<a name="1424">        </a>
+<a name="1425">        <a href="parse_c.html#429">ParserCopy</a>(&<a href="expression_c.html#1415">MacroParser</a>, &<a href="expression_c.html#1359">MDef</a>-&gtBody);</a>
+<a name="1426">        <a href="expression_c.html#1415">MacroParser</a>.Mode = <a href="expression_c.html#1359">Parser</a>-&gtMode;</a>
+<a name="1427">        <a href="variable_c.html#412">VariableStackFrameAdd</a>(Parser, <a href="expression_c.html#1359">MacroName</a>, 0);</a>
+<a name="1428">        <a href="expression_c.html#1359">Parser</a>-&gtpc-&gtTopStackFrame-&gtNumParams = <a href="expression_c.html#1364">ArgCount</a>;</a>
+<a name="1429">        <a href="expression_c.html#1359">Parser</a>-&gtpc-&gtTopStackFrame-&gtReturnValue = <a href="expression_c.html#1361">ReturnValue</a>;</a>
+<a name="1430">        <font color="green">for</font> (Count = 0; <a href="expression_c.html#1416">Count</a> &lt <a href="expression_c.html#1359">MDef</a>-&gtNumParams; <a href="expression_c.html#1416">Count</a>++)</a>
+<a name="1431">            <a href="variable_c.html#259">VariableDefine</a>(Parser-&gtpc, <a href="expression_c.html#1359">Parser</a>, <a href="expression_c.html#1359">MDef</a>-&gtParamName[<a href="expression_c.html#1416">Count</a>], <a href="expression_c.html#1363">ParamArray</a>[<a href="expression_c.html#1416">Count</a>], NULL, TRUE);</a>
+<a name="1432">            </a>
+<a name="1433">        <a href="expression_c.html#1077">ExpressionParse</a>(&<a href="expression_c.html#1415">MacroParser</a>, &<a href="expression_c.html#1417">EvalValue</a>);</a>
+<a name="1434">        <a href="expression_c.html#391">ExpressionAssign</a>(Parser, <a href="expression_c.html#1361">ReturnValue</a>, <a href="expression_c.html#1417">EvalValue</a>, TRUE, <a href="expression_c.html#1359">MacroName</a>, 0, FALSE);</a>
+<a name="1435">        <a href="variable_c.html#430">VariableStackFramePop</a>(Parser);</a>
+<a name="1436">        <a href="heap_c.html#119">HeapPopStackFrame</a>(Parser-&gtpc);</a>
+<a name="1437">    }</a>
+<a name="1438">}</a>
+<a name="1439"></a>
+<a name="1440"><font color="gray">/*<searched> do a function call */</font></a>
+<a name="1441"><font color="red">void</font> <a name="searched">ExpressionParseFunctionCall</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>, <font color="brown">struct</font> ExpressionStack **<a name="searched">StackTop</a>, const <font color="red">char</font> *<a name="searched">FuncName</a>, <font color="red">int</font> <a name="searched">RunIt</a>)</a>
+<a name="1442">{</a>
+<a name="1443">    <font color="brown">struct</font> Value *<a name="searched">ReturnValue</a> = NULL;</a>
+<a name="1444">    <font color="brown">struct</font> Value *<a name="searched">FuncValue</a> = NULL;</a>
+<a name="1445">    <font color="brown">struct</font> Value *<a name="searched">Param</a>;</a>
+<a name="1446">    <font color="brown">struct</font> Value **<a name="searched">ParamArray</a> = NULL;</a>
+<a name="1447">    <font color="red">int</font> <a name="searched">ArgCount</a>;</a>
+<a name="1448">    enum Lex<a name="searched">Token</a> <a name="searched">Token</a> = LexGet<a name="searched">Token</a>(Parser, NULL, TRUE);    <font color="gray">/*<searched> open bracket */</font></a>
+<a name="1449">    <font color="red">enum</font> RunMode <a name="searched">OldMode</a> = <a href="expression_c.html#1441">Parser</a>-&gtMode;</a>
+<a name="1450">    </a>
+<a name="1451">    <font color="green">if</font> (RunIt)</a>
+<a name="1452">    { </a>
+<a name="1453">        <font color="gray">/*<searched> get the function definition */</font></a>
+<a name="1454">        <a href="variable_c.html#360">VariableGet</a>(Parser-&gtpc, <a href="expression_c.html#1441">Parser</a>, <a href="expression_c.html#1441">FuncName</a>, &<a href="expression_c.html#1444">FuncValue</a>);</a>
+<a name="1455">        </a>
+<a name="1456">        <font color="green">if</font> (FuncValue-&gtTyp-&gtBase == TypeMacro)</a>
+<a name="1457">        {</a>
+<a name="1458">            <font color="gray">/*<searched> this is actually a macro, not a function */</font></a>
+<a name="1459">            <a href="expression_c.html#1359">ExpressionParseMacroCall</a>(Parser, <a href="expression_c.html#1441">StackTop</a>, <a href="expression_c.html#1441">FuncName</a>, &<a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtMacroDef);</a>
+<a name="1460">            <font color="green">return</font>;</a>
+<a name="1461">        }</a>
+<a name="1462">        </a>
+<a name="1463">        <font color="green">if</font> (FuncValue-&gtTyp-&gtBase != TypeFunction)</a>
+<a name="1464">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "%t is not a function - can't call", <a href="expression_c.html#1444">FuncValue</a>-&gtTyp);</a>
+<a name="1465">    </a>
+<a name="1466">        <a href="expression_c.html#299">ExpressionStackPushValueByType</a>(Parser, <a href="expression_c.html#1441">StackTop</a>, <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.ReturnType);</a>
+<a name="1467">        <a href="expression_c.html#1443">ReturnValue</a> = (*StackTop)-&gtVal;</a>
+<a name="1468">        <a href="heap_c.html#108">HeapPushStackFrame</a>(Parser-&gtpc);</a>
+<a name="1469">        <a href="expression_c.html#1446">ParamArray</a> = <a href="heap_c.html#67">HeapAllocStack</a>(Parser-&gtpc, sizeof(<font color="brown">struct</font> Value *) * <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.NumParams);    </a>
+<a name="1470">        <font color="green">if</font> (ParamArray == NULL)</a>
+<a name="1471">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "out of memory");</a>
+<a name="1472">    }</a>
+<a name="1473">    <font color="green">else</font></a>
+<a name="1474">    {</a>
+<a name="1475">        <a href="expression_c.html#336">ExpressionPushInt</a>(Parser, <a href="expression_c.html#1441">StackTop</a>, 0);</a>
+<a name="1476">        <a href="expression_c.html#1441">Parser</a>-&gtMode = RunModeSkip;</a>
+<a name="1477">    }</a>
+<a name="1478">        </a>
+<a name="1479">    <font color="gray">/*<searched> parse arguments */</font></a>
+<a name="1480">    <a href="expression_c.html#1447">ArgCount</a> = 0;</a>
+<a name="1481">    do {</a>
+<a name="1482">        <font color="green">if</font> (RunIt && <a href="expression_c.html#1447">ArgCount</a> &lt <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.NumParams)</a>
+<a name="1483">            <a href="expression_c.html#1446">ParamArray</a>[<a href="expression_c.html#1447">ArgCount</a>] = <a href="variable_c.html#107">VariableAllocValueFromType</a>(Parser-&gtpc, <a href="expression_c.html#1441">Parser</a>, <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.ParamType[<a href="expression_c.html#1447">ArgCount</a>], FALSE, NULL, FALSE);</a>
+<a name="1484">        </a>
+<a name="1485">        <font color="green">if</font> (ExpressionParse(Parser, &<a href="expression_c.html#1445">Param</a>))</a>
+<a name="1486">        {</a>
+<a name="1487">            <font color="green">if</font> (RunIt)</a>
+<a name="1488">            { </a>
+<a name="1489">                <font color="green">if</font> (ArgCount &lt <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.NumParams)</a>
+<a name="1490">                {</a>
+<a name="1491">                    <a href="expression_c.html#391">ExpressionAssign</a>(Parser, <a href="expression_c.html#1446">ParamArray</a>[<a href="expression_c.html#1447">ArgCount</a>], Param, TRUE, <a href="expression_c.html#1441">FuncName</a>, <a href="expression_c.html#1447">ArgCount</a>+1, FALSE);</a>
+<a name="1492">                    <a href="variable_c.html#386">VariableStackPop</a>(Parser, <a href="expression_c.html#1445">Param</a>);</a>
+<a name="1493">                }</a>
+<a name="1494">                <font color="green">else</font></a>
+<a name="1495">                {</a>
+<a name="1496">                    <font color="green">if</font> (!<a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.VarArgs)</a>
+<a name="1497">                        <a href="platform_c.html#134">ProgramFail</a>(Parser, "too many arguments to %s()", <a href="expression_c.html#1441">FuncName</a>);</a>
+<a name="1498">                }</a>
+<a name="1499">            }</a>
+<a name="1500">            </a>
+<a name="1501">            <a href="expression_c.html#1447">ArgCount</a>++;</a>
+<a name="1502">            <a href="expression_c.html#1448">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, NULL, TRUE);</a>
+<a name="1503">            <font color="green">if</font> (Token != TokenComma && <a href="expression_c.html#1448">Token</a> != TokenCloseBracket)</a>
+<a name="1504">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "comma expected");</a>
+<a name="1505">        }</a>
+<a name="1506">        <font color="green">else</font></a>
+<a name="1507">        { </a>
+<a name="1508">            <font color="gray">/*<searched> end of argument list? */</font></a>
+<a name="1509">            <a href="expression_c.html#1448">Token</a> = <a href="lex_c.html#883">LexGetToken</a>(Parser, NULL, TRUE);</a>
+<a name="1510">            <font color="green">if</font> (!TokenCloseBracket)</a>
+<a name="1511">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "bad argument");</a>
+<a name="1512">        }</a>
+<a name="1513">        </a>
+<a name="1514">    } <font color="green">while</font> (Token != TokenCloseBracket);</a>
+<a name="1515">    </a>
+<a name="1516">    <font color="green">if</font> (RunIt) </a>
+<a name="1517">    { </a>
+<a name="1518">        <font color="gray">/*<searched> run the function */</font></a>
+<a name="1519">        <font color="green">if</font> (ArgCount &lt <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.NumParams)</a>
+<a name="1520">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "not enough arguments to '%s'", <a href="expression_c.html#1441">FuncName</a>);</a>
+<a name="1521">        </a>
+<a name="1522">        <font color="green">if</font> (FuncValue-&gtVal-&gtFuncDef.Intrinsic == NULL)</a>
+<a name="1523">        { </a>
+<a name="1524">            <font color="gray">/*<searched> run a user-defined function */</font></a>
+<a name="1525">            <font color="brown">struct</font> ParseState <a name="searched">FuncParser</a>;</a>
+<a name="1526">            <font color="red">int</font> <a name="searched">Count</a>;</a>
+<a name="1527">            <font color="red">int</font> <a name="searched">OldScopeID</a> = <a href="expression_c.html#1441">Parser</a>-&gtScopeID;</a>
+<a name="1528">            </a>
+<a name="1529">            <font color="green">if</font> (FuncValue-&gtVal-&gtFuncDef.Body.Pos == NULL)</a>
+<a name="1530">                <a href="platform_c.html#134">ProgramFail</a>(Parser, "'%s' is undefined", <a href="expression_c.html#1441">FuncName</a>);</a>
+<a name="1531">            </a>
+<a name="1532">            <a href="parse_c.html#429">ParserCopy</a>(&<a href="expression_c.html#1525">FuncParser</a>, &<a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.Body);</a>
+<a name="1533">            <a href="variable_c.html#412">VariableStackFrameAdd</a>(Parser, <a href="expression_c.html#1441">FuncName</a>, <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.Intrinsic ? <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.NumParams : 0);</a>
+<a name="1534">            <a href="expression_c.html#1441">Parser</a>-&gtpc-&gtTopStackFrame-&gtNumParams = <a href="expression_c.html#1447">ArgCount</a>;</a>
+<a name="1535">            <a href="expression_c.html#1441">Parser</a>-&gtpc-&gtTopStackFrame-&gtReturnValue = <a href="expression_c.html#1443">ReturnValue</a>;</a>
+<a name="1536"></a>
+<a name="1537">            <font color="gray">/*<searched> Function parameters should not go out of scope */</font></a>
+<a name="1538">            <a href="expression_c.html#1441">Parser</a>-&gtScopeID = -1;</a>
+<a name="1539"></a>
+<a name="1540">            <font color="green">for</font> (Count = 0; <a href="expression_c.html#1526">Count</a> &lt <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.NumParams; <a href="expression_c.html#1526">Count</a>++)</a>
+<a name="1541">                <a href="variable_c.html#259">VariableDefine</a>(Parser-&gtpc, <a href="expression_c.html#1441">Parser</a>, <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.ParamName[<a href="expression_c.html#1526">Count</a>], <a href="expression_c.html#1446">ParamArray</a>[<a href="expression_c.html#1526">Count</a>], NULL, TRUE);</a>
+<a name="1542"></a>
+<a name="1543">            <a href="expression_c.html#1441">Parser</a>-&gtScopeID = <a href="expression_c.html#1527">OldScopeID</a>;</a>
+<a name="1544">                </a>
+<a name="1545">            <font color="green">if</font> (ParseStatement(&<a href="expression_c.html#1525">FuncParser</a>, TRUE) != ParseResultOk)</a>
+<a name="1546">                <a href="platform_c.html#134">ProgramFail</a>(&<a href="expression_c.html#1525">FuncParser</a>, "function body expected");</a>
+<a name="1547">            </a>
+<a name="1548">            <font color="green">if</font> (RunIt)</a>
+<a name="1549">            {</a>
+<a name="1550">                <font color="green">if</font> (FuncParser.Mode == RunModeRun && <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.ReturnType != &<a href="expression_c.html#1441">Parser</a>-&gtpc-&gtVoidType)</a>
+<a name="1551">                    <a href="platform_c.html#134">ProgramFail</a>(&<a href="expression_c.html#1525">FuncParser</a>, "no value returned from a function returning %t", <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.ReturnType);</a>
+<a name="1552"></a>
+<a name="1553">                <font color="green">else</font> <font color="green">if</font> (FuncParser.Mode == RunModeGoto)</a>
+<a name="1554">                    <a href="platform_c.html#134">ProgramFail</a>(&<a href="expression_c.html#1525">FuncParser</a>, "couldn't find <font color="green">goto</font> label '%s'", <a href="expression_c.html#1525">FuncParser</a>.SearchGotoLabel);</a>
+<a name="1555">            }</a>
+<a name="1556">            </a>
+<a name="1557">            <a href="variable_c.html#430">VariableStackFramePop</a>(Parser);</a>
+<a name="1558">        }</a>
+<a name="1559">        <font color="green">else</font></a>
+<a name="1560">            <a href="expression_c.html#1444">FuncValue</a>-&gtVal-&gtFuncDef.Intrinsic(Parser, <a href="expression_c.html#1443">ReturnValue</a>, <a href="expression_c.html#1446">ParamArray</a>, <a href="expression_c.html#1447">ArgCount</a>);</a>
+<a name="1561"></a>
+<a name="1562">        <a href="heap_c.html#119">HeapPopStackFrame</a>(Parser-&gtpc);</a>
+<a name="1563">    }</a>
+<a name="1564"></a>
+<a name="1565">    <a href="expression_c.html#1441">Parser</a>-&gtMode = <a href="expression_c.html#1449">OldMode</a>;</a>
+<a name="1566">}</a>
+<a name="1567"></a>
+<a name="1568"><font color="gray">/*<searched> parse an expression */</font></a>
+<a name="1569"><font color="red">long</font> <a name="searched">ExpressionParseInt</a>(<font color="brown">struct</font> ParseState *<a name="searched">Parser</a>)</a>
+<a name="1570">{</a>
+<a name="1571">    <font color="brown">struct</font> <a name="searched">Val</a>ue *<a name="searched">Val</a>;</a>
+<a name="1572">    <font color="red">long</font> <a name="searched">Result</a> = 0;</a>
+<a name="1573">    </a>
+<a name="1574">    <font color="green">if</font> (!<a href="expression_c.html#1077">ExpressionParse</a>(Parser, &<a href="expression_c.html#1571">Val</a>))</a>
+<a name="1575">        <a href="platform_c.html#134">ProgramFail</a>(Parser, "expression expected");</a>
+<a name="1576">    </a>
+<a name="1577">    <font color="green">if</font> (Parser-&gtMode == RunModeRun)</a>
+<a name="1578">    { </a>
+<a name="1579">        <font color="green">if</font> (!IS_NUMERIC_COERCIBLE(Val))</a>
+<a name="1580">            <a href="platform_c.html#134">ProgramFail</a>(Parser, "integer value expected instead of %t", <a href="expression_c.html#1571">Val</a>-&gtTyp);</a>
+<a name="1581">    </a>
+<a name="1582">        <a href="expression_c.html#1572">Result</a> = <a href="expression_c.html#164">ExpressionCoerceInteger</a>(Val);</a>
+<a name="1583">        <a href="variable_c.html#386">VariableStackPop</a>(Parser, <a href="expression_c.html#1571">Val</a>);</a>
+<a name="1584">    }</a>
+<a name="1585">    </a>
+<a name="1586">    <font color="green">return</font> <a href="expression_c.html#1572">Result</a>;</a>
+<a name="1587">}</a>
+</pre></body></html>

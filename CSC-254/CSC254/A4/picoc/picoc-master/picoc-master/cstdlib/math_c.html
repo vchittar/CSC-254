@@ -1,0 +1,189 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* stdio.h library for large systems - small embedded systems use clibrary.c instead */</a>
+<a name="2">#include "../interpreter.h"</a>
+<a name="3"></a>
+<a name="4">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="5">#ifndef NO_FP</a>
+<a name="6"></a>
+<a name="7">static double <a href="math_c.html#7">M_EValue</a> =        2.7182818284590452354;   /* e */</a>
+<a name="8">static double <a href="math_c.html#8">M_LOG2EValue</a> =    1.4426950408889634074;   /* log_2 e */</a>
+<a name="9">static double <a href="math_c.html#9">M_LOG10EValue</a> =   0.43429448190325182765;  /* log_10 e */</a>
+<a name="10">static double <a href="math_c.html#10">M_LN2Value</a> =      0.69314718055994530942;  /* log_e 2 */</a>
+<a name="11">static double <a href="math_c.html#11">M_LN10Value</a> =     2.30258509299404568402;  /* log_e 10 */</a>
+<a name="12">static double <a href="math_c.html#12">M_PIValue</a> =       3.14159265358979323846;  /* pi */</a>
+<a name="13">static double <a href="math_c.html#13">M_PI_2Value</a> =     1.57079632679489661923;  /* pi/2 */</a>
+<a name="14">static double <a href="math_c.html#14">M_PI_4Value</a> =     0.78539816339744830962;  /* pi/4 */</a>
+<a name="15">static double <a href="math_c.html#15">M_1_PIValue</a> =     0.31830988618379067154;  /* 1/pi */</a>
+<a name="16">static double <a href="math_c.html#16">M_2_PIValue</a> =     0.63661977236758134308;  /* 2/pi */</a>
+<a name="17">static double <a href="math_c.html#17">M_2_SQRTPIValue</a> = 1.12837916709551257390;  /* 2/sqrt(pi) */</a>
+<a name="18">static double <a href="math_c.html#18">M_SQRT2Value</a> =    1.41421356237309504880;  /* sqrt(2) */</a>
+<a name="19">static double <a href="math_c.html#19">M_SQRT1_2Value</a> =  0.70710678118654752440;  /* 1/sqrt(2) */</a>
+<a name="20"></a>
+<a name="21"></a>
+<a name="22">void <a href="math_c.html#22">MathSin</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="23">{</a>
+<a name="24">    <a href="math_c.html#22">ReturnValue</a>-&gtVal-&gtFP = sin(<a href="math_c.html#22">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="25">}</a>
+<a name="26"></a>
+<a name="27">void <a href="math_c.html#27">MathCos</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="28">{</a>
+<a name="29">    <a href="math_c.html#27">ReturnValue</a>-&gtVal-&gtFP = cos(<a href="math_c.html#27">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="30">}</a>
+<a name="31"></a>
+<a name="32">void <a href="math_c.html#32">MathTan</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="33">{</a>
+<a name="34">    <a href="math_c.html#32">ReturnValue</a>-&gtVal-&gtFP = tan(<a href="math_c.html#32">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="35">}</a>
+<a name="36"></a>
+<a name="37">void <a href="math_c.html#37">MathAsin</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="38">{</a>
+<a name="39">    <a href="math_c.html#37">ReturnValue</a>-&gtVal-&gtFP = asin(<a href="math_c.html#37">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="40">}</a>
+<a name="41"></a>
+<a name="42">void <a href="math_c.html#42">MathAcos</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="43">{</a>
+<a name="44">    <a href="math_c.html#42">ReturnValue</a>-&gtVal-&gtFP = acos(<a href="math_c.html#42">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="45">}</a>
+<a name="46"></a>
+<a name="47">void <a href="math_c.html#47">MathAtan</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="48">{</a>
+<a name="49">    <a href="math_c.html#47">ReturnValue</a>-&gtVal-&gtFP = atan(<a href="math_c.html#47">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="50">}</a>
+<a name="51"></a>
+<a name="52">void <a href="math_c.html#52">MathAtan2</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="53">{</a>
+<a name="54">    <a href="math_c.html#52">ReturnValue</a>-&gtVal-&gtFP = atan2(<a href="math_c.html#52">Param</a>[0]-&gtVal-&gtFP, <a href="math_c.html#52">Param</a>[1]-&gtVal-&gtFP);</a>
+<a name="55">}</a>
+<a name="56"></a>
+<a name="57">void <a href="math_c.html#57">MathSinh</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="58">{</a>
+<a name="59">    <a href="math_c.html#57">ReturnValue</a>-&gtVal-&gtFP = sinh(<a href="math_c.html#57">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="60">}</a>
+<a name="61"></a>
+<a name="62">void <a href="math_c.html#62">MathCosh</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="63">{</a>
+<a name="64">    <a href="math_c.html#62">ReturnValue</a>-&gtVal-&gtFP = cosh(<a href="math_c.html#62">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="65">}</a>
+<a name="66"></a>
+<a name="67">void <a href="math_c.html#67">MathTanh</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="68">{</a>
+<a name="69">    <a href="math_c.html#67">ReturnValue</a>-&gtVal-&gtFP = tanh(<a href="math_c.html#67">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="70">}</a>
+<a name="71"></a>
+<a name="72">void <a href="math_c.html#72">MathExp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="73">{</a>
+<a name="74">    <a href="math_c.html#72">ReturnValue</a>-&gtVal-&gtFP = exp(<a href="math_c.html#72">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="75">}</a>
+<a name="76"></a>
+<a name="77">void <a href="math_c.html#77">MathFabs</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="78">{</a>
+<a name="79">    <a href="math_c.html#77">ReturnValue</a>-&gtVal-&gtFP = fabs(<a href="math_c.html#77">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="80">}</a>
+<a name="81"></a>
+<a name="82">void <a href="math_c.html#82">MathFmod</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="83">{</a>
+<a name="84">    <a href="math_c.html#82">ReturnValue</a>-&gtVal-&gtFP = fmod(<a href="math_c.html#82">Param</a>[0]-&gtVal-&gtFP, <a href="math_c.html#82">Param</a>[1]-&gtVal-&gtFP);</a>
+<a name="85">}</a>
+<a name="86"></a>
+<a name="87">void <a href="math_c.html#87">MathFrexp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="88">{</a>
+<a name="89">    <a href="math_c.html#87">ReturnValue</a>-&gtVal-&gtFP = frexp(<a href="math_c.html#87">Param</a>[0]-&gtVal-&gtFP, <a href="math_c.html#87">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="90">}</a>
+<a name="91"></a>
+<a name="92">void <a href="math_c.html#92">MathLdexp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="93">{</a>
+<a name="94">    <a href="math_c.html#92">ReturnValue</a>-&gtVal-&gtFP = ldexp(<a href="math_c.html#92">Param</a>[0]-&gtVal-&gtFP, <a href="math_c.html#92">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="95">}</a>
+<a name="96"></a>
+<a name="97">void <a href="math_c.html#97">MathLog</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="98">{</a>
+<a name="99">    <a href="math_c.html#97">ReturnValue</a>-&gtVal-&gtFP = log(<a href="math_c.html#97">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="100">}</a>
+<a name="101"></a>
+<a name="102">void <a href="math_c.html#102">MathLog10</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="103">{</a>
+<a name="104">    <a href="math_c.html#102">ReturnValue</a>-&gtVal-&gtFP = log10(<a href="math_c.html#102">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="105">}</a>
+<a name="106"></a>
+<a name="107">void <a href="math_c.html#107">MathModf</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="108">{</a>
+<a name="109">    <a href="math_c.html#107">ReturnValue</a>-&gtVal-&gtFP = modf(<a href="math_c.html#107">Param</a>[0]-&gtVal-&gtFP, <a href="math_c.html#107">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="110">}</a>
+<a name="111"></a>
+<a name="112">void <a href="math_c.html#112">MathPow</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="113">{</a>
+<a name="114">    <a href="math_c.html#112">ReturnValue</a>-&gtVal-&gtFP = pow(<a href="math_c.html#112">Param</a>[0]-&gtVal-&gtFP, <a href="math_c.html#112">Param</a>[1]-&gtVal-&gtFP);</a>
+<a name="115">}</a>
+<a name="116"></a>
+<a name="117">void <a href="math_c.html#117">MathSqrt</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="118">{</a>
+<a name="119">    <a href="math_c.html#117">ReturnValue</a>-&gtVal-&gtFP = sqrt(<a href="math_c.html#117">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="120">}</a>
+<a name="121"></a>
+<a name="122">void <a href="math_c.html#122">MathRound</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="123">{</a>
+<a name="124">    /* this awkward definition of "round()" due to it being inconsistently</a>
+<a name="125">     * declared in math.h */</a>
+<a name="126">    <a href="math_c.html#122">ReturnValue</a>-&gtVal-&gtFP = ceil(<a href="math_c.html#122">Param</a>[0]-&gtVal-&gtFP - 0.5);</a>
+<a name="127">}</a>
+<a name="128"></a>
+<a name="129">void <a href="math_c.html#129">MathCeil</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="130">{</a>
+<a name="131">    <a href="math_c.html#129">ReturnValue</a>-&gtVal-&gtFP = ceil(<a href="math_c.html#129">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="132">}</a>
+<a name="133"></a>
+<a name="134">void <a href="math_c.html#134">MathFloor</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="135">{</a>
+<a name="136">    <a href="math_c.html#134">ReturnValue</a>-&gtVal-&gtFP = floor(<a href="math_c.html#134">Param</a>[0]-&gtVal-&gtFP);</a>
+<a name="137">}</a>
+<a name="138"></a>
+<a name="139">/* all math.h functions */</a>
+<a name="140">struct LibraryFunction <a href="interpreter_h.html#624">MathFunctions</a>[] =</a>
+<a name="141">{</a>
+<a name="142">    { <a href="math_c.html#42">MathAcos</a>,         "float acos(float);" },</a>
+<a name="143">    { <a href="math_c.html#37">MathAsin</a>,         "float asin(float);" },</a>
+<a name="144">    { <a href="math_c.html#47">MathAtan</a>,         "float atan(float);" },</a>
+<a name="145">    { <a href="math_c.html#52">MathAtan2</a>,        "float atan2(float, float);" },</a>
+<a name="146">    { <a href="math_c.html#129">MathCeil</a>,         "float ceil(float);" },</a>
+<a name="147">    { <a href="math_c.html#27">MathCos</a>,          "float cos(float);" },</a>
+<a name="148">    { <a href="math_c.html#62">MathCosh</a>,         "float cosh(float);" },</a>
+<a name="149">    { <a href="math_c.html#72">MathExp</a>,          "float exp(float);" },</a>
+<a name="150">    { <a href="math_c.html#77">MathFabs</a>,         "float fabs(float);" },</a>
+<a name="151">    { <a href="math_c.html#134">MathFloor</a>,        "float floor(float);" },</a>
+<a name="152">    { <a href="math_c.html#82">MathFmod</a>,         "float fmod(float, float);" },</a>
+<a name="153">    { <a href="math_c.html#87">MathFrexp</a>,        "float frexp(float, int *);" },</a>
+<a name="154">    { <a href="math_c.html#92">MathLdexp</a>,        "float ldexp(float, int);" },</a>
+<a name="155">    { <a href="math_c.html#97">MathLog</a>,          "float log(float);" },</a>
+<a name="156">    { <a href="math_c.html#102">MathLog10</a>,        "float log10(float);" },</a>
+<a name="157">    { <a href="math_c.html#107">MathModf</a>,         "float modf(float, float *);" },</a>
+<a name="158">    { <a href="math_c.html#112">MathPow</a>,          "float pow(float,float);" },</a>
+<a name="159">    { <a href="math_c.html#122">MathRound</a>,        "float round(float);" },</a>
+<a name="160">    { <a href="math_c.html#22">MathSin</a>,          "float sin(float);" },</a>
+<a name="161">    { <a href="math_c.html#57">MathSinh</a>,         "float sinh(float);" },</a>
+<a name="162">    { <a href="math_c.html#117">MathSqrt</a>,         "float sqrt(float);" },</a>
+<a name="163">    { <a href="math_c.html#32">MathTan</a>,          "float tan(float);" },</a>
+<a name="164">    { <a href="math_c.html#67">MathTanh</a>,         "float tanh(float);" },</a>
+<a name="165">    { NULL,             NULL }</a>
+<a name="166">};</a>
+<a name="167"></a>
+<a name="168">/* creates various system-dependent definitions */</a>
+<a name="169">void <a href="math_c.html#169">MathSetupFunc</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="170">{</a>
+<a name="171">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_E", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#7">M_EValue</a>, FALSE);</a>
+<a name="172">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_LOG2E", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#8">M_LOG2EValue</a>, FALSE);</a>
+<a name="173">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_LOG10E", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#9">M_LOG10EValue</a>, FALSE);</a>
+<a name="174">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_LN2", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#10">M_LN2Value</a>, FALSE);</a>
+<a name="175">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_LN10", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#11">M_LN10Value</a>, FALSE);</a>
+<a name="176">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_PI", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#12">M_PIValue</a>, FALSE);</a>
+<a name="177">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_PI_2", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#13">M_PI_2Value</a>, FALSE);</a>
+<a name="178">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_PI_4", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#14">M_PI_4Value</a>, FALSE);</a>
+<a name="179">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_1_PI", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#15">M_1_PIValue</a>, FALSE);</a>
+<a name="180">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_2_PI", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#16">M_2_PIValue</a>, FALSE);</a>
+<a name="181">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_2_SQRTPI", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#17">M_2_SQRTPIValue</a>, FALSE);</a>
+<a name="182">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_SQRT2", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#18">M_SQRT2Value</a>, FALSE);</a>
+<a name="183">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="math_c.html#169">pc</a>, NULL, "M_SQRT1_2", &<a href="math_c.html#169">pc</a>-&gtFPType, (union AnyValue *)&<a href="math_c.html#19">M_SQRT1_2Value</a>, FALSE);</a>
+<a name="184">}</a>
+<a name="185"></a>
+<a name="186">#endif /* !NO_FP */</a>
+<a name="187">#endif /* !BUILTIN_MINI_STDLIB */</a>
+</pre></body></html>

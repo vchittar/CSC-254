@@ -1,0 +1,107 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* picoc <a href="picoc_c.html#16">main</a> program - this varies depending on your operating system and</a>
+<a name="2"> * how you're using picoc */</a>
+<a name="3"> </a>
+<a name="4">/* include only picoc.h here - should be able to use it with only the external interfaces, no internals from interpreter.h */</a>
+<a name="5">#include "picoc.h"</a>
+<a name="6"></a>
+<a name="7">/* platform-dependent code for running programs is in this file */</a>
+<a name="8"></a>
+<a name="9">#if defined(UNIX_HOST) || defined(WIN32)</a>
+<a name="10">#include &ltstdlib.h&gt</a>
+<a name="11">#include &ltstdio.h&gt</a>
+<a name="12">#include &ltstring.h&gt</a>
+<a name="13"></a>
+<a name="14">#define PICOC_STACK_SIZE (128*1024)              /* space for the the stack */</a>
+<a name="15"></a>
+<a name="16">int <a name="searched">main</a>(int <a name="searched">argc</a>, char **<a name="searched">argv</a>)</a>
+<a name="17">{</a>
+<a name="18">    int <a name="searched">ParamCount</a> = 1;</a>
+<a name="19">    int <a name="searched">DontRunMain</a> = FALSE;</a>
+<a name="20">    int <a name="searched">StackSize</a> = getenv("STACKSIZE") ? atoi(getenv("STACKSIZE")) : PICOC_STACK_SIZE;</a>
+<a name="21">    Picoc <a name="searched">pc</a>;</a>
+<a name="22">    </a>
+<a name="23">    if (<a href="picoc_c.html#16">argc</a> &lt 2)</a>
+<a name="24">    {</a>
+<a name="25">        printf("Format: picoc &ltcsource1.c&gt... [- &ltarg1&gt...]    : run a program (calls <a href="picoc_c.html#16">main</a>() to start it)\n"</a>
+<a name="26">               "        picoc -s &ltcsource1.c&gt... [- &ltarg1&gt...] : script mode - runs the program without calling <a href="picoc_c.html#16">main</a>()\n"</a>
+<a name="27">               "        picoc -i                               : interactive mode\n");</a>
+<a name="28">        exit(1);</a>
+<a name="29">    }</a>
+<a name="30">    </a>
+<a name="31">    <a href="platform_c.html#9">PicocInitialise</a>(&<a href="picoc_c.html#21">pc</a>, <a href="picoc_c.html#20">StackSize</a>);</a>
+<a name="32">    </a>
+<a name="33">    if (strcmp(<a href="picoc_c.html#16">argv</a>[<a href="picoc_c.html#18">ParamCount</a>], "-s") == 0 || strcmp(<a href="picoc_c.html#16">argv</a>[<a href="picoc_c.html#18">ParamCount</a>], "-m") == 0)</a>
+<a name="34">    {</a>
+<a name="35">        <a href="picoc_c.html#19">DontRunMain</a> = TRUE;</a>
+<a name="36">        <a href="include_c.html#59">PicocIncludeAllSystemHeaders</a>(&<a href="picoc_c.html#21">pc</a>);</a>
+<a name="37">        <a href="picoc_c.html#18">ParamCount</a>++;</a>
+<a name="38">    }</a>
+<a name="39">        </a>
+<a name="40">    if (<a href="picoc_c.html#16">argc</a> &gt <a href="picoc_c.html#18">ParamCount</a> && strcmp(<a href="picoc_c.html#16">argv</a>[<a href="picoc_c.html#18">ParamCount</a>], "-i") == 0)</a>
+<a name="41">    {</a>
+<a name="42">        <a href="include_c.html#59">PicocIncludeAllSystemHeaders</a>(&<a href="picoc_c.html#21">pc</a>);</a>
+<a name="43">        <a href="parse_c.html#1002">PicocParseInteractive</a>(&<a href="picoc_c.html#21">pc</a>);</a>
+<a name="44">    }</a>
+<a name="45">    else</a>
+<a name="46">    {</a>
+<a name="47">        if (PicocPlatformSetExitPoint(&<a href="picoc_c.html#21">pc</a>))</a>
+<a name="48">        {</a>
+<a name="49">            <a href="platform_c.html#32">PicocCleanup</a>(&<a href="picoc_c.html#21">pc</a>);</a>
+<a name="50">            return <a href="picoc_c.html#21">pc</a>.PicocExitValue;</a>
+<a name="51">        }</a>
+<a name="52">        </a>
+<a name="53">        for (; <a href="picoc_c.html#18">ParamCount</a> &lt <a href="picoc_c.html#16">argc</a> && strcmp(<a href="picoc_c.html#16">argv</a>[<a href="picoc_c.html#18">ParamCount</a>], "-") != 0; <a href="picoc_c.html#18">ParamCount</a>++)</a>
+<a name="54">            <a href="platform_unix_c.html#120">PicocPlatformScanFile</a>(&<a href="picoc_c.html#21">pc</a>, <a href="picoc_c.html#16">argv</a>[<a href="picoc_c.html#18">ParamCount</a>]);</a>
+<a name="55">        </a>
+<a name="56">        if (!<a href="picoc_c.html#19">DontRunMain</a>)</a>
+<a name="57">            <a href="platform_c.html#55">PicocCallMain</a>(&<a href="picoc_c.html#21">pc</a>, <a href="picoc_c.html#16">argc</a> - <a href="picoc_c.html#18">ParamCount</a>, &<a href="picoc_c.html#16">argv</a>[<a href="picoc_c.html#18">ParamCount</a>]);</a>
+<a name="58">    }</a>
+<a name="59">    </a>
+<a name="60">    <a href="platform_c.html#32">PicocCleanup</a>(&<a href="picoc_c.html#21">pc</a>);</a>
+<a name="61">    return <a href="picoc_c.html#21">pc</a>.PicocExitValue;</a>
+<a name="62">}</a>
+<a name="63">#else</a>
+<a name="64"># ifdef SURVEYOR_HOST</a>
+<a name="65">#  define HEAP_SIZE C_HEAPSIZE</a>
+<a name="66">#  include &ltsetjmp.h&gt</a>
+<a name="67">#  include "../srv.h"</a>
+<a name="68">#  include "../print.h"</a>
+<a name="69">#  include "../string.h"</a>
+<a name="70"></a>
+<a name="71">int picoc(char *SourceStr)</a>
+<a name="72">{   </a>
+<a name="73">    char *pos;</a>
+<a name="74"></a>
+<a name="75">    <a href="platform_c.html#9">PicocInitialise</a>(HEAP_SIZE);</a>
+<a name="76"></a>
+<a name="77">    if (SourceStr)</a>
+<a name="78">    {</a>
+<a name="79">        for (pos = SourceStr; *pos != 0; pos++)</a>
+<a name="80">        {</a>
+<a name="81">            if (*pos == 0x1a)</a>
+<a name="82">            {</a>
+<a name="83">                *pos = 0x20;</a>
+<a name="84">            }</a>
+<a name="85">        }</a>
+<a name="86">    }</a>
+<a name="87"></a>
+<a name="88">    <a href="platform_unix_c.html#10">PicocExitBuf</a>[40] = 0;</a>
+<a name="89">    PicocPlatformSetExitPoint();</a>
+<a name="90">    if (<a href="platform_unix_c.html#10">PicocExitBuf</a>[40]) {</a>
+<a name="91">        printf("Leaving PicoC\n\r");</a>
+<a name="92">        <a href="platform_c.html#32">PicocCleanup</a>();</a>
+<a name="93">        return PicocExitValue;</a>
+<a name="94">    }</a>
+<a name="95"></a>
+<a name="96">    if (SourceStr)   </a>
+<a name="97">        <a href="parse_c.html#936">PicocParse</a>("nofile", SourceStr, strlen(SourceStr), TRUE, TRUE, FALSE);</a>
+<a name="98"></a>
+<a name="99">    <a href="parse_c.html#1002">PicocParseInteractive</a>();</a>
+<a name="100">    <a href="platform_c.html#32">PicocCleanup</a>();</a>
+<a name="101">    </a>
+<a name="102">    return PicocExitValue;</a>
+<a name="103">}</a>
+<a name="104"># endif</a>
+<a name="105">#endif</a>
+</pre></body></html>

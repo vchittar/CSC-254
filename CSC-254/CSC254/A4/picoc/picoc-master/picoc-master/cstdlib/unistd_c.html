@@ -1,0 +1,506 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1">/* stdlib.h library for large systems - small embedded systems use clibrary.c instead */</a>
+<a name="2">#include &ltstdio.h&gt</a>
+<a name="3">#include &ltunistd.h&gt</a>
+<a name="4">#include &ltlimits.h&gt</a>
+<a name="5">#include &ltfcntl.h&gt</a>
+<a name="6">#include "../interpreter.h"</a>
+<a name="7"></a>
+<a name="8">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="9"></a>
+<a name="10">static int <a href="unistd_c.html#10">ZeroValue</a> = 0;</a>
+<a name="11"></a>
+<a name="12">void <a href="unistd_c.html#12">UnistdAccess</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="13">{</a>
+<a name="14">    <a href="unistd_c.html#12">ReturnValue</a>-&gtVal-&gtInteger = access(<a href="unistd_c.html#12">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#12">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="15">}</a>
+<a name="16"></a>
+<a name="17">void <a href="unistd_c.html#17">UnistdAlarm</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="18">{</a>
+<a name="19">    <a href="unistd_c.html#17">ReturnValue</a>-&gtVal-&gtInteger = alarm(<a href="unistd_c.html#17">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="20">}</a>
+<a name="21"></a>
+<a name="22">void <a href="unistd_c.html#22">UnistdChdir</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="23">{</a>
+<a name="24">    <a href="unistd_c.html#22">ReturnValue</a>-&gtVal-&gtInteger = chdir(<a href="unistd_c.html#22">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="25">}</a>
+<a name="26"></a>
+<a name="27">void <a href="unistd_c.html#27">UnistdChroot</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="28">{</a>
+<a name="29">    <a href="unistd_c.html#27">ReturnValue</a>-&gtVal-&gtInteger = chroot(<a href="unistd_c.html#27">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="30">}</a>
+<a name="31"></a>
+<a name="32">void <a href="unistd_c.html#32">UnistdChown</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="33">{</a>
+<a name="34">    <a href="unistd_c.html#32">ReturnValue</a>-&gtVal-&gtInteger = chown(<a href="unistd_c.html#32">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#32">Param</a>[1]-&gtVal-&gtInteger, <a href="unistd_c.html#32">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="35">}</a>
+<a name="36"></a>
+<a name="37">void <a href="unistd_c.html#37">UnistdClose</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="38">{</a>
+<a name="39">    <a href="unistd_c.html#37">ReturnValue</a>-&gtVal-&gtInteger = close(<a href="unistd_c.html#37">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="40">}</a>
+<a name="41"></a>
+<a name="42">void <a href="unistd_c.html#42">UnistdConfstr</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="43">{</a>
+<a name="44">    <a href="unistd_c.html#42">ReturnValue</a>-&gtVal-&gtInteger = confstr(<a href="unistd_c.html#42">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#42">Param</a>[1]-&gtVal-&gtPointer, <a href="unistd_c.html#42">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="45">}</a>
+<a name="46"></a>
+<a name="47">void <a href="unistd_c.html#47">UnistdCtermid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="48">{</a>
+<a name="49">    <a href="unistd_c.html#47">ReturnValue</a>-&gtVal-&gtPointer = ctermid(<a href="unistd_c.html#47">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="50">}</a>
+<a name="51"></a>
+<a name="52">#if 0</a>
+<a name="53">void UnistdCuserid(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs)</a>
+<a name="54">{</a>
+<a name="55">    ReturnValue-&gtVal-&gtPointer = cuserid(Param[0]-&gtVal-&gtPointer);</a>
+<a name="56">}</a>
+<a name="57">#endif</a>
+<a name="58"></a>
+<a name="59">void <a href="unistd_c.html#59">UnistdDup</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="60">{</a>
+<a name="61">    <a href="unistd_c.html#59">ReturnValue</a>-&gtVal-&gtInteger = dup(<a href="unistd_c.html#59">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="62">}</a>
+<a name="63"></a>
+<a name="64">void <a href="unistd_c.html#64">UnistdDup2</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="65">{</a>
+<a name="66">    <a href="unistd_c.html#64">ReturnValue</a>-&gtVal-&gtInteger = dup2(<a href="unistd_c.html#64">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#64">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="67">}</a>
+<a name="68"></a>
+<a name="69">void <a href="unistd_c.html#69">Unistd_Exit</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="70">{</a>
+<a name="71">    _exit(<a href="unistd_c.html#69">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="72">}</a>
+<a name="73"></a>
+<a name="74">void <a href="unistd_c.html#74">UnistdFchown</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="75">{</a>
+<a name="76">    <a href="unistd_c.html#74">ReturnValue</a>-&gtVal-&gtInteger = fchown(<a href="unistd_c.html#74">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#74">Param</a>[1]-&gtVal-&gtInteger, <a href="unistd_c.html#74">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="77">}</a>
+<a name="78"></a>
+<a name="79">void <a href="unistd_c.html#79">UnistdFchdir</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="80">{</a>
+<a name="81">    <a href="unistd_c.html#79">ReturnValue</a>-&gtVal-&gtInteger = fchdir(<a href="unistd_c.html#79">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="82">}</a>
+<a name="83"></a>
+<a name="84">void <a href="unistd_c.html#84">UnistdFdatasync</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="85">{</a>
+<a name="86">#ifndef F_FULLSYNC</a>
+<a name="87">    <a href="unistd_c.html#84">ReturnValue</a>-&gtVal-&gtInteger = fdatasync(<a href="unistd_c.html#84">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="88">#else</a>
+<a name="89">    /* Mac OS X equivalent */</a>
+<a name="90">    <a href="unistd_c.html#84">ReturnValue</a>-&gtVal-&gtInteger = fcntl(<a href="unistd_c.html#84">Param</a>[0]-&gtVal-&gtInteger, F_FULLFSYNC);</a>
+<a name="91">#endif</a>
+<a name="92">}</a>
+<a name="93"></a>
+<a name="94">void <a href="unistd_c.html#94">UnistdFork</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="95">{</a>
+<a name="96">    <a href="unistd_c.html#94">ReturnValue</a>-&gtVal-&gtInteger = fork();</a>
+<a name="97">}</a>
+<a name="98"></a>
+<a name="99">void <a href="unistd_c.html#99">UnistdFpathconf</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="100">{</a>
+<a name="101">    <a href="unistd_c.html#99">ReturnValue</a>-&gtVal-&gtInteger = fpathconf(<a href="unistd_c.html#99">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#99">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="102">}</a>
+<a name="103"></a>
+<a name="104">void <a href="unistd_c.html#104">UnistdFsync</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="105">{</a>
+<a name="106">    <a href="unistd_c.html#104">ReturnValue</a>-&gtVal-&gtInteger = fsync(<a href="unistd_c.html#104">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="107">}</a>
+<a name="108"></a>
+<a name="109">void <a href="unistd_c.html#109">UnistdFtruncate</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="110">{</a>
+<a name="111">    <a href="unistd_c.html#109">ReturnValue</a>-&gtVal-&gtInteger = ftruncate(<a href="unistd_c.html#109">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#109">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="112">}</a>
+<a name="113"></a>
+<a name="114">void <a href="unistd_c.html#114">UnistdGetcwd</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="115">{</a>
+<a name="116">    <a href="unistd_c.html#114">ReturnValue</a>-&gtVal-&gtPointer = getcwd(<a href="unistd_c.html#114">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#114">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="117">}</a>
+<a name="118"></a>
+<a name="119">void <a href="unistd_c.html#119">UnistdGetdtablesize</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="120">{</a>
+<a name="121">    <a href="unistd_c.html#119">ReturnValue</a>-&gtVal-&gtInteger = getdtablesize();</a>
+<a name="122">}</a>
+<a name="123"></a>
+<a name="124">void <a href="unistd_c.html#124">UnistdGetegid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="125">{</a>
+<a name="126">    <a href="unistd_c.html#124">ReturnValue</a>-&gtVal-&gtInteger = getegid();</a>
+<a name="127">}</a>
+<a name="128"></a>
+<a name="129">void <a href="unistd_c.html#129">UnistdGeteuid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="130">{</a>
+<a name="131">    <a href="unistd_c.html#129">ReturnValue</a>-&gtVal-&gtInteger = geteuid();</a>
+<a name="132">}</a>
+<a name="133"></a>
+<a name="134">void <a href="unistd_c.html#134">UnistdGetgid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="135">{</a>
+<a name="136">    <a href="unistd_c.html#134">ReturnValue</a>-&gtVal-&gtInteger = getgid();</a>
+<a name="137">}</a>
+<a name="138"></a>
+<a name="139">void <a href="unistd_c.html#139">UnistdGethostid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="140">{</a>
+<a name="141">    <a href="unistd_c.html#139">ReturnValue</a>-&gtVal-&gtInteger = gethostid();</a>
+<a name="142">}</a>
+<a name="143"></a>
+<a name="144">void <a href="unistd_c.html#144">UnistdGetlogin</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="145">{</a>
+<a name="146">    <a href="unistd_c.html#144">ReturnValue</a>-&gtVal-&gtPointer = getlogin();</a>
+<a name="147">}</a>
+<a name="148"></a>
+<a name="149">void <a href="unistd_c.html#149">UnistdGetlogin_r</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="150">{</a>
+<a name="151">    <a href="unistd_c.html#149">ReturnValue</a>-&gtVal-&gtInteger = getlogin_r(<a href="unistd_c.html#149">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#149">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="152">}</a>
+<a name="153"></a>
+<a name="154">void <a href="unistd_c.html#154">UnistdGetpagesize</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="155">{</a>
+<a name="156">    <a href="unistd_c.html#154">ReturnValue</a>-&gtVal-&gtInteger = getpagesize();</a>
+<a name="157">}</a>
+<a name="158"></a>
+<a name="159">void <a href="unistd_c.html#159">UnistdGetpass</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="160">{</a>
+<a name="161">    <a href="unistd_c.html#159">ReturnValue</a>-&gtVal-&gtPointer = getpass(<a href="unistd_c.html#159">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="162">}</a>
+<a name="163"></a>
+<a name="164">#if 0</a>
+<a name="165">void UnistdGetpgid(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs)</a>
+<a name="166">{</a>
+<a name="167">    ReturnValue-&gtVal-&gtInteger = getpgid(Param[0]-&gtVal-&gtInteger);</a>
+<a name="168">}</a>
+<a name="169">#endif</a>
+<a name="170"></a>
+<a name="171">void <a href="unistd_c.html#171">UnistdGetpgrp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="172">{</a>
+<a name="173">    <a href="unistd_c.html#171">ReturnValue</a>-&gtVal-&gtInteger = getpgrp();</a>
+<a name="174">}</a>
+<a name="175"></a>
+<a name="176">void <a href="unistd_c.html#176">UnistdGetpid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="177">{</a>
+<a name="178">    <a href="unistd_c.html#176">ReturnValue</a>-&gtVal-&gtInteger = getpid();</a>
+<a name="179">}</a>
+<a name="180"></a>
+<a name="181">void <a href="unistd_c.html#181">UnistdGetppid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="182">{</a>
+<a name="183">    <a href="unistd_c.html#181">ReturnValue</a>-&gtVal-&gtInteger = getppid();</a>
+<a name="184">}</a>
+<a name="185"></a>
+<a name="186">#if 0</a>
+<a name="187">void UnistdGetsid(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs)</a>
+<a name="188">{</a>
+<a name="189">    ReturnValue-&gtVal-&gtInteger = getsid(Param[0]-&gtVal-&gtInteger);</a>
+<a name="190">}</a>
+<a name="191">#endif</a>
+<a name="192"></a>
+<a name="193">void <a href="unistd_c.html#193">UnistdGetuid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="194">{</a>
+<a name="195">    <a href="unistd_c.html#193">ReturnValue</a>-&gtVal-&gtInteger = getuid();</a>
+<a name="196">}</a>
+<a name="197"></a>
+<a name="198">void <a href="unistd_c.html#198">UnistdGetwd</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="199">{</a>
+<a name="200">    <a href="unistd_c.html#198">ReturnValue</a>-&gtVal-&gtPointer = getcwd(<a href="unistd_c.html#198">Param</a>[0]-&gtVal-&gtPointer, PATH_MAX);</a>
+<a name="201">}</a>
+<a name="202"></a>
+<a name="203">void <a href="unistd_c.html#203">UnistdIsatty</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="204">{</a>
+<a name="205">    <a href="unistd_c.html#203">ReturnValue</a>-&gtVal-&gtInteger = isatty(<a href="unistd_c.html#203">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="206">}</a>
+<a name="207"></a>
+<a name="208">void <a href="unistd_c.html#208">UnistdLchown</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="209">{</a>
+<a name="210">    <a href="unistd_c.html#208">ReturnValue</a>-&gtVal-&gtInteger = lchown(<a href="unistd_c.html#208">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#208">Param</a>[1]-&gtVal-&gtInteger, <a href="unistd_c.html#208">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="211">}</a>
+<a name="212"></a>
+<a name="213">void <a href="unistd_c.html#213">UnistdLink</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="214">{</a>
+<a name="215">    <a href="unistd_c.html#213">ReturnValue</a>-&gtVal-&gtInteger = link(<a href="unistd_c.html#213">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#213">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="216">}</a>
+<a name="217"></a>
+<a name="218">void <a href="unistd_c.html#218">UnistdLockf</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="219">{</a>
+<a name="220">    <a href="unistd_c.html#218">ReturnValue</a>-&gtVal-&gtInteger = lockf(<a href="unistd_c.html#218">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#218">Param</a>[1]-&gtVal-&gtInteger, <a href="unistd_c.html#218">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="221">}</a>
+<a name="222"></a>
+<a name="223">void <a href="unistd_c.html#223">UnistdLseek</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="224">{</a>
+<a name="225">    <a href="unistd_c.html#223">ReturnValue</a>-&gtVal-&gtInteger = lseek(<a href="unistd_c.html#223">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#223">Param</a>[1]-&gtVal-&gtInteger, <a href="unistd_c.html#223">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="226">}</a>
+<a name="227"></a>
+<a name="228">void <a href="unistd_c.html#228">UnistdNice</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="229">{</a>
+<a name="230">    <a href="unistd_c.html#228">ReturnValue</a>-&gtVal-&gtInteger = nice(<a href="unistd_c.html#228">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="231">}</a>
+<a name="232"></a>
+<a name="233">void <a href="unistd_c.html#233">UnistdPathconf</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="234">{</a>
+<a name="235">    <a href="unistd_c.html#233">ReturnValue</a>-&gtVal-&gtInteger = pathconf(<a href="unistd_c.html#233">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#233">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="236">}</a>
+<a name="237"></a>
+<a name="238">void <a href="unistd_c.html#238">UnistdPause</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="239">{</a>
+<a name="240">    <a href="unistd_c.html#238">ReturnValue</a>-&gtVal-&gtInteger = pause();</a>
+<a name="241">}</a>
+<a name="242"></a>
+<a name="243">#if 0</a>
+<a name="244">void UnistdPread(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs)</a>
+<a name="245">{</a>
+<a name="246">    ReturnValue-&gtVal-&gtInteger = pread(Param[0]-&gtVal-&gtInteger, Param[1]-&gtVal-&gtPointer, Param[2]-&gtVal-&gtInteger, Param[3]-&gtVal-&gtInteger);</a>
+<a name="247">}</a>
+<a name="248"></a>
+<a name="249">void UnistdPwrite(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs)</a>
+<a name="250">{</a>
+<a name="251">    ReturnValue-&gtVal-&gtInteger = pwrite(Param[0]-&gtVal-&gtInteger, Param[1]-&gtVal-&gtPointer, Param[2]-&gtVal-&gtInteger, Param[3]-&gtVal-&gtInteger);</a>
+<a name="252">}</a>
+<a name="253">#endif</a>
+<a name="254"></a>
+<a name="255">void <a href="unistd_c.html#255">UnistdRead</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="256">{</a>
+<a name="257">    <a href="unistd_c.html#255">ReturnValue</a>-&gtVal-&gtInteger = read(<a href="unistd_c.html#255">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#255">Param</a>[1]-&gtVal-&gtPointer, <a href="unistd_c.html#255">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="258">}</a>
+<a name="259"></a>
+<a name="260">void <a href="unistd_c.html#260">UnistdReadlink</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="261">{</a>
+<a name="262">    <a href="unistd_c.html#260">ReturnValue</a>-&gtVal-&gtInteger = readlink(<a href="unistd_c.html#260">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#260">Param</a>[1]-&gtVal-&gtPointer, <a href="unistd_c.html#260">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="263">}</a>
+<a name="264"></a>
+<a name="265">void <a href="unistd_c.html#265">UnistdRmdir</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="266">{</a>
+<a name="267">    <a href="unistd_c.html#265">ReturnValue</a>-&gtVal-&gtInteger = rmdir(<a href="unistd_c.html#265">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="268">}</a>
+<a name="269"></a>
+<a name="270">void <a href="unistd_c.html#270">UnistdSbrk</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="271">{</a>
+<a name="272">    <a href="unistd_c.html#270">ReturnValue</a>-&gtVal-&gtPointer = sbrk(<a href="unistd_c.html#270">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="273">}</a>
+<a name="274"></a>
+<a name="275">void <a href="unistd_c.html#275">UnistdSetgid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="276">{</a>
+<a name="277">    <a href="unistd_c.html#275">ReturnValue</a>-&gtVal-&gtInteger = setgid(<a href="unistd_c.html#275">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="278">}</a>
+<a name="279"></a>
+<a name="280">void <a href="unistd_c.html#280">UnistdSetpgid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="281">{</a>
+<a name="282">    <a href="unistd_c.html#280">ReturnValue</a>-&gtVal-&gtInteger = setpgid(<a href="unistd_c.html#280">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#280">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="283">}</a>
+<a name="284"></a>
+<a name="285">void <a href="unistd_c.html#285">UnistdSetpgrp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="286">{</a>
+<a name="287">    <a href="unistd_c.html#285">ReturnValue</a>-&gtVal-&gtInteger = setpgrp();</a>
+<a name="288">}</a>
+<a name="289"></a>
+<a name="290">void <a href="unistd_c.html#290">UnistdSetregid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="291">{</a>
+<a name="292">    <a href="unistd_c.html#290">ReturnValue</a>-&gtVal-&gtInteger = setregid(<a href="unistd_c.html#290">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#290">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="293">}</a>
+<a name="294"></a>
+<a name="295">void <a href="unistd_c.html#295">UnistdSetreuid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="296">{</a>
+<a name="297">    <a href="unistd_c.html#295">ReturnValue</a>-&gtVal-&gtInteger = setreuid(<a href="unistd_c.html#295">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#295">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="298">}</a>
+<a name="299"></a>
+<a name="300">void <a href="unistd_c.html#300">UnistdSetsid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="301">{</a>
+<a name="302">    <a href="unistd_c.html#300">ReturnValue</a>-&gtVal-&gtInteger = setsid();</a>
+<a name="303">}</a>
+<a name="304"></a>
+<a name="305">void <a href="unistd_c.html#305">UnistdSetuid</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="306">{</a>
+<a name="307">    <a href="unistd_c.html#305">ReturnValue</a>-&gtVal-&gtInteger = setuid(<a href="unistd_c.html#305">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="308">}</a>
+<a name="309"></a>
+<a name="310">void <a href="unistd_c.html#310">UnistdSleep</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="311">{</a>
+<a name="312">    <a href="unistd_c.html#310">ReturnValue</a>-&gtVal-&gtInteger = sleep(<a href="unistd_c.html#310">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="313">}</a>
+<a name="314"></a>
+<a name="315">#if 0</a>
+<a name="316">void UnistdSwab(struct ParseState *Parser, struct Value *ReturnValue, struct Value **Param, int NumArgs)</a>
+<a name="317">{</a>
+<a name="318">    ReturnValue-&gtVal-&gtInteger = swab(Param[0]-&gtVal-&gtPointer, Param[1]-&gtVal-&gtPointer, Param[2]-&gtVal-&gtInteger);</a>
+<a name="319">}</a>
+<a name="320">#endif</a>
+<a name="321"></a>
+<a name="322">void <a href="unistd_c.html#322">UnistdSymlink</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="323">{</a>
+<a name="324">    <a href="unistd_c.html#322">ReturnValue</a>-&gtVal-&gtInteger = symlink(<a href="unistd_c.html#322">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#322">Param</a>[1]-&gtVal-&gtPointer);</a>
+<a name="325">}</a>
+<a name="326"></a>
+<a name="327">void <a href="unistd_c.html#327">UnistdSync</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="328">{</a>
+<a name="329">    sync();</a>
+<a name="330">}</a>
+<a name="331"></a>
+<a name="332">void <a href="unistd_c.html#332">UnistdSysconf</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="333">{</a>
+<a name="334">    <a href="unistd_c.html#332">ReturnValue</a>-&gtVal-&gtInteger = sysconf(<a href="unistd_c.html#332">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="335">}</a>
+<a name="336"></a>
+<a name="337">void <a href="unistd_c.html#337">UnistdTcgetpgrp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="338">{</a>
+<a name="339">    <a href="unistd_c.html#337">ReturnValue</a>-&gtVal-&gtInteger = tcgetpgrp(<a href="unistd_c.html#337">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="340">}</a>
+<a name="341"></a>
+<a name="342">void <a href="unistd_c.html#342">UnistdTcsetpgrp</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="343">{</a>
+<a name="344">    <a href="unistd_c.html#342">ReturnValue</a>-&gtVal-&gtInteger = tcsetpgrp(<a href="unistd_c.html#342">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#342">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="345">}</a>
+<a name="346"></a>
+<a name="347">void <a href="unistd_c.html#347">UnistdTruncate</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="348">{</a>
+<a name="349">    <a href="unistd_c.html#347">ReturnValue</a>-&gtVal-&gtInteger = truncate(<a href="unistd_c.html#347">Param</a>[0]-&gtVal-&gtPointer, <a href="unistd_c.html#347">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="350">}</a>
+<a name="351"></a>
+<a name="352">void <a href="unistd_c.html#352">UnistdTtyname</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="353">{</a>
+<a name="354">    <a href="unistd_c.html#352">ReturnValue</a>-&gtVal-&gtPointer = ttyname(<a href="unistd_c.html#352">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="355">}</a>
+<a name="356"></a>
+<a name="357">void <a href="unistd_c.html#357">UnistdTtyname_r</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="358">{</a>
+<a name="359">    <a href="unistd_c.html#357">ReturnValue</a>-&gtVal-&gtInteger = ttyname_r(<a href="unistd_c.html#357">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#357">Param</a>[1]-&gtVal-&gtPointer, <a href="unistd_c.html#357">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="360">}</a>
+<a name="361"></a>
+<a name="362">void <a href="unistd_c.html#362">UnistdUalarm</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="363">{</a>
+<a name="364">    <a href="unistd_c.html#362">ReturnValue</a>-&gtVal-&gtInteger = ualarm(<a href="unistd_c.html#362">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#362">Param</a>[1]-&gtVal-&gtInteger);</a>
+<a name="365">}</a>
+<a name="366"></a>
+<a name="367">void <a href="unistd_c.html#367">UnistdUnlink</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="368">{</a>
+<a name="369">    <a href="unistd_c.html#367">ReturnValue</a>-&gtVal-&gtInteger = unlink(<a href="unistd_c.html#367">Param</a>[0]-&gtVal-&gtPointer);</a>
+<a name="370">}</a>
+<a name="371"></a>
+<a name="372">void <a href="unistd_c.html#372">UnistdUsleep</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="373">{</a>
+<a name="374">    <a href="unistd_c.html#372">ReturnValue</a>-&gtVal-&gtInteger = usleep(<a href="unistd_c.html#372">Param</a>[0]-&gtVal-&gtInteger);</a>
+<a name="375">}</a>
+<a name="376"></a>
+<a name="377">void <a href="unistd_c.html#377">UnistdVfork</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="378">{</a>
+<a name="379">    <a href="unistd_c.html#377">ReturnValue</a>-&gtVal-&gtInteger = vfork();</a>
+<a name="380">}</a>
+<a name="381"></a>
+<a name="382">void <a href="unistd_c.html#382">UnistdWrite</a>(struct ParseState *<a name="searched">Parser</a>, struct Value *<a name="searched">ReturnValue</a>, struct Value **<a name="searched">Param</a>, int <a name="searched">NumArgs</a>)</a>
+<a name="383">{</a>
+<a name="384">    <a href="unistd_c.html#382">ReturnValue</a>-&gtVal-&gtInteger = write(<a href="unistd_c.html#382">Param</a>[0]-&gtVal-&gtInteger, <a href="unistd_c.html#382">Param</a>[1]-&gtVal-&gtPointer, <a href="unistd_c.html#382">Param</a>[2]-&gtVal-&gtInteger);</a>
+<a name="385">}</a>
+<a name="386"></a>
+<a name="387"></a>
+<a name="388">/* handy structure definitions */</a>
+<a name="389">const char <a href="interpreter_h.html#651">UnistdDefs</a>[] = "\</a>
+<a name="390">typedef int uid_t; \</a>
+<a name="391">typedef int gid_t; \</a>
+<a name="392">typedef int pid_t; \</a>
+<a name="393">typedef int off_t; \</a>
+<a name="394">typedef int size_t; \</a>
+<a name="395">typedef int ssize_t; \</a>
+<a name="396">typedef int useconds_t;\</a>
+<a name="397">typedef int intptr_t;\</a>
+<a name="398">";</a>
+<a name="399"></a>
+<a name="400">/* all unistd.h functions */</a>
+<a name="401">struct LibraryFunction <a href="interpreter_h.html#652">UnistdFunctions</a>[] =</a>
+<a name="402">{</a>
+<a name="403">    { <a href="unistd_c.html#12">UnistdAccess</a>,        "int access(char *, int);" },</a>
+<a name="404">    { <a href="unistd_c.html#17">UnistdAlarm</a>,         "unsigned int alarm(unsigned int);" },</a>
+<a name="405">/*    { UnistdBrk,           "int brk(void *);" }, */</a>
+<a name="406">    { <a href="unistd_c.html#22">UnistdChdir</a>,         "int chdir(char *);" },</a>
+<a name="407">    { <a href="unistd_c.html#27">UnistdChroot</a>,        "int chroot(char *);" },</a>
+<a name="408">    { <a href="unistd_c.html#32">UnistdChown</a>,         "int chown(char *, uid_t, gid_t);" },</a>
+<a name="409">    { <a href="unistd_c.html#37">UnistdClose</a>,         "int close(int);" },</a>
+<a name="410">    { <a href="unistd_c.html#42">UnistdConfstr</a>,       "size_t confstr(int, char *, size_t);" },</a>
+<a name="411">    { <a href="unistd_c.html#47">UnistdCtermid</a>,       "char *ctermid(char *);" },</a>
+<a name="412">/*    { UnistdCuserid,       "char *cuserid(char *);" }, */</a>
+<a name="413">    { <a href="unistd_c.html#59">UnistdDup</a>,           "int dup(int);" },</a>
+<a name="414">    { <a href="unistd_c.html#64">UnistdDup2</a>,          "int dup2(int, int);" },</a>
+<a name="415">/*     { UnistdEncrypt,       "void encrypt(char[64], int);" }, */</a>
+<a name="416">/*    { UnistdExecl,         "int execl(char *, char *, ...);" }, */</a>
+<a name="417">/*    { UnistdExecle,        "int execle(char *, char *, ...);" }, */</a>
+<a name="418">/*    { UnistdExeclp,        "int execlp(char *, char *, ...);" }, */</a>
+<a name="419">/*    { UnistdExecv,         "int execv(char *, char *[]);" }, */</a>
+<a name="420">/*    { UnistdExecve,        "int execve(char *, char *[], char *[]);" }, */</a>
+<a name="421">/*    { UnistdExecvp,        "int execvp(char *, char *[]);" }, */</a>
+<a name="422">    { <a href="unistd_c.html#69">Unistd_Exit</a>,         "void _exit(int);" },</a>
+<a name="423">    { <a href="unistd_c.html#74">UnistdFchown</a>,        "int fchown(int, uid_t, gid_t);" },</a>
+<a name="424">    { <a href="unistd_c.html#79">UnistdFchdir</a>,        "int fchdir(int);" },</a>
+<a name="425">    { <a href="unistd_c.html#84">UnistdFdatasync</a>,     "int fdatasync(int);" },</a>
+<a name="426">    { <a href="unistd_c.html#94">UnistdFork</a>,          "pid_t fork(void);" },</a>
+<a name="427">    { <a href="unistd_c.html#99">UnistdFpathconf</a>,     "long fpathconf(int, int);" },</a>
+<a name="428">    { <a href="unistd_c.html#104">UnistdFsync</a>,         "int fsync(int);" },</a>
+<a name="429">    { <a href="unistd_c.html#109">UnistdFtruncate</a>,     "int ftruncate(int, off_t);" },</a>
+<a name="430">    { <a href="unistd_c.html#114">UnistdGetcwd</a>,        "char *getcwd(char *, size_t);" },</a>
+<a name="431">    { <a href="unistd_c.html#119">UnistdGetdtablesize</a>, "int getdtablesize(void);" },</a>
+<a name="432">    { <a href="unistd_c.html#124">UnistdGetegid</a>,       "gid_t getegid(void);" },</a>
+<a name="433">    { <a href="unistd_c.html#129">UnistdGeteuid</a>,       "uid_t geteuid(void);" },</a>
+<a name="434">    { <a href="unistd_c.html#134">UnistdGetgid</a>,        "gid_t getgid(void);" },</a>
+<a name="435">/*    { UnistdGetgroups,     "int getgroups(int, gid_t []);" }, */</a>
+<a name="436">    { <a href="unistd_c.html#139">UnistdGethostid</a>,     "long gethostid(void);" },</a>
+<a name="437">    { <a href="unistd_c.html#144">UnistdGetlogin</a>,      "char *getlogin(void);" },</a>
+<a name="438">    { <a href="unistd_c.html#149">UnistdGetlogin_r</a>,    "int getlogin_r(char *, size_t);" },</a>
+<a name="439">/*    { UnistdGetopt,        "int getopt(int, char * [], char *);" }, */</a>
+<a name="440">    { <a href="unistd_c.html#154">UnistdGetpagesize</a>,   "int getpagesize(void);" },</a>
+<a name="441">    { <a href="unistd_c.html#159">UnistdGetpass</a>,       "char *getpass(char *);" },</a>
+<a name="442">/*    { UnistdGetpgid,       "pid_t getpgid(pid_t);" }, */</a>
+<a name="443">    { <a href="unistd_c.html#171">UnistdGetpgrp</a>,       "pid_t getpgrp(void);" },</a>
+<a name="444">    { <a href="unistd_c.html#176">UnistdGetpid</a>,        "pid_t getpid(void);" },</a>
+<a name="445">    { <a href="unistd_c.html#181">UnistdGetppid</a>,       "pid_t getppid(void);" },</a>
+<a name="446">/*    { UnistdGetsid,        "pid_t getsid(pid_t);" }, */</a>
+<a name="447">    { <a href="unistd_c.html#193">UnistdGetuid</a>,        "uid_t getuid(void);" },</a>
+<a name="448">    { <a href="unistd_c.html#198">UnistdGetwd</a>,         "char *getwd(char *);" },</a>
+<a name="449">    { <a href="unistd_c.html#203">UnistdIsatty</a>,        "int isatty(int);" },</a>
+<a name="450">    { <a href="unistd_c.html#208">UnistdLchown</a>,        "int lchown(char *, uid_t, gid_t);" },</a>
+<a name="451">    { <a href="unistd_c.html#213">UnistdLink</a>,          "int link(char *, char *);" },</a>
+<a name="452">    { <a href="unistd_c.html#218">UnistdLockf</a>,         "int lockf(int, int, off_t);" },</a>
+<a name="453">    { <a href="unistd_c.html#223">UnistdLseek</a>,         "off_t lseek(int, off_t, int);" },</a>
+<a name="454">    { <a href="unistd_c.html#228">UnistdNice</a>,          "int nice(int);" },</a>
+<a name="455">    { <a href="unistd_c.html#233">UnistdPathconf</a>,      "long pathconf(char *, int);" },</a>
+<a name="456">    { <a href="unistd_c.html#238">UnistdPause</a>,         "int pause(void);" },</a>
+<a name="457">/*    { UnistdPipe,          "int pipe(int [2]);" }, */</a>
+<a name="458">/*    { UnistdPread,         "ssize_t pread(int, void *, size_t, off_t);" }, */</a>
+<a name="459">/*    { UnistdPthread_atfork,"int pthread_atfork(void (*)(void), void (*)(void), void(*)(void));" }, */</a>
+<a name="460">/*    { UnistdPwrite,        "ssize_t pwrite(int, void *, size_t, off_t);" }, */</a>
+<a name="461">    { <a href="unistd_c.html#255">UnistdRead</a>,          "ssize_t read(int, void *, size_t);" },</a>
+<a name="462">    { <a href="unistd_c.html#260">UnistdReadlink</a>,      "int readlink(char *, char *, size_t);" },</a>
+<a name="463">    { <a href="unistd_c.html#265">UnistdRmdir</a>,         "int rmdir(char *);" },</a>
+<a name="464">    { <a href="unistd_c.html#270">UnistdSbrk</a>,          "void *sbrk(intptr_t);" },</a>
+<a name="465">    { <a href="unistd_c.html#275">UnistdSetgid</a>,        "int setgid(gid_t);" },</a>
+<a name="466">    { <a href="unistd_c.html#280">UnistdSetpgid</a>,       "int setpgid(pid_t, pid_t);" },</a>
+<a name="467">    { <a href="unistd_c.html#285">UnistdSetpgrp</a>,       "pid_t setpgrp(void);" },</a>
+<a name="468">    { <a href="unistd_c.html#290">UnistdSetregid</a>,      "int setregid(gid_t, gid_t);" },</a>
+<a name="469">    { <a href="unistd_c.html#295">UnistdSetreuid</a>,      "int setreuid(uid_t, uid_t);" },</a>
+<a name="470">    { <a href="unistd_c.html#300">UnistdSetsid</a>,        "pid_t setsid(void);" },</a>
+<a name="471">    { <a href="unistd_c.html#305">UnistdSetuid</a>,        "int setuid(uid_t);" },</a>
+<a name="472">    { <a href="unistd_c.html#310">UnistdSleep</a>,         "unsigned int sleep(unsigned int);" },</a>
+<a name="473">/*    { UnistdSwab,          "void swab(void *, void *, ssize_t);" }, */</a>
+<a name="474">    { <a href="unistd_c.html#322">UnistdSymlink</a>,       "int symlink(char *, char *);" },</a>
+<a name="475">    { <a href="unistd_c.html#327">UnistdSync</a>,          "void sync(void);" },</a>
+<a name="476">    { <a href="unistd_c.html#332">UnistdSysconf</a>,       "long sysconf(int);" },</a>
+<a name="477">    { <a href="unistd_c.html#337">UnistdTcgetpgrp</a>,     "pid_t tcgetpgrp(int);" },</a>
+<a name="478">    { <a href="unistd_c.html#342">UnistdTcsetpgrp</a>,     "int tcsetpgrp(int, pid_t);" },</a>
+<a name="479">    { <a href="unistd_c.html#347">UnistdTruncate</a>,      "int truncate(char *, off_t);" },</a>
+<a name="480">    { <a href="unistd_c.html#352">UnistdTtyname</a>,       "char *ttyname(int);" },</a>
+<a name="481">    { <a href="unistd_c.html#357">UnistdTtyname_r</a>,     "int ttyname_r(int, char *, size_t);" },</a>
+<a name="482">    { <a href="unistd_c.html#362">UnistdUalarm</a>,        "useconds_t ualarm(useconds_t, useconds_t);" },</a>
+<a name="483">    { <a href="unistd_c.html#367">UnistdUnlink</a>,        "int unlink(char *);" },</a>
+<a name="484">    { <a href="unistd_c.html#372">UnistdUsleep</a>,        "int usleep(useconds_t);" },</a>
+<a name="485">    { <a href="unistd_c.html#377">UnistdVfork</a>,         "pid_t vfork(void);" },</a>
+<a name="486">    { <a href="unistd_c.html#382">UnistdWrite</a>,         "ssize_t write(int, void *, size_t);" },</a>
+<a name="487">    { NULL,                 NULL }</a>
+<a name="488">};</a>
+<a name="489"></a>
+<a name="490">/* creates various system-dependent definitions */</a>
+<a name="491">void <a href="unistd_c.html#491">UnistdSetupFunc</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="492">{</a>
+<a name="493">    /* define NULL */</a>
+<a name="494">    if (!<a href="variable_c.html#346">VariableDefined</a>(<a href="unistd_c.html#491">pc</a>, <a href="table_c.html#166">TableStrRegister</a>(<a href="unistd_c.html#491">pc</a>, "NULL")))</a>
+<a name="495">        <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="unistd_c.html#491">pc</a>, NULL, "NULL", &<a href="unistd_c.html#491">pc</a>-&gtIntType, (union AnyValue *)&<a href="unistd_c.html#10">ZeroValue</a>, FALSE);</a>
+<a name="496"></a>
+<a name="497">    /* define optarg and friends */</a>
+<a name="498">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="unistd_c.html#491">pc</a>, NULL, "optarg", <a href="unistd_c.html#491">pc</a>-&gtCharPtrType, (union AnyValue *)&optarg, TRUE);</a>
+<a name="499">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="unistd_c.html#491">pc</a>, NULL, "optind", &<a href="unistd_c.html#491">pc</a>-&gtIntType, (union AnyValue *)&optind, TRUE);</a>
+<a name="500">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="unistd_c.html#491">pc</a>, NULL, "opterr", &<a href="unistd_c.html#491">pc</a>-&gtIntType, (union AnyValue *)&opterr, TRUE);</a>
+<a name="501">    <a href="variable_c.html#375">VariableDefinePlatformVar</a>(<a href="unistd_c.html#491">pc</a>, NULL, "optopt", &<a href="unistd_c.html#491">pc</a>-&gtIntType, (union AnyValue *)&optopt, TRUE);</a>
+<a name="502">}</a>
+<a name="503"></a>
+<a name="504">#endif /* !BUILTIN_MINI_STDLIB */</a>
+</pre></body></html>

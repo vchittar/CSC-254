@@ -1,0 +1,105 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/></head>
+<body><pre><a name="1"><font color="gray">/*<searched> picoc include system - can emulate system includes from built-in libraries</a>
+<a name="2"> * or it can include and parse files if the system has files */</font></a>
+<a name="3"> </a>
+<a name="4">#include "picoc.h"</a>
+<a name="5">#include "interpreter.h"</a>
+<a name="6"></a>
+<a name="7">#ifndef NO_HASH_INCLUDE</a>
+<a name="8"></a>
+<a name="9"></a>
+<a name="10"><font color="gray">/*<searched> initialise the built-in include libraries */</font></a>
+<a name="11"><font color="red">void</font> <a name="searched">IncludeInit</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="12">{</a>
+<a name="13">#ifndef BUILTIN_MINI_STDLIB</a>
+<a name="14">    <a href="include_c.html#47">IncludeRegister</a>(pc, "ctype.h", NULL, &<a href="interpreter_h.html#644">StdCtypeFunctions</a>[0], NULL);</a>
+<a name="15">    <a href="include_c.html#47">IncludeRegister</a>(pc, "errno.h", &<a href="errno_c.html#329">StdErrnoSetupFunc</a>, NULL, NULL);</a>
+<a name="16"># ifndef NO_FP</a>
+<a name="17">    <a href="include_c.html#47">IncludeRegister</a>(pc, "math.h", &<a href="math_c.html#169">MathSetupFunc</a>, &<a href="interpreter_h.html#624">MathFunctions</a>[0], NULL);</a>
+<a name="18"># endif</a>
+<a name="19">    <a href="include_c.html#47">IncludeRegister</a>(pc, "stdbool.h", &<a href="stdbool_c.html#14">StdboolSetupFunc</a>, NULL, <a href="interpreter_h.html#647">StdboolDefs</a>);</a>
+<a name="20">    <a href="include_c.html#47">IncludeRegister</a>(pc, "stdio.h", &<a href="stdio_c.html#681">StdioSetupFunc</a>, &<a href="interpreter_h.html#620">StdioFunctions</a>[0], <a href="interpreter_h.html#619">StdioDefs</a>);</a>
+<a name="21">    <a href="include_c.html#47">IncludeRegister</a>(pc, "stdlib.h", &<a href="stdlib_c.html#167">StdlibSetupFunc</a>, &<a href="interpreter_h.html#632">StdlibFunctions</a>[0], NULL);</a>
+<a name="22">    <a href="include_c.html#47">IncludeRegister</a>(pc, "string.h", &<a href="string_c.html#179">StringSetupFunc</a>, &<a href="interpreter_h.html#628">StringFunctions</a>[0], NULL);</a>
+<a name="23">    <a href="include_c.html#47">IncludeRegister</a>(pc, "time.h", &<a href="time_c.html#113">StdTimeSetupFunc</a>, &<a href="interpreter_h.html#637">StdTimeFunctions</a>[0], <a href="interpreter_h.html#636">StdTimeDefs</a>);</a>
+<a name="24"># ifndef WIN32</a>
+<a name="25">    <a href="include_c.html#47">IncludeRegister</a>(pc, "unistd.h", &<a href="unistd_c.html#491">UnistdSetupFunc</a>, &<a href="interpreter_h.html#652">UnistdFunctions</a>[0], <a href="interpreter_h.html#651">UnistdDefs</a>);</a>
+<a name="26"># endif</a>
+<a name="27">#endif</a>
+<a name="28">}</a>
+<a name="29"></a>
+<a name="30"><font color="gray">/*<searched> clean up space used by the include system */</font></a>
+<a name="31"><font color="red">void</font> <a name="searched">IncludeCleanup</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="32">{</a>
+<a name="33">    <font color="brown">struct</font> IncludeLibrary *<a name="searched">ThisInclude</a> = <a href="include_c.html#31">pc</a>-&gtIncludeLibList;</a>
+<a name="34">    <font color="brown">struct</font> IncludeLibrary *<a name="searched">NextInclude</a>;</a>
+<a name="35">    </a>
+<a name="36">    <font color="green">while</font> (ThisInclude != NULL)</a>
+<a name="37">    {</a>
+<a name="38">        <a href="include_c.html#34">NextInclude</a> = <a href="include_c.html#33">ThisInclude</a>-&gtNextLib;</a>
+<a name="39">        <a href="heap_c.html#226">HeapFreeMem</a>(pc, <a href="include_c.html#33">ThisInclude</a>);</a>
+<a name="40">        <a href="include_c.html#33">ThisInclude</a> = <a href="include_c.html#34">NextInclude</a>;</a>
+<a name="41">    }</a>
+<a name="42"></a>
+<a name="43">    <a href="include_c.html#31">pc</a>-&gtIncludeLibList = NULL;</a>
+<a name="44">}</a>
+<a name="45"></a>
+<a name="46"><font color="gray">/*<searched> register a new build-in include file */</font></a>
+<a name="47"><font color="red">void</font> <a name="searched">IncludeRegister</a>(Picoc *<a name="searched">pc</a>, const <font color="red">char</font> *<a name="searched">IncludeName</a>, <font color="red">void</font> (*<a name="searched">SetupFunction</a>)(Picoc *<a name="searched">pc</a>), <font color="brown">struct</font> LibraryFunction *<a name="searched">FuncList</a>, const <font color="red">char</font> *<a name="searched">SetupCSource</a>)</a>
+<a name="48">{</a>
+<a name="49">    <font color="brown">struct</font> IncludeLibrary *<a name="searched">NewLib</a> = <a href="heap_c.html#135">HeapAllocMem</a>(pc, sizeof(<font color="brown">struct</font> IncludeLibrary));</a>
+<a name="50">    <a href="include_c.html#49">NewLib</a>-&gtIncludeName = <a href="table_c.html#166">TableStrRegister</a>(pc, <a href="include_c.html#47">IncludeName</a>);</a>
+<a name="51">    <a href="include_c.html#49">NewLib</a>-&gtSetupFunction = <a href="include_c.html#47">SetupFunction</a>;</a>
+<a name="52">    <a href="include_c.html#49">NewLib</a>-&gtFuncList = <a href="include_c.html#47">FuncList</a>;</a>
+<a name="53">    <a href="include_c.html#49">NewLib</a>-&gtSetupCSource = <a href="include_c.html#47">SetupCSource</a>;</a>
+<a name="54">    <a href="include_c.html#49">NewLib</a>-&gtNextLib = <a href="include_c.html#47">pc</a>-&gtIncludeLibList;</a>
+<a name="55">    <a href="include_c.html#47">pc</a>-&gtIncludeLibList = <a href="include_c.html#49">NewLib</a>;</a>
+<a name="56">}</a>
+<a name="57"></a>
+<a name="58"><font color="gray">/*<searched> include all of the system headers */</font></a>
+<a name="59"><font color="red">void</font> <a name="searched">PicocIncludeAllSystemHeaders</a>(Picoc *<a name="searched">pc</a>)</a>
+<a name="60">{</a>
+<a name="61">    <font color="brown">struct</font> IncludeLibrary *<a name="searched">ThisInclude</a> = <a href="include_c.html#59">pc</a>-&gtIncludeLibList;</a>
+<a name="62">    </a>
+<a name="63">    <font color="green">for</font> (; <a href="include_c.html#61">ThisInclude</a> != NULL; <a href="include_c.html#61">ThisInclude</a> = <a href="include_c.html#61">ThisInclude</a>-&gtNextLib)</a>
+<a name="64">        <a href="include_c.html#68">IncludeFile</a>(pc, <a href="include_c.html#61">ThisInclude</a>-&gtIncludeName);</a>
+<a name="65">}</a>
+<a name="66"></a>
+<a name="67"><font color="gray">/*<searched> include one of a number of predefined libraries, or perhaps an actual file */</font></a>
+<a name="68"><font color="red">void</font> <a name="searched">IncludeFile</a>(Picoc *<a name="searched">pc</a>, <font color="red">char</font> *<a name="searched">FileName</a>)</a>
+<a name="69">{</a>
+<a name="70">    <font color="brown">struct</font> IncludeLibrary *<a name="searched">LInclude</a>;</a>
+<a name="71">    </a>
+<a name="72">    <font color="gray">/*<searched> scan for the include file name to see if it's in our list of predefined includes */</font></a>
+<a name="73">    <font color="green">for</font> (LInclude = <a href="include_c.html#68">pc</a>-&gtIncludeLibList; <a href="include_c.html#70">LInclude</a> != NULL; <a href="include_c.html#70">LInclude</a> = <a href="include_c.html#70">LInclude</a>-&gtNextLib)</a>
+<a name="74">    {</a>
+<a name="75">        <font color="green">if</font> (strcmp(LInclude-&gtIncludeName, <a href="include_c.html#68">FileName</a>) == 0)</a>
+<a name="76">        {</a>
+<a name="77">            <font color="gray">/*<searched> found it - protect against multiple inclusion */</font></a>
+<a name="78">            <font color="green">if</font> (!<a href="variable_c.html#346">VariableDefined</a>(pc, <a href="include_c.html#68">FileName</a>))</a>
+<a name="79">            {</a>
+<a name="80">                <a href="variable_c.html#259">VariableDefine</a>(pc, NULL, <a href="include_c.html#68">FileName</a>, NULL, &<a href="include_c.html#68">pc</a>-&gtVoidType, FALSE);</a>
+<a name="81">                </a>
+<a name="82">                <font color="gray">/*<searched> run an extra startup function if there is one */</font></a>
+<a name="83">                <font color="green">if</font> (LInclude-&gtSetupFunction != NULL)</a>
+<a name="84">                    (*LInclude-&gtSetupFunction)(pc);</a>
+<a name="85">                </a>
+<a name="86">                <font color="gray">/*<searched> parse the setup C source code - may define types etc. */</font></a>
+<a name="87">                <font color="green">if</font> (LInclude-&gtSetupCSource != NULL)</a>
+<a name="88">                    <a href="parse_c.html#936">PicocParse</a>(pc, <a href="include_c.html#68">FileName</a>, <a href="include_c.html#70">LInclude</a>-&gtSetupCSource, strlen(LInclude-&gtSetupCSource), TRUE, TRUE, FALSE, FALSE);</a>
+<a name="89">                </a>
+<a name="90">                <font color="gray">/*<searched> set up the library functions */</font></a>
+<a name="91">                <font color="green">if</font> (LInclude-&gtFuncList != NULL)</a>
+<a name="92">                    <a href="clibrary_c.html#31">LibraryAdd</a>(pc, &<a href="include_c.html#68">pc</a>-&gtGlobalTable, <a href="include_c.html#68">FileName</a>, <a href="include_c.html#70">LInclude</a>-&gtFuncList);</a>
+<a name="93">            }</a>
+<a name="94">            </a>
+<a name="95">            <font color="green">return</font>;</a>
+<a name="96">        }</a>
+<a name="97">    }</a>
+<a name="98">    </a>
+<a name="99">    <font color="gray">/*<searched> not a predefined file, read a real file */</font></a>
+<a name="100">    <a href="platform_unix_c.html#120">PicocPlatformScanFile</a>(pc, <a href="include_c.html#68">FileName</a>);</a>
+<a name="101">}</a>
+<a name="102"></a>
+<a name="103">#endif <font color="gray">/*<searched> NO_HASH_INCLUDE */</font></a>
+</pre></body></html>
